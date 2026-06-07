@@ -1,0 +1,392 @@
+// =============================================================================
+// Human Signal Index — Prisma schema
+// Mirrors the SQL migrations (0001..0004). The Postgres CHECK constraints and
+// RLS policies are enforced in SQL; Prisma enums below document the allowed
+// value sets and keep TypeScript in sync. Run migrations via Supabase SQL, then
+// `prisma db pull`/`prisma generate` to refresh the client.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums (documentation + type-safety; backed by CHECK constraints in SQL)
+// -----------------------------------------------------------------------------
+enum SourceType {
+  website
+  social_page
+  video
+  podcast
+  forum
+  uploaded_file
+  manual_entry
+}
+
+enum SourceStatus {
+  active
+  paused
+  archived
+  unavailable
+}
+
+enum SignalStatus {
+  draft
+  review
+  approved
+  published
+  rejected
+  archived
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+  needs_more_evidence
+  escalated
+}
+
+enum SeverityLevel {
+  info
+  low
+  medium
+  high
+  critical
+}
+
+// -----------------------------------------------------------------------------
+// Core identity / RBAC
+// -----------------------------------------------------------------------------
+model users {
+  id         String       @id @default(uuid())
+  email      String       @unique
+  name       String?
+  created_at DateTime     @default(now())
+  updated_at DateTime     @default(now())
+  roles      user_roles[]
+  reviews    reviews[]
+  comments   comments[]
+  audit_logs audit_logs[]
+}
+
+model roles {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  userRoles   user_roles[]
+}
+
+model user_roles {
+  id      String @id @default(uuid())
+  user    users  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id String
+  role    roles  @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  role_id String
+
+  @@index([user_id])
+  @@index([role_id])
+}
+
+// -----------------------------------------------------------------------------
+// Sources & signals
+// -----------------------------------------------------------------------------
+model sources {
+  id              String           @id @default(uuid())
+  source_name     String
+  source_type     SourceType
+  public_url      String?
+  platform        String?
+  status          SourceStatus     @default(active)
+  tags            String[]         @default([])
+  risk_baseline   Int              @default(1)
+  last_checked_at DateTime?
+  added_by        String?
+  notes           String?
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @default(now())
+  signals         signals[]
+  uploads         uploaded_files[]
+  source_changes  source_changes[]
+
+  @@index([status])
+}
+
+model signals {
+  id                String              @id @default(uuid())
+  source_id         String
+  title             String
+  summary           String?
+  signal_type       String
+  status            SignalStatus        @default(draft)
+  category          String[]            @default([])
+  risk_score        Int                 @default(1)
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @default(now())
+  source            sources             @relation(fields: [source_id], references: [id], onDelete: Cascade)
+  evidence_items    evidence_items[]
+  transcripts       transcripts[]
+  classifications   classifications[]
+  risk_scores       risk_scores[]
+  reviews           reviews[]
+  alerts            alerts[]
+  ai_runs           ai_runs[]
+  generated_content generated_content[]
+  public_reports    public_reports[]
+  uploads           uploaded_files[]
+  comments          comments[]
+
+  @@index([source_id])
+  @@index([status])
+  @@index([risk_score])
+}
+
+// -----------------------------------------------------------------------------
+// Evidence & analysis
+// -----------------------------------------------------------------------------
+model evidence_items {
+  id               String   @id @default(uuid())
+  signal_id        String
+  kind             String
+  content          String
+  metadata         Json?
+  hash_digest      String   @unique // chain-of-custody integrity
+  captured_at      DateTime @default(now())
+  chain_of_custody String?
+  reviewer_notes   String?
+  updated_at       DateTime @default(now())
+  signal           signals  @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@index([signal_id])
+}
+
+model captures {
+  id          String   @id @default(uuid())
+  source_id   String
+  payload     Json
+  captured_at DateTime @default(now())
+
+  @@index([source_id])
+}
+
+model transcripts {
+  id         String   @id @default(uuid())
+  signal_id  String
+  transcript String
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  signal     signals  @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@index([signal_id])
+}
+
+model classifications {
+  id         String   @id @default(uuid())
+  signal_id  String
+  category   String
+  score      Float
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  signal     signals  @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@index([signal_id])
+  @@index([category])
+}
+
+model category_taxonomy {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  description String?
+  updated_at  DateTime @default(now())
+}
+
+model risk_scores {
+  id                 String       @id @default(uuid())
+  signal_id          String
+  risk_level         Int
+  quote              String
+  explanation        String
+  confidence         Float
+  reviewer_status    ReviewStatus @default(pending)
+  recommended_action String
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @default(now())
+  signal             signals      @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@index([signal_id])
+  @@index([risk_level])
+  @@index([reviewer_status])
+}
+
+model reviews {
+  id         String       @id @default(uuid())
+  signal_id  String
+  user_id    String
+  status     ReviewStatus
+  notes      String?
+  created_at DateTime     @default(now())
+  updated_at DateTime     @default(now())
+  signal     signals      @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+  user       users        @relation(fields: [user_id], references: [id])
+
+  @@index([signal_id])
+  @@index([user_id])
+}
+
+// -----------------------------------------------------------------------------
+// Alerts & telemetry
+// -----------------------------------------------------------------------------
+model alerts {
+  id          String        @id @default(uuid())
+  signal_id   String?
+  title       String // carries the alert_type (see AlertType in shared-types)
+  level       SeverityLevel
+  description String
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @default(now())
+  signal      signals?      @relation(fields: [signal_id], references: [id])
+
+  @@index([signal_id])
+  @@index([level])
+}
+
+model security_events {
+  id         String        @id @default(uuid())
+  event_type String
+  details    String?
+  level      SeverityLevel
+  created_at DateTime      @default(now())
+
+  @@index([level])
+  @@index([created_at])
+}
+
+// -----------------------------------------------------------------------------
+// AI provenance
+// -----------------------------------------------------------------------------
+model ai_runs {
+  id         String              @id @default(uuid())
+  signal_id  String?
+  provider   String
+  prompt     String
+  response   String
+  provenance Json?
+  created_at DateTime            @default(now())
+  signal     signals?            @relation(fields: [signal_id], references: [id])
+  passages   ai_trace_passages[]
+
+  @@index([signal_id])
+}
+
+model ai_trace_passages {
+  id             String  @id @default(uuid())
+  ai_run_id      String
+  source_text    String
+  generated_text String
+  confidence     Float
+  ai_run         ai_runs @relation(fields: [ai_run_id], references: [id], onDelete: Cascade)
+
+  @@index([ai_run_id])
+}
+
+model generated_content {
+  id           String   @id @default(uuid())
+  signal_id    String
+  content      String
+  content_type String
+  provenance   Json?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @default(now())
+  signal       signals  @relation(fields: [signal_id], references: [id])
+
+  @@index([signal_id])
+}
+
+// -----------------------------------------------------------------------------
+// Publication surface
+// -----------------------------------------------------------------------------
+model public_reports {
+  id              String       @id @default(uuid())
+  signal_id       String
+  title           String
+  summary         String
+  citations       Json
+  published       Boolean      @default(false)
+  reviewer_status ReviewStatus @default(pending)
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @default(now())
+  signal          signals      @relation(fields: [signal_id], references: [id])
+
+  @@index([signal_id])
+  @@index([published, reviewer_status])
+}
+
+// -----------------------------------------------------------------------------
+// Audit, sources monitoring, uploads, collaboration
+// -----------------------------------------------------------------------------
+model audit_logs {
+  id         String   @id @default(uuid())
+  user_id    String?
+  action     String
+  metadata   Json?
+  created_at DateTime @default(now())
+  user       users?   @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([created_at])
+}
+
+model source_changes {
+  id          String   @id @default(uuid())
+  source_id   String
+  change_type String
+  details     Json?
+  created_at  DateTime @default(now())
+  source      sources  @relation(fields: [source_id], references: [id])
+
+  @@index([source_id])
+}
+
+model uploaded_files {
+  id         String   @id @default(uuid())
+  source_id  String?
+  signal_id  String?
+  file_name  String
+  file_type  String
+  file_url   String
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  source     sources? @relation(fields: [source_id], references: [id])
+  signal     signals? @relation(fields: [signal_id], references: [id])
+
+  @@index([source_id])
+  @@index([signal_id])
+}
+
+model comments {
+  id         String   @id @default(uuid())
+  signal_id  String?
+  user_id    String?
+  body       String
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  signal     signals? @relation(fields: [signal_id], references: [id])
+  user       users?   @relation(fields: [user_id], references: [id])
+
+  @@index([signal_id])
+  @@index([user_id])
+}
+
+model tags {
+  id          String   @id @default(uuid())
+  label       String   @unique
+  description String?
+  updated_at  DateTime @default(now())
+}

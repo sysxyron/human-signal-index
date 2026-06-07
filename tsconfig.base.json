@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@hsi/ui": ["packages/ui/src"],
+      "@hsi/shared-types": ["packages/shared-types/src"],
+      "@hsi/config": ["packages/config/src"],
+      "@hsi/database": ["packages/database/src"],
+      "@hsi/ai-prompts": ["packages/ai-prompts/src"],
+      "@hsi/classifiers": ["packages/classifiers/src"],
+      "@hsi/traceability": ["packages/traceability/src"],
+      "@hsi/source-connectors": ["packages/source-connectors/src"],
+      "@hsi/security": ["packages/security/src"],
+      "@hsi/simulation-engine": ["packages/simulation-engine/src"],
+      "@hsi/world-models": ["packages/world-models/src"],
+      "@hsi/counterfactuals": ["packages/counterfactuals/src"],
+      "@hsi/timeline-engine": ["packages/timeline-engine/src"],
+      "@hsi/research-agents": ["packages/research-agents/src"]
+    }
+  },
+  "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]
+}

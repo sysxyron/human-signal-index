@@ -1,0 +1,15 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hsi_admin
+      POSTGRES_PASSWORD: hsi_local_pass
+      POSTGRES_DB: hsi_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+volumes:
+  postgres_data:

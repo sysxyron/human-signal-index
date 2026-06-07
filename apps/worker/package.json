@@ -1,0 +1,32 @@
+{
+  "name": "@hsi/worker",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "tsx watch --respawn src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hsi/database": "workspace:*",
+    "@hsi/config": "workspace:*",
+    "@hsi/source-connectors": "workspace:*",
+    "@hsi/traceability": "workspace:*",
+    "@hsi/classifiers": "workspace:*",
+    "@hsi/ai-prompts": "workspace:*",
+    "@hsi/security": "workspace:*",
+    "@supabase/supabase-js": "^2.0.0",
+    "dotenv": "^16.3.0",
+    "node-fetch": "^3.3.2"
+  },
+  "optionalDependencies": {
+    "openai": "^4.0.0",
+    "@anthropic-ai/sdk": "^0.27.0",
+    "playwright": "^1.45.0",
+    "@sentry/node": "^8.0.0"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.6.0"
+  }
+}

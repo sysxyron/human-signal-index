@@ -1,0 +1,11 @@
+{
+  "name": "@hsi/source-connectors",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "optionalDependencies": {
+    "rss-parser": "^3.13.0",
+    "playwright": "^1.45.0"
+  }
+}

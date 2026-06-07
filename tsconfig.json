@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "references": [
+    { "path": "./packages/ui" },
+    { "path": "./packages/shared-types" },
+    { "path": "./packages/config" },
+    { "path": "./packages/database" }
+  ]
+}

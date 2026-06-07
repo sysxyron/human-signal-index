@@ -1,0 +1,30 @@
+{
+  "name": "human-signal-index",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.5.1",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "format": "prettier --write .",
+    "db:push": "pnpm --filter @hsi/database db:push",
+    "seed": "pnpm --filter @hsi/database seed"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild-windows-64": "^0.15.18",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^14.2.0",
+    "eslint-config-prettier": "^9.0.0",
+    "husky": "^8.0.0",
+    "prettier": "^3.0.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.22.4",
+    "turbo": "^1.13.4",
+    "typescript": "^5.9.3"
+  }
+}

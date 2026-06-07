@@ -1,0 +1,56 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "module": "ESNext",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@hsi/ui": [
+        "../../packages/ui/src"
+      ],
+      "@hsi/config": [
+        "../../packages/config/src"
+      ],
+      "@hsi/shared-types": [
+        "../../packages/shared-types/src"
+      ],
+      "@hsi/database": [
+        "../../packages/database/src"
+      ],
+      "@hsi/world-models": [
+        "../../packages/world-models/src"
+      ],
+      "@hsi/simulation-engine": [
+        "../../packages/simulation-engine/src"
+      ],
+      "@hsi/timeline-engine": [
+        "../../packages/timeline-engine/src"
+      ],
+      "@hsi/counterfactuals": [
+        "../../packages/counterfactuals/src"
+      ],
+      "@hsi/research-agents": [
+        "../../packages/research-agents/src"
+      ]
+    },
+    "allowJs": true,
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

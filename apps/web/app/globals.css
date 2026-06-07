@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  color: #f8fafc;
+  background-color: #050714;
+
+  /* token variables (mirrors tailwind config) */
+  --background: #050714;
+  --background-deep: #02040a;
+  --surface: #0a0f1f;
+  --surface-2: #111a2e;
+  --surface-3: #162033;
+  --border: #1f2a44;
+  --border-soft: rgba(148, 163, 184, 0.16);
+  --primary-blue: #2563eb;
+  --electric-blue: #3b82f6;
+  --glow-blue: rgba(37, 99, 235, 0.35);
+  --risk-red: #ef4444;
+  --warning-orange: #f59e0b;
+  --verified-green: #10b981;
+  --accent-purple: #8b5cf6;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui, sans-serif;
+  background:
+    radial-gradient(900px 500px at 78% -8%, rgba(37, 99, 235, 0.14), transparent 60%),
+    radial-gradient(700px 480px at 8% 4%, rgba(139, 92, 246, 0.08), transparent 55%),
+    linear-gradient(180deg, #050714 0%, #02040a 100%);
+  background-attachment: fixed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.35);
+  color: #f8fafc;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure {
+  margin: 0;
+}
+
+/* slim scrollbar for command-center feel */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #1f2a44;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer utilities {
+  /* the Label type style is uppercase */
+  .text-label {
+    text-transform: uppercase;
+  }
+
+  .glass-card {
+    background-color: rgba(10, 15, 31, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .glow {
+    box-shadow: 0 18px 70px -20px rgba(37, 99, 235, 0.35);
+  }
+
+  .text-gradient {
+    background: linear-gradient(110deg, #f8fafc 0%, #93c5fd 55%, #c4b5fd 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(31, 42, 68, 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(31, 42, 68, 0.5) 1px, transparent 1px);
+    background-size: 48px 48px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 75%);
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 75%);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* WorldForge — range slider + React Flow dark overrides                       */
+/* -------------------------------------------------------------------------- */
+
+.wf-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+.wf-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 2px solid #2563eb;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.6);
+  cursor: pointer;
+}
+.wf-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 2px solid #2563eb;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.6);
+  cursor: pointer;
+}
+
+/* React Flow runs on light defaults; tint controls/edges for the dark UI. */
+.react-flow__controls.wf-flow-controls {
+  background: #0a0f1f;
+  border: 1px solid #1f2a44;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.react-flow__controls.wf-flow-controls button {
+  background: #0a0f1f;
+  border-bottom: 1px solid #1f2a44;
+  color: #94a3b8;
+  fill: #94a3b8;
+}
+.react-flow__controls.wf-flow-controls button:hover {
+  background: #162033;
+  color: #f8fafc;
+}
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__node {
+  cursor: pointer;
+}
+.react-flow__node.selected > div,
+.react-flow__node:focus > div {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@hsi/database",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/supabaseClient.ts",
+  "types": "src/supabaseClient.ts",
+  "dependencies": {
+    "@hsi/shared-types": "workspace:*",
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.0.0",
+    "@prisma/client": "^5.0.0",
+    "tsx": "^4.7.0"
+  },
+  "scripts": {
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "seed": "tsx ../../scripts/seed.ts"
+  }
+}
