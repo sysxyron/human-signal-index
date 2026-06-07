@@ -17,6 +17,7 @@ import {
   generateWorldFromBlueprint,
   type DbResult,
 } from '@/lib/worldforge/research-persistence';
+import { runEvidenceForRun } from '@/lib/worldforge/evidence-persistence';
 import type {
   ResearchRunRecord,
   ResearchRunBundle,
@@ -50,6 +51,16 @@ export async function createResearchRunAction(
 ): Promise<DbResult<{ runId: string }>> {
   const res = await createResearchRun(conceptText, title);
   if (res.ok) {
+    // Phase 4: auto-attach evidence + coverage to the freshly persisted run.
+    // Wrapped so an evidence failure (missing keys, network, RLS) NEVER fails
+    // run creation — the run already exists; evidence just stays 'none'. The
+    // DAL itself never throws, but we still guard defensively here. Keep the
+    // return shape unchanged ({ runId }).
+    try {
+      await runEvidenceForRun(res.data.runId);
+    } catch {
+      // Best-effort: evidence remains ungathered; the run is still valid.
+    }
     revalidatePath(RESEARCH_BASE);
   }
   return res;

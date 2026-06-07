@@ -648,3 +648,131 @@ export interface ResearchRunBundle {
   disputes: ResearchDisputeRecord[];
   citations: ResearchCitationRecord[];
 }
+
+// =============================================================================
+// Evidence (Phase 4 — Evidence & Citation Engine)
+// -----------------------------------------------------------------------------
+// TypeScript mirror of the evidence persistence tables (migration 0008). These
+// record types model the PERSISTED rows. The rich engine objects (EvidenceResult,
+// ClaimEvidence, EvidenceCoverage, ...) live in the '@hsi/evidence-engine' package;
+// here we mirror only the serializable, stored shapes so shared-types stays
+// decoupled from the engine internals (jsonb payloads typed as `unknown` /
+// `Record<string, unknown>` / `string[]`).
+// =============================================================================
+
+/** How a source relates to a claim. Mirrors claim_evidence_links.support_type. */
+export type EvidenceSupportType =
+  | 'supports'
+  | 'contradicts'
+  | 'background'
+  | 'unclear';
+
+/** Bibliographic class of an evidence source. Mirrors evidence_sources.publication_type. */
+export type EvidencePublicationType =
+  | 'peer-reviewed'
+  | 'preprint'
+  | 'review'
+  | 'encyclopedia'
+  | 'web'
+  | 'dataset'
+  | 'unknown';
+
+/** Coarse reliability bucket for a citation (engine's ReliabilityTier). */
+export type EvidenceReliabilityTier =
+  | 'high'
+  | 'medium'
+  | 'low'
+  | 'unsupported'
+  | 'invalid';
+
+/** Lifecycle status of a human evidence review. Mirrors evidence_reviews.status. */
+export type EvidenceReviewStatus =
+  | 'pending'
+  | 'validated'
+  | 'rejected'
+  | 'needs_more';
+
+/**
+ * How a run's evidence was gathered, surfaced on research_runs.evidence_status.
+ * 'none' until evidence has been gathered for the run.
+ */
+export type RunEvidenceStatus = 'none' | 'fixture' | 'live' | 'mixed';
+
+/** A shared, de-duplicated citation. Mirrors the `evidence_sources` table. */
+export interface EvidenceSourceRecord {
+  id: string;
+  source_type?: string;
+  title: string;
+  /** string[] of author names (jsonb). */
+  authors?: string[];
+  year?: number;
+  abstract?: string;
+  url?: string;
+  /** Normalized DOI (no scheme, lowercased). */
+  doi?: string;
+  arxiv_id?: string;
+  pubmed_id?: string;
+  semantic_scholar_id?: string;
+  /** Provider name ('arXiv','Crossref','fixture',...). */
+  source_name?: string;
+  publication_type?: EvidencePublicationType | string;
+  /** 0..1 reliability. */
+  reliability_score?: number;
+  is_fixture: boolean;
+  /** EvidenceResult.raw + extras (jsonb). */
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A per-run claim->source link. Mirrors the `claim_evidence_links` table. */
+export interface ClaimEvidenceLinkRecord {
+  id: string;
+  research_run_id: string;
+  agent_output_id?: string;
+  claim_id?: string;
+  evidence_source_id: string;
+  support_type?: EvidenceSupportType | string;
+  /** 0..1 relevance. */
+  relevance_score?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  rationale?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+/** A human review verdict on an evidence source. Mirrors the `evidence_reviews` table. */
+export interface EvidenceReviewRecord {
+  id: string;
+  evidence_source_id: string;
+  reviewed_by?: string;
+  status?: EvidenceReviewStatus | string;
+  notes?: string;
+  created_at: string;
+}
+
+/**
+ * Serializable aggregate coverage for a run — mirrors the engine's EvidenceCoverage
+ * and the jsonb stored in research_runs.evidence_coverage.
+ */
+export interface EvidenceCoverageSummary {
+  totalClaims: number;
+  supported: number;
+  contradicted: number;
+  background: number;
+  unsupported: number;
+  /** 0..100 — fraction of claims with supporting/contradicting evidence. */
+  coverageScore: number;
+  /** Count of results contributed per source name. */
+  bySource: Record<string, number>;
+  /** Whether the evidence came from fixtures, the network, or both. */
+  mode: 'fixture' | 'live' | 'mixed';
+}
+
+/** A run's full evidence load: its sources, links, and aggregate coverage. */
+export interface RunEvidenceBundle {
+  sources: EvidenceSourceRecord[];
+  links: ClaimEvidenceLinkRecord[];
+  coverage: EvidenceCoverageSummary;
+}

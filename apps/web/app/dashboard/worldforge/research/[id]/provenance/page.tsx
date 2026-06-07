@@ -9,8 +9,17 @@
 import { TopNav, Card } from '@hsi/ui';
 import { Route } from 'lucide-react';
 import { resolveRunView } from '../../_resolve';
+import { resolveEvidenceView } from '../evidence/_resolve-evidence';
+import {
+  groupLinksByClaim,
+  indexSources,
+  indexReviewStatus,
+} from '@/lib/worldforge/evidence-view';
 import { ResearchTabs } from '@/components/worldforge/research/ResearchTabs';
-import { ProvenanceExplorer } from '@/components/worldforge/research/ProvenanceExplorer';
+import {
+  ProvenanceExplorer,
+  type ProvenanceEvidenceOverlay,
+} from '@/components/worldforge/research/ProvenanceExplorer';
 import { RunErrorState } from '@/components/worldforge/research/RunErrorState';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +32,12 @@ export default async function ResearchProvenancePage({
   params: { id: string };
   searchParams: { demo?: string };
 }) {
-  const resolved = await resolveRunView(params.id, searchParams);
+  // Load the run and (best-effort) its evidence in parallel. The provenance UX
+  // stays intact even if evidence fails to load — we just omit the overlay.
+  const [resolved, resolvedEvidence] = await Promise.all([
+    resolveRunView(params.id, searchParams),
+    resolveEvidenceView(params.id, searchParams),
+  ]);
 
   if (resolved.kind === 'error') {
     return (
@@ -36,6 +50,18 @@ export default async function ResearchProvenancePage({
 
   const view = resolved.view;
   const totalClaims = view.agents.reduce((n, a) => n + a.claims.length, 0);
+
+  // Build the optional evidence overlay (Claim → source(s) → support → reviewer).
+  const evidenceOverlay: ProvenanceEvidenceOverlay | undefined =
+    resolvedEvidence.kind === 'ok'
+      ? {
+          evidenceByClaim: groupLinksByClaim(resolvedEvidence.bundle.links),
+          sourcesById: indexSources(resolvedEvidence.bundle.sources),
+          // The canonical RunEvidenceBundle does not carry reviews; sources show
+          // as 'unreviewed' until a separate reviews feed is wired in.
+          reviewBySource: indexReviewStatus(undefined),
+        }
+      : undefined;
 
   return (
     <>
@@ -59,7 +85,7 @@ export default async function ResearchProvenancePage({
           </div>
         </Card>
 
-        <ProvenanceExplorer agents={view.agents} />
+        <ProvenanceExplorer agents={view.agents} evidence={evidenceOverlay} />
       </main>
     </>
   );

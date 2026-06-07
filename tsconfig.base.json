@@ -26,7 +26,8 @@
       "@hsi/world-models": ["packages/world-models/src"],
       "@hsi/counterfactuals": ["packages/counterfactuals/src"],
       "@hsi/timeline-engine": ["packages/timeline-engine/src"],
-      "@hsi/research-agents": ["packages/research-agents/src"]
+      "@hsi/research-agents": ["packages/research-agents/src"],
+      "@hsi/evidence-engine": ["packages/evidence-engine/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

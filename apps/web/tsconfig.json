@@ -34,6 +34,9 @@
       ],
       "@hsi/research-agents": [
         "../../packages/research-agents/src"
+      ],
+      "@hsi/evidence-engine": [
+        "../../packages/evidence-engine/src"
       ]
     },
     "allowJs": true,

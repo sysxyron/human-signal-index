@@ -11,11 +11,37 @@ import {
   provenanceSourceStyle,
   type FlatClaim,
 } from '@/lib/worldforge/research-view';
+import {
+  coverageStyle,
+  fmtPct01,
+  reviewStatusStyle,
+  REVIEW_STATUS_ICON,
+  type ClaimEvidenceGroup,
+  type UiReviewStatus,
+  type EvidenceSourceRecord,
+} from '@/lib/worldforge/evidence-view';
 import { ScientificConfidenceChip } from '@/components/worldforge/ScientificConfidenceChip';
 import { ProvenanceSourceChip } from './ProvenanceSourceChip';
+import { SupportTypeBadge } from './SupportTypeBadge';
+
+/**
+ * Optional Phase-4 evidence overlay for the provenance explorer. When present,
+ * each claim row is extended with the full chain: Claim → Agent → Provenance
+ * type → Scientific tier → Evidence source(s) + support badge → Reviewer status.
+ */
+export interface ProvenanceEvidenceOverlay {
+  /** claim_id → grouped evidence links (best-first) + coverage verdict. */
+  evidenceByClaim: Map<string, ClaimEvidenceGroup>;
+  /** evidence_source_id → source record (for titles). */
+  sourcesById: Map<string, EvidenceSourceRecord>;
+  /** evidence_source_id → reviewer status (defaults to 'unreviewed'). */
+  reviewBySource: Map<string, UiReviewStatus>;
+}
 
 export interface ProvenanceExplorerProps {
   agents: AgentOutput[];
+  /** When provided, claim rows gain evidence + reviewer columns (Phase 4). */
+  evidence?: ProvenanceEvidenceOverlay;
 }
 
 /**
@@ -23,7 +49,10 @@ export interface ProvenanceExplorerProps {
  * ProvenanceSource. Filter by source; each row shows tier + confidence + the
  * originating agent + dependsOn links — mirroring the HSI provenance style.
  */
-export function ProvenanceExplorer({ agents }: ProvenanceExplorerProps) {
+export function ProvenanceExplorer({
+  agents,
+  evidence,
+}: ProvenanceExplorerProps) {
   const claims = useMemo(() => flattenClaims(agents), [agents]);
   const [active, setActive] = useState<string | 'all'>('all');
 
@@ -104,13 +133,13 @@ export function ProvenanceExplorer({ agents }: ProvenanceExplorerProps) {
                     {group.length} claims · {s.description}
                   </span>
                 </div>
-                <ClaimRows claims={group} resolve={resolve} />
+                <ClaimRows claims={group} resolve={resolve} evidence={evidence} />
               </section>
             );
           })}
         </div>
       ) : (
-        <ClaimRows claims={filtered} resolve={resolve} />
+        <ClaimRows claims={filtered} resolve={resolve} evidence={evidence} />
       )}
     </div>
   );
@@ -150,9 +179,11 @@ function FilterPill({
 function ClaimRows({
   claims,
   resolve,
+  evidence,
 }: {
   claims: FlatClaim[];
   resolve: (id: string) => string;
+  evidence?: ProvenanceEvidenceOverlay;
 }) {
   if (!claims.length) {
     return (
@@ -210,9 +241,92 @@ function ClaimRows({
                 </span>
               )}
             </div>
+            {evidence ? (
+              <ClaimEvidenceRow claimId={c.claimId} evidence={evidence} />
+            ) : null}
           </li>
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * The Phase-4 tail of the provenance chain for one claim:
+ * Evidence source(s) + support badge → coverage verdict → reviewer status.
+ * Honest: a claim with no evidence link is shown as Unsupported, not hidden.
+ */
+function ClaimEvidenceRow({
+  claimId,
+  evidence,
+}: {
+  claimId: string;
+  evidence: ProvenanceEvidenceOverlay;
+}) {
+  const group = evidence.evidenceByClaim.get(claimId);
+  const coverage = group?.coverage ?? 'unsupported';
+  const cs = coverageStyle(coverage);
+  const links = group?.links ?? [];
+
+  return (
+    <div className="mt-2 border-t border-border/60 pt-2">
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+          Evidence
+        </span>
+        <span
+          className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+          style={{ backgroundColor: cs.soft, color: cs.color, border: `1px solid ${cs.border}` }}
+        >
+          {cs.label}
+        </span>
+      </div>
+      {links.length === 0 ? (
+        <p className="text-[11px] font-medium" style={{ color: cs.color }}>
+          No evidence source — this claim is unsupported.
+        </p>
+      ) : (
+        <ul className="space-y-1">
+          {links.map((link) => {
+            const src = evidence.sourcesById.get(link.evidence_source_id);
+            const reviewStatus =
+              evidence.reviewBySource.get(link.evidence_source_id) ?? 'unreviewed';
+            const rs = reviewStatusStyle(reviewStatus);
+            const RIcon = REVIEW_STATUS_ICON[reviewStatus] ?? REVIEW_STATUS_ICON.unreviewed;
+            return (
+              <li
+                key={link.id}
+                className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]"
+              >
+                <SupportTypeBadge support={link.support_type ?? 'unclear'} compact />
+                <span className="text-text-secondary">
+                  {src ? src.title : link.evidence_source_id}
+                  {src?.year ? ` (${src.year})` : ''}
+                </span>
+                {src?.is_fixture ? (
+                  <span
+                    className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                    style={{ backgroundColor: 'rgba(245,158,11,0.14)', color: '#F59E0B' }}
+                  >
+                    Demo
+                  </span>
+                ) : null}
+                {typeof link.relevance_score === 'number' ? (
+                  <span className="text-text-muted">rel {fmtPct01(link.relevance_score)}</span>
+                ) : null}
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                  style={{ backgroundColor: rs.soft, color: rs.color, border: `1px solid ${rs.border}` }}
+                  title={`Reviewer status: ${rs.label}`}
+                >
+                  <RIcon className="h-2.5 w-2.5" />
+                  {rs.label}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

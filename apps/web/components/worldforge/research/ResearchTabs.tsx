@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Scale, Route } from 'lucide-react';
+import { LayoutDashboard, Users, Scale, Route, FileStack } from 'lucide-react';
 
 export interface ResearchTabsProps {
   /** Run id (or 'demo-chronid'). */
@@ -21,6 +21,12 @@ export function ResearchTabs({ runId, demoQuery = false }: ResearchTabsProps) {
     { href: base, label: 'Overview', icon: LayoutDashboard, exact: true },
     { href: `${base}/agents`, label: 'Agents', icon: Users, exact: false },
     { href: `${base}/consensus`, label: 'Consensus', icon: Scale, exact: false },
+    {
+      href: `${base}/evidence`,
+      label: 'Evidence',
+      icon: FileStack,
+      exact: false,
+    },
     {
       href: `${base}/provenance`,
       label: 'Provenance',
