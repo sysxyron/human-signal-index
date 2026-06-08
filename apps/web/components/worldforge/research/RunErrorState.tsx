@@ -4,15 +4,18 @@ import Link from 'next/link';
 import { Card, Button } from '@hsi/ui';
 import { AlertTriangle, SearchX, CloudOff } from 'lucide-react';
 import type { DbResultCode } from '@/lib/worldforge/research-view';
+import { formatErrorMessage } from '@/lib/errors/format-error';
 
 export interface RunErrorStateProps {
-  message: string;
+  message?: unknown;
   code?: DbResultCode;
 }
 
 /** Styled error / not-found state for a run detail page — never a white screen. */
 export function RunErrorState({ message, code }: RunErrorStateProps) {
-  const notFound = !code && /not.?found|no rows|missing/i.test(message);
+  const text =
+    message === null || message === undefined ? '' : formatErrorMessage(message);
+  const notFound = !code && /not.?found|no rows|missing/i.test(text);
   const offline = code === 'NOT_CONFIGURED';
   const Icon = offline ? CloudOff : notFound ? SearchX : AlertTriangle;
   const title = offline
@@ -28,7 +31,7 @@ export function RunErrorState({ message, code }: RunErrorStateProps) {
           <Icon className="h-5 w-5" /> {title}
         </h3>
         <p className="text-body-sm leading-relaxed text-text-secondary">
-          {message}
+          {text}
         </p>
         <div className="flex flex-wrap gap-2">
           <Link href={'/dashboard/worldforge/research' as never}>

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { type ReactNode } from 'react';
 import { Card } from '@hsi/ui';
 import { AlertTriangle, Inbox, LogIn, ShieldX, CloudOff } from 'lucide-react';
+import { formatErrorMessage } from '@/lib/errors/format-error';
 
 export type DbErrorCode =
   | 'AUTH_REQUIRED'
@@ -27,11 +28,14 @@ export function ErrorState({
   redirectedFrom,
   title = 'Could not load',
 }: {
-  message: string;
+  message?: unknown;
   code?: DbErrorCode;
   redirectedFrom?: string;
   title?: string;
 }) {
+  // Coerce ANY value (incl. raw Supabase/PostgREST objects) to a readable
+  // string so an error panel can never render "[object Object]".
+  const text = message === null || message === undefined ? '' : formatErrorMessage(message);
   if (code === 'AUTH_REQUIRED') {
     const href = `/sign-in?redirectedFrom=${encodeURIComponent(redirectedFrom ?? '/dashboard')}`;
     return (
@@ -40,7 +44,7 @@ export function ErrorState({
           <LogIn className="h-4 w-4" /> Sign in required
         </h3>
         <p className="text-body-sm leading-relaxed text-text-secondary">
-          {message || 'You need to be signed in to view this.'}
+          {text || 'You need to be signed in to view this.'}
         </p>
         <Link
           href={href as never}
@@ -58,7 +62,7 @@ export function ErrorState({
           <ShieldX className="h-4 w-4" /> Insufficient permissions
         </h3>
         <p className="text-body-sm leading-relaxed text-text-secondary">
-          {message ||
+          {text ||
             'Your role does not have access to this. Contact an administrator if you believe this is an error.'}
         </p>
       </Card>
@@ -69,7 +73,7 @@ export function ErrorState({
       <h3 className="flex items-center gap-2 text-h6 font-semibold text-risk">
         <AlertTriangle className="h-4 w-4" /> {title}
       </h3>
-      <p className="text-body-sm leading-relaxed text-text-secondary">{message}</p>
+      <p className="text-body-sm leading-relaxed text-text-secondary">{text}</p>
       {code === 'NOT_CONFIGURED' ? (
         <p className="text-caption text-text-muted">
           Supabase is not configured — a labeled demo view is shown instead where

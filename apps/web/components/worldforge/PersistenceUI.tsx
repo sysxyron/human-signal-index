@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { Card } from '@hsi/ui';
 import { AlertTriangle, CloudOff, Database, LogIn } from 'lucide-react';
 import type { SimulationRecord } from '@hsi/shared-types';
+import { formatErrorMessage } from '@/lib/errors/format-error';
 
 /**
  * Inline sign-in prompt shown where a WRITE action would be. Renders an exact
@@ -41,15 +42,17 @@ export function ErrorCard({
   message,
   title = 'Persistence error',
 }: {
-  message: string;
+  message?: unknown;
   title?: string;
 }) {
+  const text =
+    message === null || message === undefined ? 'Unknown error.' : formatErrorMessage(message);
   return (
     <Card className="space-y-1.5 border-risk/40 bg-risk/5" padded>
       <h4 className="flex items-center gap-2 text-h6 font-semibold text-risk">
         <AlertTriangle className="h-4 w-4" /> {title}
       </h4>
-      <p className="text-caption leading-relaxed text-text-secondary">{message}</p>
+      <p className="text-caption leading-relaxed text-text-secondary">{text}</p>
     </Card>
   );
 }

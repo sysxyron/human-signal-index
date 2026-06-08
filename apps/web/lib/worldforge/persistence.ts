@@ -24,6 +24,7 @@
 // =============================================================================
 
 import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { formatErrorMessage, logError } from '@/lib/errors/format-error';
 import { createClient } from '@/lib/supabase/server';
 import type {
   WorldRecord,
@@ -60,18 +61,20 @@ const NOT_CONFIGURED =
 const AUTH_REQUIRED = 'Sign in to continue.';
 
 function fail(error: unknown): { ok: false; error: string; code: DbResultCode } {
-  if (error instanceof Error) {
-    // Normalize the "URL/anon key required" throws (or an unreachable placeholder
-    // backend) into the canonical not-configured message + code.
-    if (
-      /required|not configured|SUPABASE_/i.test(error.message) &&
-      /key|url/i.test(error.message)
-    ) {
-      return { ok: false, error: NOT_CONFIGURED, code: 'NOT_CONFIGURED' };
-    }
-    return { ok: false, error: error.message, code: 'DB_ERROR' };
+  // Always log the full error (incl. Supabase/PostgREST code/hint/details).
+  logError('worldforge/persistence', error);
+  // Normalize the "URL/anon key required" throws (or an unreachable placeholder
+  // backend) into the canonical not-configured message + code.
+  if (
+    error instanceof Error &&
+    /required|not configured|SUPABASE_/i.test(error.message) &&
+    /key|url/i.test(error.message)
+  ) {
+    return { ok: false, error: NOT_CONFIGURED, code: 'NOT_CONFIGURED' };
   }
-  return { ok: false, error: String(error), code: 'DB_ERROR' };
+  // formatErrorMessage handles plain-object Supabase errors (no "[object Object]")
+  // and turns missing-table / RLS failures into actionable operator messages.
+  return { ok: false, error: formatErrorMessage(error), code: 'DB_ERROR' };
 }
 
 function authRequired(): { ok: false; error: string; code: DbResultCode } {

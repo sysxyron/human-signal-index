@@ -22,6 +22,7 @@
 // =============================================================================
 
 import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { formatErrorMessage, logError } from '@/lib/errors/format-error';
 import { createClient } from '@/lib/supabase/server';
 import type {
   EvidenceSourceRecord,
@@ -74,16 +75,15 @@ const NOT_CONFIGURED =
 const AUTH_REQUIRED = 'Sign in to continue.';
 
 function fail(error: unknown): { ok: false; error: string; code: DbResultCode } {
-  if (error instanceof Error) {
-    if (
-      /required|not configured|SUPABASE_/i.test(error.message) &&
-      /key|url/i.test(error.message)
-    ) {
-      return { ok: false, error: NOT_CONFIGURED, code: 'NOT_CONFIGURED' };
-    }
-    return { ok: false, error: error.message, code: 'DB_ERROR' };
+  logError('worldforge/evidence-persistence', error);
+  if (
+    error instanceof Error &&
+    /required|not configured|SUPABASE_/i.test(error.message) &&
+    /key|url/i.test(error.message)
+  ) {
+    return { ok: false, error: NOT_CONFIGURED, code: 'NOT_CONFIGURED' };
   }
-  return { ok: false, error: String(error), code: 'DB_ERROR' };
+  return { ok: false, error: formatErrorMessage(error), code: 'DB_ERROR' };
 }
 
 function authRequired(): { ok: false; error: string; code: DbResultCode } {
