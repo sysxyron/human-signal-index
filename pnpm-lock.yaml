@@ -53,6 +53,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@hsi/causal-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/causal-intelligence
       '@hsi/counterfactuals':
         specifier: workspace:*
         version: link:../../packages/counterfactuals
@@ -141,6 +144,9 @@ importers:
       '@hsi/ai-prompts':
         specifier: workspace:*
         version: link:../../packages/ai-prompts
+      '@hsi/causal-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/causal-intelligence
       '@hsi/classifiers':
         specifier: workspace:*
         version: link:../../packages/classifiers
@@ -205,6 +211,16 @@ importers:
         version: 1.60.0
 
   packages/ai-prompts: {}
+
+  packages/causal-intelligence:
+    dependencies:
+      '@hsi/temporal-intelligence':
+        specifier: workspace:*
+        version: link:../temporal-intelligence
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
   packages/classifiers: {}
 

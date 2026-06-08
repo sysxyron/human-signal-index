@@ -50,6 +50,12 @@ import { ErrorState, OfflineDemoBanner } from '@/components/signals/states';
 import { SignalReviewPanel } from '@/components/signals/SignalReviewPanel';
 import { CreateResearchButton } from '@/components/signals/CreateResearchButton';
 import { SignalProvenancePanel } from '@/components/signals/SignalProvenancePanel';
+import {
+  getNarrativeCausalAction,
+  type NarrativeCausalBundle,
+} from '@/lib/causal/actions';
+import { demoNarrativeCausalBundle } from '@/lib/causal/view';
+import { NarrativeCausalSection } from '@/components/causal/NarrativeCausalSection';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -60,6 +66,9 @@ interface SignalDetail extends SignalWithContext {
   reviews?: HsinSignalReviewRecord[];
   captureJob?: HsinCaptureJobRecord;
   publicationIds?: string[];
+  /** Optional primary narrative this signal belongs to (Phase 11 causal bridge). */
+  narrativeId?: string;
+  narrativeName?: string;
 }
 
 export default async function SignalDetailPage({
@@ -115,6 +124,31 @@ export default async function SignalDetailPage({
   const authed = Boolean(user);
   const canReviewSignal = canReviewRole(role) && authed;
   const canCreateResearch = canResearch(role) && authed;
+
+  // ADDITIVE (Phase 11): when the signal is tied to a narrative, surface that
+  // narrative's causal events / evolution / influence + a replay link. Wrapped so
+  // any failure (e.g. action not present, or no narrative) hides the block.
+  const narrativeId = detail.narrativeId;
+  let causalBundle: NarrativeCausalBundle | null = null;
+  let causalDemoLabeled = false;
+  if (narrativeId) {
+    try {
+      if (isDemo) {
+        causalBundle = demoNarrativeCausalBundle(narrativeId);
+        causalDemoLabeled = true;
+      } else {
+        const cRes = await getNarrativeCausalAction(narrativeId);
+        if (cRes.ok) {
+          causalBundle = cRes.data;
+        } else if (cRes.code === 'NOT_CONFIGURED') {
+          causalBundle = demoNarrativeCausalBundle(narrativeId);
+          causalDemoLabeled = true;
+        }
+      }
+    } catch {
+      causalBundle = null;
+    }
+  }
 
   return (
     <>
@@ -213,6 +247,16 @@ export default async function SignalDetailPage({
               publicationIds={publicationIds}
               demo={isDemo}
             />
+
+            {/* ADDITIVE (Phase 11): narrative causal events / evolution + replay. */}
+            {causalBundle && narrativeId ? (
+              <NarrativeCausalSection
+                bundle={causalBundle}
+                narrativeId={narrativeId}
+                narrativeName={detail.narrativeName}
+                demo={causalDemoLabeled}
+              />
+            ) : null}
           </div>
 
           {/* Sidebar */}

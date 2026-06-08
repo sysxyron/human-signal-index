@@ -18,6 +18,10 @@ import type {
 import { getNarrativeHistoryAction } from '@/lib/temporal/actions';
 import { demoNarrativeHistory } from '@/lib/temporal/view';
 import { NarrativeHistoryPanel } from '@/components/temporal/NarrativeHistoryPanel';
+import type { WorldforgeTimeline } from '@hsi/shared-types';
+import { getWorldforgeTimelineAction } from '@/lib/causal/actions';
+import { demoWorldforgeTimeline } from '@/lib/causal/view';
+import { WorldforgeTimelinePanel } from '@/components/causal/WorldforgeTimelinePanel';
 import {
   draftWorldforgeFromSignalAction,
   listWorldforgeLinksAction,
@@ -105,6 +109,31 @@ export default async function FromSignalPage({
     }
   }
 
+  // ADDITIVE (Phase 11): when the drafted fusion is tied to a narrative, show its
+  // WorldForge timeline — historical epochs, turning points, and grounded
+  // counterfactual seeds ("what if the amplification spike never occurred?").
+  // Wrapped so any failure (e.g. action not present) hides the block.
+  let timeline: WorldforgeTimeline | null = null;
+  let timelineDemo = false;
+  if (draft?.narrativeId) {
+    try {
+      if (draftDemo) {
+        timeline = demoWorldforgeTimeline(draft.narrativeId);
+        timelineDemo = true;
+      } else {
+        const tRes = await getWorldforgeTimelineAction(draft.narrativeId);
+        if (tRes.ok) {
+          timeline = tRes.data;
+        } else if (tRes.code === 'NOT_CONFIGURED') {
+          timeline = demoWorldforgeTimeline(draft.narrativeId);
+          timelineDemo = true;
+        }
+      }
+    } catch {
+      timeline = null;
+    }
+  }
+
   const isDemo = draftDemo || (linksDemo && !signalId);
 
   return (
@@ -170,6 +199,10 @@ export default async function FromSignalPage({
           <div className="space-y-6">
             {history ? (
               <NarrativeHistoryPanel history={history} demo={historyDemo} />
+            ) : null}
+            {/* ADDITIVE (Phase 11): WorldForge causal timeline + counterfactual seeds. */}
+            {timeline ? (
+              <WorldforgeTimelinePanel timeline={timeline} demo={timelineDemo} />
             ) : null}
             <WorldforgeLinkList links={links} />
           </div>

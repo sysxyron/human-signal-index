@@ -46,6 +46,7 @@ import {
   InfluenceLinkCard,
   ForecastLinkCard,
 } from '@/components/temporal/TemporalLinkCards';
+import { CausalLinkCard, ReplayLinkCard } from '@/components/causal/CausalLinkCards';
 import { IntelNav } from '@/components/signals/IntelNav';
 import { IntelStatCard } from '@/components/signals/IntelStatCard';
 import { SignalVelocityChart } from '@/components/signals/SignalVelocityChart';
@@ -149,6 +150,11 @@ export default async function IntelligencePage() {
           <GenealogyLinkCard />
           <InfluenceLinkCard />
           <ForecastLinkCard />
+        </div>
+        {/* ADDITIVE (Phase 11): causal intelligence + narrative replay link cards. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CausalLinkCard />
+          <ReplayLinkCard />
         </div>
 
         {/* Stat widgets */}

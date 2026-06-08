@@ -26,6 +26,8 @@ import { triageWorkerJob } from './triage-worker';
 import { slaEscalationJob } from './sla-escalation-worker';
 // HSI Phase 10 — temporal-intelligence pipeline.
 import { temporalWorkerJob } from './temporal-worker';
+// HSI Phase 11 — causal-intelligence pipeline.
+import { causalWorkerJob } from './causal-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -69,6 +71,16 @@ export * from './sla-escalation-worker';
 // public names (TemporalWorld, TemporalOutputs, TemporalPersistResult, the
 // loader/persister types, makeTemporalWorkerJob, temporalWorkerJob) are distinct.
 export * from './temporal-worker';
+// HSI Phase 11 exports. causal-worker IMPORTS the engine types under aliased
+// names (CausalChainResult / CausalEventResult / CausalInputBundle /
+// CausalEvolutionRecord / CausalInfluenceEdge / CausalNarrativeForecast /
+// CausalMilestone / CausalNarrativeSnapshot / CausalReplayFrame) and re-exports
+// NONE of them, so the unaliased @hsi/causal-intelligence types never collide
+// with the temporal/drift/alert jobs' own `export *` symbols above. Its public
+// names (CausalReplayCadence, CausalWorld, CausalOutputs, CausalPersistResult,
+// the loader/persister types, makeCausalWorkerJob, causalWorkerJob) are distinct
+// (e.g. its CausalWorld vs the temporal worker's TemporalWorld).
+export * from './causal-worker';
 
 /** All registered jobs, in pipeline order. */
 export const jobs: Job[] = [
@@ -100,6 +112,11 @@ export const jobs: Job[] = [
   // DB-backed when the service-role env is configured, else a deterministic
   // fixtures run that just logs the computed outputs. NEVER auto-publishes.
   temporalWorkerJob,
+  // HSI Phase 11 — causal-intelligence pipeline (daily 04:00, after temporal at
+  // 03:00). Offline-safe: DB-backed when the service-role env is configured,
+  // else a deterministic fixtures run that just logs the computed outputs
+  // (events → chains → replay frames → milestones). NEVER auto-publishes.
+  causalWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

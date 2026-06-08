@@ -2004,3 +2004,157 @@ export interface NarrativeHistory {
   influence: HsinNarrativeInfluenceRecord[];
   forecast?: HsinNarrativeForecastRecord;
 }
+
+// =============================================================================
+// Causal Intelligence — Phase 11
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 11 persistence (migration 0015): the causal +
+// replay layer over the narrative-intelligence graph — discrete causal EVENTS in a
+// narrative's life, the ordered causal CHAINS that explain why it moved, the
+// point-in-time REPLAY FRAMES used to scrub its history, and the lifecycle
+// MILESTONES (birth -> ... -> death / resurgence) — plus the view-model shapes the
+// WorldForge causal/replay/milestone consoles render and the narrative-explanation
+// / highlights / timeline payloads the WorldForge fusion bridge consumes.
+//
+// NAMING: the underlying tables use the `hsin_` prefix (consistent with Phases
+// 7-10); their TS record names carry the `Hsin` prefix to mirror that. Timestamps
+// are ISO strings; uuid columns are strings. jsonb payloads are typed as
+// `Record<string, unknown>` so shared-types stays decoupled from the engine internals.
+// =============================================================================
+
+/** A discrete, typed causal event in a narrative's life. Mirrors hsin_causal_events.event_type. */
+export type CausalEventType =
+  | 'signal_surge'
+  | 'source_expansion'
+  | 'community_growth'
+  | 'amplification_spike'
+  | 'contradiction_drop'
+  | 'contradiction_rise'
+  | 'forecast_shift'
+  | 'influence_transfer';
+
+/** A typed lifecycle milestone for a narrative. Mirrors hsin_narrative_milestones.milestone_type. */
+export type MilestoneType =
+  | 'birth'
+  | 'growth'
+  | 'viral'
+  | 'peak'
+  | 'decline'
+  | 'death'
+  | 'resurgence';
+
+/** A discrete, typed causal event in a narrative's life. Mirrors the `hsin_causal_events` table. */
+export interface HsinCausalEventRecord {
+  id: string;
+  narrative_id: string;
+  event_type: CausalEventType;
+  /** 0..100 event strength. */
+  event_strength?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  explanation?: string;
+  metrics_json?: Record<string, unknown>;
+  occurred_at?: string;
+  created_at: string;
+}
+
+/** A named, confidence-scored chain of causal events. Mirrors the `hsin_causal_chains` table. */
+export interface HsinCausalChainRecord {
+  id: string;
+  narrative_id: string;
+  chain_name?: string;
+  /** 0..1 confidence. */
+  confidence?: number;
+  summary?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Ordered membership of a causal event in a chain. Mirrors the `hsin_causal_chain_events` table. */
+export interface HsinCausalChainEventRecord {
+  id: string;
+  chain_id: string;
+  event_id?: string;
+  sequence_order: number;
+  created_at: string;
+}
+
+/** A point-in-time frame for narrative replay. Mirrors the `hsin_replay_frames` table. */
+export interface HsinReplayFrameRecord {
+  id: string;
+  narrative_id: string;
+  frame_timestamp: string;
+  frame_data: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A typed lifecycle milestone for a narrative. Mirrors the `hsin_narrative_milestones` table. */
+export interface HsinNarrativeMilestoneRecord {
+  id: string;
+  narrative_id: string;
+  milestone_type: MilestoneType;
+  /** 0..1 confidence. */
+  confidence?: number;
+  description?: string;
+  metrics_json?: Record<string, unknown>;
+  occurred_at?: string;
+  created_at: string;
+}
+
+/** The causal view: narratives, their causal events, and the chains (with member events) over them. */
+export interface CausalView {
+  narratives: HsinNarrativeRecord[];
+  events: HsinCausalEventRecord[];
+  chains: (HsinCausalChainRecord & { events: HsinCausalEventRecord[] })[];
+}
+
+/** The replay view: a single narrative with its ordered replay frames and lifecycle milestones. */
+export interface ReplayView {
+  narrative: HsinNarrativeRecord | null;
+  frames: HsinReplayFrameRecord[];
+  milestones: HsinNarrativeMilestoneRecord[];
+}
+
+/** The milestones view: narratives + their lifecycle milestones. */
+export interface MilestonesView {
+  narratives: HsinNarrativeRecord[];
+  milestones: HsinNarrativeMilestoneRecord[];
+}
+
+/** A generated natural-language explanation of why a narrative moved, with supporting factors. */
+export interface CausalExplanation {
+  narrativeId: string;
+  headline: string;
+  text: string;
+  factors: { label: string; detail: string; metric?: number }[];
+  /** 0..1 confidence in the explanation. */
+  confidence: number;
+  generatedAt: string;
+}
+
+/** Headline causal callouts surfaced on the causal-intelligence dashboard. */
+export interface CausalHighlights {
+  mostSignificantEvent?: {
+    narrativeId: string;
+    name: string;
+    eventType: CausalEventType;
+    eventStrength: number;
+  };
+  fastestGrowth?: { narrativeId: string; name: string; growthPct: number };
+  largestForecastShift?: { narrativeId: string; name: string; detail: string };
+  largestAmplificationSpike?: { narrativeId: string; name: string; eventStrength: number };
+  mostImportantCommunityExpansion?: { narrativeId: string; name: string; eventStrength: number };
+  mostInfluentialSource?: { sourceId?: string; name: string; detail: string };
+}
+
+/**
+ * A WorldForge narrative timeline: the epochs of a narrative's life, its turning
+ * points, and seed prompts for counterfactual ("what if") exploration. Consumed by
+ * the WorldForge fusion bridge.
+ */
+export interface WorldforgeTimeline {
+  narrativeId: string;
+  epochs: { label: string; startAt?: string; endAt?: string; summary: string }[];
+  turningPoints: { at: string; milestoneType?: string; description: string }[];
+  counterfactualSeeds: { prompt: string; basis: string }[];
+}

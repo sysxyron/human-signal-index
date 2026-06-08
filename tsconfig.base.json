@@ -30,7 +30,8 @@
       "@hsi/evidence-engine": ["packages/evidence-engine/src"],
       "@hsi/source-intelligence": ["packages/source-intelligence/src"],
       "@hsi/scheduler": ["packages/scheduler/src"],
-      "@hsi/temporal-intelligence": ["packages/temporal-intelligence/src"]
+      "@hsi/temporal-intelligence": ["packages/temporal-intelligence/src"],
+      "@hsi/causal-intelligence": ["packages/causal-intelligence/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

@@ -35,6 +35,10 @@ import { OperationsPhase9Strip } from '@/components/providers/OperationsPhase9St
 import { getTemporalHighlightsAction } from '@/lib/temporal/actions';
 import { demoTemporalHighlights } from '@/lib/temporal/view';
 import { TemporalHighlightCards } from '@/components/temporal/TemporalHighlightCards';
+import type { CausalHighlights } from '@hsi/shared-types';
+import { getCausalHighlightsAction } from '@/lib/causal/actions';
+import { demoCausalHighlights } from '@/lib/causal/view';
+import { CausalHighlightCards } from '@/components/causal/CausalHighlightCards';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import {
   canOperate,
@@ -129,6 +133,23 @@ export default async function OperationsPage({
     temporalHighlights = null;
   }
 
+  // ADDITIVE (Phase 11): a defensive causal-highlights strip. A failure here
+  // (e.g. action not yet present) must never break the operations page — on any
+  // error we simply hide the strip.
+  let causalHighlights: CausalHighlights | null = null;
+  let causalDemoLabeled = false;
+  try {
+    const chRes = await getCausalHighlightsAction();
+    if (chRes.ok) {
+      causalHighlights = chRes.data;
+    } else if (chRes.code === 'NOT_CONFIGURED') {
+      causalHighlights = demoCausalHighlights();
+      causalDemoLabeled = true;
+    }
+  } catch {
+    causalHighlights = null;
+  }
+
   // Resolve the overview: live, demo (NOT_CONFIGURED), or a real error.
   let overview: OperationsOverview | null = null;
   let isDemo = false;
@@ -219,6 +240,14 @@ export default async function OperationsPage({
           <TemporalHighlightCards
             highlights={temporalHighlights}
             demo={temporalDemoLabeled}
+          />
+        ) : null}
+
+        {/* ADDITIVE (Phase 11): causal-intelligence highlights strip. */}
+        {causalHighlights ? (
+          <CausalHighlightCards
+            highlights={causalHighlights}
+            demo={causalDemoLabeled}
           />
         ) : null}
 
