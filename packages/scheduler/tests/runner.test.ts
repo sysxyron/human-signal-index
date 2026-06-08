@@ -24,7 +24,13 @@ test('runOnce: completes a successful job and audits it', async () => {
   });
 
   const summary = await runner.runOnce({ now: NOW, limit: 10 });
-  assert.deepEqual(summary, { claimed: 1, completed: 1, failed: 0, retried: 0 });
+  assert.deepEqual(summary, {
+    claimed: 1,
+    completed: 1,
+    failed: 0,
+    retried: 0,
+    deadLettered: 0,
+  });
 
   const jobs = store.listJobs();
   assert.equal(jobs[0].status, 'completed');

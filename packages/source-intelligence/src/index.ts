@@ -60,6 +60,12 @@ export * from './semantic';
 export * from './graph';
 export * from './triage';
 export * from './sla';
+// ---- Phase 9 (additive): public-safe providers, pluggable embedder, ---------
+// community/amplification/cross-source graph analysis, source reliability.
+// All deterministic + offline by default; network only via INJECTED fetch in the
+// provider layer, gated, never at import. Phase 7/8 exports are untouched.
+export * from './providers';
+export * from './reliability';
 export { sha256Hex, fnv1a } from './internal/hash';
 export {
   htmlToText,

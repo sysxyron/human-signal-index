@@ -36,6 +36,10 @@ import {
   GraphLinkCard,
   OperationsLinkCard,
 } from '@/components/operations/QueueStatusStrip';
+import {
+  CommunitiesLinkCard,
+  AmplificationLinkCard,
+} from '@/components/communities/IntelLinkCards';
 import { IntelNav } from '@/components/signals/IntelNav';
 import { IntelStatCard } from '@/components/signals/IntelStatCard';
 import { SignalVelocityChart } from '@/components/signals/SignalVelocityChart';
@@ -127,6 +131,11 @@ export default async function IntelligencePage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <GraphLinkCard />
           <OperationsLinkCard />
+        </div>
+        {/* ADDITIVE (Phase 9): communities + amplification intelligence link cards. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CommunitiesLinkCard />
+          <AmplificationLinkCard />
         </div>
 
         {/* Stat widgets */}

@@ -16,6 +16,7 @@ import {
   Bell,
   FlaskConical,
   FileText,
+  GitMerge,
 } from 'lucide-react';
 import type {
   HsinCaptureJobRecord,
@@ -140,13 +141,24 @@ export default async function SignalDetailPage({
               <ConfidenceChip confidence={signal.confidence} />
             </div>
           </div>
-          {/* Prominent Create Research Run */}
-          <CreateResearchButton
-            signalId={signal.id}
-            canCreate={canCreateResearch}
-            demo={isDemo}
-            prominent
-          />
+          {/* Prominent Create Research Run + Phase-9 WorldForge fusion draft. */}
+          <div className="flex flex-col items-end gap-2">
+            <CreateResearchButton
+              signalId={signal.id}
+              canCreate={canCreateResearch}
+              demo={isDemo}
+              prominent
+            />
+            {/* ADDITIVE (Phase 9): draft a WorldForge fusion prompt (researcher+). */}
+            {canCreateResearch ? (
+              <Link
+                href={`/dashboard/worldforge/from-signal?signalId=${encodeURIComponent(signal.id)}` as never}
+                className="inline-flex items-center gap-2 rounded-btn border border-accent/40 bg-accent/10 px-3.5 py-2 text-caption font-semibold text-accent transition hover:border-accent hover:text-white"
+              >
+                <GitMerge className="h-3.5 w-3.5" /> Draft WorldForge prompt from this signal
+              </Link>
+            ) : null}
+          </div>
         </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}

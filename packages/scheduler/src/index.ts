@@ -53,6 +53,22 @@ export type {
   DuplicateResult,
 } from './dedupe';
 
+// Dead-letter (Phase 9)
+export {
+  shouldDeadLetter,
+  toDeadLetterEntry,
+  InMemoryDeadLetterStore,
+} from './deadletter';
+export type { DeadLetterEntry, DeadLetterStore } from './deadletter';
+
+// Visibility timeout (Phase 9)
+export {
+  VISIBILITY_DEFAULT_SECONDS,
+  lockedUntil,
+  isExpired,
+  reclaimableFilter,
+} from './visibility';
+
 // Audit
 export {
   createAuditSink,

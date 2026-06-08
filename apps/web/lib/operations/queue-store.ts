@@ -1,25 +1,27 @@
 // =============================================================================
-// HSIN Phase 8 — Supabase-backed QueueStore + DedupeStore (SERVER-ONLY).
+// HSIN Phase 8/9 — Supabase-backed ScalableQueueStore + DedupeStore (SERVER-ONLY).
 //
-// Adapts the PURE '@hsi/scheduler' ports (QueueStore / DedupeStore) onto the
-// Phase-8 persistence (migration 0012): hsin_job_queue + hsin_job_attempts and
-// hsin_capture_dedupes. The scheduler engine is DB-agnostic; this module is the
-// single place those ports talk to Supabase.
+// Adapts the PURE '@hsi/scheduler' ports (QueueStore / ScalableQueueStore /
+// DedupeStore) onto the Phase-8/9 persistence (migrations 0012 + 0013):
+// hsin_job_queue (+ locked_until/dead_lettered_at), hsin_job_attempts,
+// hsin_dead_letter_jobs, and hsin_capture_dedupes. The scheduler engine is
+// DB-agnostic; this module is the single place those ports talk to Supabase.
 //
 // CLIENT: these stores take a SupabaseClient so the caller controls auth. App
-// actions pass the cookie-backed, RLS-enforced client (operational writes there
-// require curator/admin per migration 0012). The worker passes a service-role
-// client (which bypasses RLS). NEVER inject service_role into app actions.
+// actions pass the cookie-backed, RLS-enforced client. The RPC `claim_hsin_jobs`
+// is SECURITY DEFINER + granted to authenticated, so a reviewer+ caller can claim
+// without service_role. The worker passes a service-role client (bypasses RLS).
+// NEVER inject service_role into app actions.
 //
-// ATOMICITY CAVEAT (claimNext): Postgres `FOR UPDATE SKIP LOCKED` is NOT
-// reachable through supabase-js. We approximate atomic claim with a GUARDED
-// UPDATE: select due ids, then `UPDATE ... WHERE id IN (...) AND status IN
-// ('queued','retrying')` and trust the returned rows (only rows still in a
-// claimable status are updated/returned). Two concurrent claimers can both pass
-// the select but the update's status guard means each job is claimed at most
-// once — at the cost of one claimer getting fewer rows than `limit`. For strict
-// single-claim semantics under heavy concurrency, run claims through a single
-// worker or a SECURITY DEFINER RPC. Good enough for the single-worker drain.
+// ATOMICITY (Phase 9): `claimBatch` calls the Postgres `claim_hsin_jobs` RPC,
+// which does a single atomic `UPDATE ... WHERE id IN (SELECT ... FOR UPDATE SKIP
+// LOCKED)`. N concurrent workers each grab a disjoint batch without double-claim.
+// `claimNext` is a thin wrapper over `claimBatch({ limit: 1 })` for back-compat.
+//
+// DEAD-LETTER (Phase 9): when `markFailedOrRetry` decides a terminal failure with
+// exhausted attempts (shouldDeadLetter), we `deadLetter()` — insert a
+// hsin_dead_letter_jobs snapshot AND mark the queue row failed/dead_lettered_at.
+// `requeueDeadLetter` re-creates a fresh queued job from a DLQ snapshot.
 //
 // HONESTY/SAFETY: every method NEVER throws — failures degrade to a safe value
 // (empty array / no-op / null) so a queue hiccup can't crash a request.
@@ -29,13 +31,18 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   decideAfterFailure,
   DEFAULT_RETRY_POLICY,
+  shouldDeadLetter,
+  toDeadLetterEntry,
+  VISIBILITY_DEFAULT_SECONDS,
+  lockedUntil as computeLockedUntil,
   type DedupeRecord,
   type DedupeStore,
   type EnqueueInput,
+  type FailureOutcome,
   type Job,
   type JobAttempt,
-  type QueueStore,
   type RetryPolicy,
+  type ScalableQueueStore,
 } from '@hsi/scheduler';
 import type {
   HsinJobAttemptRecord,
@@ -48,7 +55,13 @@ import type {
 // -----------------------------------------------------------------------------
 type JsonRecord = Record<string, unknown>;
 
-function rowToJob(row: HsinJobQueueRecord): Job {
+/** A job-queue row with the Phase-9 visibility/dead-letter columns. */
+type JobQueueRowP9 = HsinJobQueueRecord & {
+  locked_until?: string | null;
+  dead_lettered_at?: string | null;
+};
+
+function rowToJob(row: JobQueueRowP9): Job {
   return {
     id: row.id,
     jobType: row.job_type,
@@ -60,6 +73,7 @@ function rowToJob(row: HsinJobQueueRecord): Job {
     startedAt: row.started_at ?? undefined,
     finishedAt: row.finished_at ?? undefined,
     errorMessage: row.error_message ?? undefined,
+    lockedUntil: row.locked_until ?? undefined,
     attemptCount: row.attempt_count,
     maxAttempts: row.max_attempts,
     createdAt: row.created_at,
@@ -68,9 +82,24 @@ function rowToJob(row: HsinJobQueueRecord): Job {
 }
 
 // =============================================================================
-// QueueStore — hsin_job_queue + hsin_job_attempts.
+// ScalableQueueStore (Phase 9) — hsin_job_queue (+ locked_until/dead_lettered_at),
+// hsin_job_attempts, hsin_dead_letter_jobs.
+//
+// The returned store also exposes `requeueDeadLetter` (beyond the engine port) so
+// the curator+ requeue action can re-drive a parked job.
 // =============================================================================
-export function createSupabaseQueueStore(client: SupabaseClient): QueueStore {
+export interface SupabaseQueueStore extends ScalableQueueStore {
+  /**
+   * Re-create a fresh `queued` job from a parked dead-letter snapshot and stamp
+   * the DLQ row's `requeued_at`. Returns the new Job, or null on failure / when
+   * the snapshot is missing. NEVER throws.
+   */
+  requeueDeadLetter(deadLetterId: string, now?: string): Promise<Job | null>;
+}
+
+export function createSupabaseQueueStore(
+  client: SupabaseClient,
+): SupabaseQueueStore {
   return {
     /** Insert a new job (status 'queued'). Returns the persisted Job. */
     async enqueue(input: EnqueueInput, now: string): Promise<Job> {
@@ -110,52 +139,170 @@ export function createSupabaseQueueStore(client: SupabaseClient): QueueStore {
     },
 
     /**
-     * Claim due jobs: select queued/retrying with scheduled_for<=now ordered by
-     * priority desc then scheduled_for asc, then guard-update them to 'running'.
+     * Phase-9 atomic, visibility-aware claim. Delegates to the Postgres
+     * `claim_hsin_jobs` RPC (SECURITY DEFINER, FOR UPDATE SKIP LOCKED): it
+     * selects due queued/retrying jobs AND reclaims running jobs whose
+     * visibility lease expired, flips them to 'running', stamps started_at,
+     * extends locked_until by p_visibility_seconds, and bumps attempt_count.
+     * Returns the claimed rows mapped to engine Jobs. `jobTypes` is applied
+     * client-side after the atomic claim (the RPC claims by priority/age only).
+     * NEVER throws.
+     */
+    async claimBatch(opts: {
+      now: string;
+      limit: number;
+      visibilitySeconds?: number;
+      jobTypes?: string[];
+    }): Promise<Job[]> {
+      try {
+        const visibility = opts.visibilitySeconds ?? VISIBILITY_DEFAULT_SECONDS;
+        const { data, error } = await client.rpc('claim_hsin_jobs', {
+          p_limit: opts.limit,
+          p_visibility_seconds: visibility,
+        });
+        if (error || !data) return [];
+
+        let jobs = (data as JobQueueRowP9[]).map(rowToJob);
+        if (opts.jobTypes && opts.jobTypes.length > 0) {
+          const types = new Set(opts.jobTypes);
+          jobs = jobs.filter((j) => types.has(j.jobType));
+        }
+        // Preserve the RPC's deterministic order (priority desc, scheduled asc,
+        // created asc) — supabase-js may not guarantee row order across the RPC.
+        jobs.sort(
+          (a, b) =>
+            b.priority - a.priority ||
+            a.scheduledFor.localeCompare(b.scheduledFor) ||
+            a.createdAt.localeCompare(b.createdAt),
+        );
+        return jobs;
+      } catch {
+        return [];
+      }
+    },
+
+    /**
+     * Back-compat single claim — a thin wrapper over claimBatch(limit:1). The
+     * atomic RPC replaces the Phase-8 select-then-guarded-update claim.
      */
     async claimNext(opts: {
       now: string;
       jobTypes?: string[];
       limit?: number;
     }): Promise<Job[]> {
+      return this.claimBatch({
+        now: opts.now,
+        limit: opts.limit ?? 1,
+        jobTypes: opts.jobTypes,
+      });
+    },
+
+    /**
+     * Phase-9 visibility heartbeat: extend a running job's lease so long work is
+     * not reclaimed mid-flight. No-op on a non-running job. NEVER throws.
+     */
+    async heartbeat(
+      jobId: string,
+      now: string,
+      visibilitySeconds?: number,
+    ): Promise<void> {
       try {
-        const limit = opts.limit ?? 1;
-        let q = client
+        const secs = visibilitySeconds ?? VISIBILITY_DEFAULT_SECONDS;
+        await client
           .from('hsin_job_queue')
-          .select('id')
-          .in('status', ['queued', 'retrying'])
-          .lte('scheduled_for', opts.now);
-        if (opts.jobTypes && opts.jobTypes.length > 0) {
-          q = q.in('job_type', opts.jobTypes);
-        }
-        const { data: candidates, error: selErr } = await q
-          .order('priority', { ascending: false })
-          .order('scheduled_for', { ascending: true })
-          .limit(limit);
-        if (selErr || !candidates || candidates.length === 0) return [];
-
-        const ids = (candidates as Array<{ id: string }>).map((r) => r.id);
-
-        // Guarded UPDATE → 'running'. The status guard means only rows still
-        // claimable are flipped + returned (best-effort atomicity, see header).
-        const { data: claimed, error: updErr } = await client
-          .from('hsin_job_queue')
-          .update({ status: 'running', started_at: opts.now })
-          .in('id', ids)
-          .in('status', ['queued', 'retrying'])
-          .select('*');
-        if (updErr || !claimed) return [];
-
-        const jobs = (claimed as HsinJobQueueRecord[]).map(rowToJob);
-        // Preserve the requested claim order (priority desc, scheduled asc).
-        jobs.sort(
-          (a, b) =>
-            b.priority - a.priority ||
-            a.scheduledFor.localeCompare(b.scheduledFor),
-        );
-        return jobs;
+          .update({ locked_until: computeLockedUntil(now, secs) })
+          .eq('id', jobId)
+          .eq('status', 'running');
       } catch {
-        return [];
+        // never throw
+      }
+    },
+
+    /**
+     * Phase-9 dead-letter: force a job terminal (status='failed',
+     * dead_lettered_at=now, clear the lease) AND insert a hsin_dead_letter_jobs
+     * snapshot for inspection/requeue. Best-effort per write; NEVER throws.
+     */
+    async deadLetter(jobId: string, now: string, reason: string): Promise<void> {
+      try {
+        const job = await this.get(jobId);
+        // Snapshot the job into the DLQ before marking it terminal.
+        if (job) {
+          const entry = toDeadLetterEntry(job, now, reason);
+          await client
+            .from('hsin_dead_letter_jobs')
+            .insert({
+              job_id: entry.jobId,
+              job_type: entry.jobType,
+              source_id: entry.sourceId ?? null,
+              payload_json: entry.payload ?? null,
+              attempt_count: entry.attemptCount,
+              max_attempts: entry.maxAttempts,
+              reason: entry.reason,
+              last_error: entry.lastError ?? null,
+              dead_lettered_at: entry.deadLetteredAt,
+            })
+            .then(() => undefined, () => undefined);
+        }
+        await client
+          .from('hsin_job_queue')
+          .update({
+            status: 'failed',
+            finished_at: now,
+            dead_lettered_at: now,
+            locked_until: null,
+            ...(reason ? { error_message: reason } : {}),
+          })
+          .eq('id', jobId);
+      } catch {
+        // never throw
+      }
+    },
+
+    /**
+     * Re-create a fresh `queued` job from a parked dead-letter snapshot (curator+
+     * path via the action). Loads the DLQ row, enqueues a clean job (attempt_count
+     * reset to 0), and stamps requeued_at. Returns the new Job or null. NEVER throws.
+     */
+    async requeueDeadLetter(
+      deadLetterId: string,
+      now: string = new Date().toISOString(),
+    ): Promise<Job | null> {
+      try {
+        const { data: dlq, error } = await client
+          .from('hsin_dead_letter_jobs')
+          .select('*')
+          .eq('id', deadLetterId)
+          .maybeSingle();
+        if (error || !dlq) return null;
+
+        const snapshot = dlq as {
+          id: string;
+          job_type?: string | null;
+          source_id?: string | null;
+          payload_json?: JsonRecord | null;
+          max_attempts?: number | null;
+        };
+
+        const input: EnqueueInput = {
+          jobType: snapshot.job_type ?? 'capture',
+          maxAttempts: snapshot.max_attempts ?? DEFAULT_RETRY_POLICY.maxAttempts,
+        };
+        if (snapshot.source_id) input.sourceId = snapshot.source_id;
+        if (snapshot.payload_json) input.payload = snapshot.payload_json;
+
+        const job = await this.enqueue(input, now);
+        if (!job.id) return null;
+
+        await client
+          .from('hsin_dead_letter_jobs')
+          .update({ requeued_at: now })
+          .eq('id', deadLetterId)
+          .then(() => undefined, () => undefined);
+
+        return job;
+      } catch {
+        return null;
       }
     },
 
@@ -176,31 +323,36 @@ export function createSupabaseQueueStore(client: SupabaseClient): QueueStore {
     },
 
     /**
-     * Decide retry vs terminal-fail via the engine, then persist: on retry set
-     * status='retrying' + scheduled_for=nextRunAt and bump attempt_count; on
-     * terminal set status='failed' + finished_at. Returns the engine decision.
+     * Decide retry vs terminal-fail via the engine, then persist:
+     *   * on retry → status='retrying', scheduled_for=nextRunAt, clear the lease;
+     *   * on terminal exhausted (shouldDeadLetter) → deadLetter() (DLQ snapshot +
+     *     status='failed', dead_lettered_at) and return { retried:false,
+     *     deadLettered:true };
+     *   * on terminal not-exhausted → status='failed'.
+     *
+     * Phase-9 note: the `claim_hsin_jobs` RPC ALREADY bumped attempt_count on
+     * claim, so the stored count reflects THIS attempt; we do NOT bump it again.
+     * NEVER throws.
      */
     async markFailedOrRetry(
       jobId: string,
       now: string,
       error: string,
       policy: RetryPolicy,
-    ): Promise<{ retried: boolean; nextRunAt?: string }> {
+    ): Promise<FailureOutcome> {
       try {
         const { data: row } = await client
           .from('hsin_job_queue')
           .select('attempt_count, max_attempts')
           .eq('id', jobId)
           .maybeSingle();
-        const attemptCount =
-          (row?.attempt_count as number | undefined) ?? 0;
+        // attempt_count already reflects attempts made (bumped on claim by the RPC).
+        const attemptCount = (row?.attempt_count as number | undefined) ?? 1;
         const maxAttempts =
           (row?.max_attempts as number | undefined) ?? policy.maxAttempts;
 
-        // attempt_count reflects attempts already made; bump it for this failure.
-        const newAttemptCount = attemptCount + 1;
         const decision = decideAfterFailure(
-          { attemptCount: newAttemptCount, maxAttempts },
+          { attemptCount, maxAttempts },
           policy,
           now,
         );
@@ -212,11 +364,21 @@ export function createSupabaseQueueStore(client: SupabaseClient): QueueStore {
               status: 'retrying',
               scheduled_for: decision.nextRunAt,
               error_message: error,
-              attempt_count: newAttemptCount,
               started_at: null,
+              locked_until: null,
             })
             .eq('id', jobId);
           return { retried: true, nextRunAt: decision.nextRunAt };
+        }
+
+        // Terminal. When attempts are exhausted, dead-letter (snapshot + mark).
+        if (shouldDeadLetter({ attemptCount, maxAttempts }, policy)) {
+          const reason = `max attempts (${attemptCount}/${Math.min(
+            maxAttempts,
+            policy.maxAttempts,
+          )}) exhausted: ${error}`;
+          await this.deadLetter(jobId, now, reason);
+          return { retried: false, deadLettered: true };
         }
 
         await client
@@ -225,7 +387,7 @@ export function createSupabaseQueueStore(client: SupabaseClient): QueueStore {
             status: 'failed',
             finished_at: now,
             error_message: error,
-            attempt_count: newAttemptCount,
+            locked_until: null,
           })
           .eq('id', jobId);
         return { retried: false };

@@ -27,6 +27,7 @@
 
 import {
   buildNarrativeGraph,
+  captureViaProvider,
   classifySignalSemantic,
   computeSlaDeadlines,
   DEFAULT_SLA_POLICIES,
@@ -35,8 +36,12 @@ import {
   evaluateTriage,
   extractEntities,
   FixtureCaptureProvider,
+  makeProviderRunLog,
   runIntakePipeline,
   type IntakePipelineOptions,
+  type ProviderDeps,
+  type ProviderResult,
+  type ProviderRouteInput,
   type SlaPolicy,
   type SlaSeverity,
   type SourceInput,
@@ -60,6 +65,11 @@ import {
 import {
   createSupabaseDedupeStore,
 } from './queue-store';
+import {
+  consumeRateLimit,
+  providerCredentials,
+  recordProviderRunLog,
+} from './providers';
 
 // -----------------------------------------------------------------------------
 // Outcome of one end-to-end scheduled capture.
@@ -156,11 +166,91 @@ async function audit(
   }
 }
 
+// -----------------------------------------------------------------------------
+// Phase-9 live provider probe — outcome of attempting a real provider adapter
+// capture for observability + rate-limit accounting + health on 'blocked'.
+// -----------------------------------------------------------------------------
+interface ProviderProbeOutcome {
+  /** True when the source had a usable provider input (a probe was attempted). */
+  attempted: boolean;
+  /** The provider failure reason, when the probe failed. */
+  reason?: string;
+  /** True when the website provider declined with 'blocked' (anti-bot/challenge). */
+  blocked: boolean;
+}
+
+/** Map a source's stored fields to the provider router input. */
+function toProviderRouteInput(source: HsinSourceRecord): ProviderRouteInput {
+  const url = source.rss_url ?? source.homepage_url ?? undefined;
+  return { url, feedUrl: source.rss_url ?? undefined };
+}
+
+/**
+ * Attempt a REAL provider-adapter capture (Phase 9) for observability. Records a
+ * hsin_provider_runs row for the attempt and consumes the provider's rate-limit
+ * budget. The intake pipeline still produces the persisted signal draft; this
+ * probe exists to log provider outcomes, account for rate limits, and surface a
+ * 'blocked' website so the caller can degrade (not fail) source health. NEVER
+ * throws — any error degrades to attempted:false.
+ */
+async function probeProviderCapture(
+  client: ReturnType<typeof signalsDbClient>,
+  source: HsinSourceRecord,
+  now: string,
+): Promise<ProviderProbeOutcome> {
+  try {
+    const sourceType = String(source.source_type);
+    const route = toProviderRouteInput(source);
+    const needsUrl = sourceType === 'rss' || sourceType === 'website';
+    if (needsUrl && !route.url) return { attempted: false, blocked: false };
+
+    const startedAt = now;
+    const deps: ProviderDeps = {
+      now,
+      fetchImpl: (globalThis as { fetch?: typeof fetch }).fetch,
+    };
+    const result: ProviderResult<unknown> = await captureViaProvider(
+      sourceType,
+      route,
+      deps,
+      providerCredentials(),
+    );
+    const finishedAt = new Date().toISOString();
+
+    // Record the provider run (best-effort) + consume the rate-limit budget.
+    const runLog = makeProviderRunLog({
+      provider: sourceType,
+      sourceId: source.id,
+      startedAt,
+      finishedAt,
+      result,
+    });
+    await recordProviderRunLog(client, runLog);
+    await consumeRateLimit(sourceType, now);
+
+    if (result.ok) return { attempted: true, blocked: false };
+    return {
+      attempted: true,
+      reason: result.reason,
+      blocked: sourceType === 'website' && result.reason === 'blocked',
+    };
+  } catch {
+    return { attempted: false, blocked: false };
+  }
+}
+
 /**
  * Run the full scheduled-capture + triage pipeline for one source. Reuses the
  * Phase-7 signals DAL for persistence, the scheduler DedupeStore for idempotency,
  * and the source-intelligence semantic/graph/triage/SLA engines for enrichment
- * and auto-routing. NEVER throws.
+ * and auto-routing.
+ *
+ * Phase 9: when SIGNAL_CAPTURE_MODE=live, a real provider adapter capture is
+ * probed (captureViaProvider) for each capture — recording a hsin_provider_runs
+ * row, consuming the provider rate limit, and degrading (not failing) source
+ * health when a website is 'blocked'. Fixtures remain the offline default.
+ *
+ * NEVER throws.
  */
 export async function runScheduledCapture(
   sourceId: string,
@@ -213,6 +303,26 @@ export async function runScheduledCapture(
     const live = config.liveCaptureAllowed && hasUrl;
     const mode: 'fixture' | 'live' = live ? 'live' : 'fixture';
 
+    // 2a. Phase-9: in live mode, probe a real provider adapter for observability +
+    //     rate-limit accounting. A 'blocked' website degrades health (not fail).
+    let providerBlocked = false;
+    if (live) {
+      const probe = await probeProviderCapture(client, source, now);
+      providerBlocked = probe.blocked;
+      if (providerBlocked) {
+        await updateSourceHealth(client, sourceId, {
+          status: 'degraded',
+          lastFailure: now,
+          failureCount: 1,
+        });
+        await audit(client, userId, 'hsin_provider_blocked', {
+          source_id: sourceId,
+          provider: String(source.source_type),
+          reason: probe.reason ?? 'blocked',
+        });
+      }
+    }
+
     const options: IntakePipelineOptions = {
       prior: priorBodyText
         ? { bodyText: priorBodyText, capturedAt: now, contentHash: '' }
@@ -226,8 +336,10 @@ export async function runScheduledCapture(
     const result = await runIntakePipeline(sourceInput, options, now);
 
     if (!result.capture.ok || !result.signalDraft) {
+      // A 'blocked' website is a DEGRADED (transient/anti-bot) state, not a hard
+      // error — keep the source degraded rather than error so it isn't disabled.
       await updateSourceHealth(client, sourceId, {
-        status: 'error',
+        status: providerBlocked ? 'degraded' : 'error',
         lastFailure: now,
         failureCount: 1,
       });

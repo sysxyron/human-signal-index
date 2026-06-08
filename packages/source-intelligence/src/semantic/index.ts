@@ -15,3 +15,11 @@ export {
   type NarrativeCluster,
   type ClusterResult,
 } from './narrativeClusterer';
+// ---- Phase 9 (additive): pluggable embedder (OpenAI | local-lexical) -------
+export {
+  createEmbedder,
+  localLexicalEmbed,
+  LOCAL_EMBED_DIM,
+  type Embedder,
+  type CreateEmbedderOptions,
+} from './localEmbedding';

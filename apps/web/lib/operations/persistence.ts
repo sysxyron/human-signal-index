@@ -45,6 +45,7 @@ import {
 } from '@hsi/source-intelligence';
 import type {
   AppRole,
+  HsinDeadLetterJobRecord,
   HsinEntityRecord,
   HsinJobAttemptRecord,
   HsinJobQueueRecord,
@@ -81,7 +82,11 @@ const NOT_CONFIGURED =
 
 const AUTH_REQUIRED = 'Sign in to continue.';
 
-function fail(error: unknown): { ok: false; error: string; code: DbResultCode } {
+export function fail(error: unknown): {
+  ok: false;
+  error: string;
+  code: DbResultCode;
+} {
   logError('operations/persistence', error);
   if (
     error instanceof Error &&
@@ -97,7 +102,7 @@ function authRequired(): { ok: false; error: string; code: DbResultCode } {
   return { ok: false, error: AUTH_REQUIRED, code: 'AUTH_REQUIRED' };
 }
 
-function forbidden(required: AppRole): {
+export function forbidden(required: AppRole): {
   ok: false;
   error: string;
   code: DbResultCode;
@@ -177,7 +182,7 @@ async function requireRole(
 // -----------------------------------------------------------------------------
 // Typed JSON helpers — keep `any` out of signatures.
 // -----------------------------------------------------------------------------
-type JsonRecord = Record<string, unknown>;
+export type JsonRecord = Record<string, unknown>;
 
 /** YYYY-MM-DD bucket from an ISO timestamp (for per-day throughput series). */
 function dayBucket(iso?: string | null): string {
@@ -438,6 +443,30 @@ export async function cancelJob(
       .single();
     if (error) return fail(error);
     return { ok: true, data: data as HsinJobQueueRecord };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// =============================================================================
+// DEAD-LETTER QUEUE (Phase 9) — hsin_dead_letter_jobs.
+// =============================================================================
+
+/**
+ * List parked dead-letter jobs (newest first). RLS: reviewer+ see rows
+ * (migration 0013, shape A). NEVER throws.
+ */
+export async function listDeadLetterJobs(
+  limit = 100,
+): Promise<DbResult<HsinDeadLetterJobRecord[]>> {
+  try {
+    const { data, error } = await db()
+      .from('hsin_dead_letter_jobs')
+      .select('*')
+      .order('dead_lettered_at', { ascending: false })
+      .limit(limit);
+    if (error) return fail(error);
+    return { ok: true, data: (data ?? []) as HsinDeadLetterJobRecord[] };
   } catch (e) {
     return fail(e);
   }

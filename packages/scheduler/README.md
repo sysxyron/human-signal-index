@@ -70,8 +70,51 @@ interface QueueStore {
   ordering `priority DESC, scheduled_for ASC, created_at ASC LIMIT :limit`.
 - `markFailedOrRetry` should call `decideAfterFailure(job, policy, now, seed)`
   from this package to compute the next run, then persist `status` +
-  `scheduled_for`.
+  `scheduled_for`. When attempts are exhausted (`shouldDeadLetter`) keep the
+  job `failed` *and* insert a row into `hsin_dead_letter_jobs`; return
+  `{ retried: false, deadLettered: true }`.
 - Mirror the `Job` / `JobAttempt` field names to your table columns.
+
+### `QueueStore` — Phase 9 scaled-queue extensions (optional)
+
+These methods are **optional** on `QueueStore` (existing Phase-8 impls still
+satisfy the type). A store that implements all three should declare
+`ScalableQueueStore`. `InMemoryQueueStore` implements them.
+
+```ts
+interface QueueStore {
+  // ...Phase-8 members...
+  // Atomic, visibility-aware claim. Implement via the `claim_hsin_jobs`
+  // SKIP LOCKED RPC: select due queued/retrying jobs AND running jobs whose
+  // locked_until < now (reclaim crashed workers), set status='running',
+  // locked_until = now + visibility, attempt_count = attempt_count + 1,
+  // ordered priority DESC, scheduled_for ASC, created_at ASC LIMIT :limit.
+  claimBatch?(opts: {
+    now: string; limit: number; visibilitySeconds?: number; jobTypes?: string[];
+  }): Promise<Job[]>;
+  // Extend a running job's lock for long work: SET locked_until = now + visibility.
+  heartbeat?(jobId: string, now: string, visibilitySeconds?: number): Promise<void>;
+  // Force terminal + record dead-letter: SET status='failed', then INSERT INTO
+  // hsin_dead_letter_jobs (...).
+  deadLetter?(jobId: string, now: string, reason: string): Promise<void>;
+}
+```
+
+The `Job` type carries an optional `lockedUntil` (ISO) visibility lock, set by
+`claimBatch`/`heartbeat` and cleared on retry/terminal.
+
+### `DeadLetterStore`
+
+```ts
+interface DeadLetterStore {
+  record(entry: DeadLetterEntry): Promise<void>;
+  list(limit?: number): Promise<DeadLetterEntry[]>; // newest first
+  requeue(jobId: string): Promise<void>;            // signal re-enqueue
+}
+```
+
+Implement against `hsin_dead_letter_jobs`. `InMemoryQueueStore.requeueFromDeadLetter`
+re-creates a fresh `queued` job (attemptCount reset to 0) and consumes the entry.
 
 ### `DedupeStore`
 
@@ -125,6 +168,17 @@ ingestion with `isDuplicate(store, sourceId, contentHash, canonicalUrl, now)`.
 - `nextDueRules(rules, now): SchedulerRule[]`
 - `advanceRule(rule, now): SchedulerRule` (`lastRunAt = now`, recompute `nextRunAt`)
 
+### `deadletter` (Phase 9)
+- `shouldDeadLetter(job, policy): boolean` — `attemptCount >= min(job.maxAttempts, policy.maxAttempts)`.
+- `toDeadLetterEntry(job, now, reason): DeadLetterEntry`
+- `DeadLetterEntry`, `DeadLetterStore`, `class InMemoryDeadLetterStore`
+
+### `visibility` (Phase 9)
+- `VISIBILITY_DEFAULT_SECONDS = 300`
+- `lockedUntil(now, visibilitySeconds): string`
+- `isExpired(lockedUntilISO | undefined, now): boolean` (lock at exactly `now` is still held)
+- `reclaimableFilter(jobs, now): Job[]` — running jobs past their lock
+
 ### `dedupe`
 - `dedupeKey(sourceId, contentHash, canonicalUrl?): string`
 - `DedupeStore`, `class InMemoryDedupeStore`
@@ -139,8 +193,10 @@ ingestion with `isDuplicate(store, sourceId, contentHash, canonicalUrl, now)`.
 - `createRunner({ store, handlers, policy, audit?, now }): { runOnce(opts) }`
   — claims due jobs, records a `running` attempt, runs each handler in a
   try/catch (a throwing handler never crashes the runner), then completes or
-  routes failure through the retry policy. Returns
-  `{ claimed, completed, failed, retried }`.
+  routes failure through the retry policy. Prefers the visibility-aware
+  `store.claimBatch` when available (else `claimNext`); on terminal failure
+  calls `store.deadLetter` when supported. Returns
+  `{ claimed, completed, failed, retried, deadLettered }`.
 - `enqueue(store, input, now, audit?): Promise<Job>`
 
 ### top-level
@@ -153,7 +209,8 @@ node node_modules/.pnpm/tsx@*/node_modules/tsx/dist/cli.mjs --test packages/sche
 ```
 
 Suites: `cron.test.ts`, `queue.test.ts`, `retry.test.ts`, `dedupe.test.ts`,
-`runner.test.ts`. All deterministic with a fixed `now`.
+`runner.test.ts`, `deadletter.test.ts`, `visibility.test.ts`,
+`claimBatch.test.ts`. All deterministic with a fixed `now`.
 
 ## Limitations
 

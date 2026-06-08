@@ -21,3 +21,30 @@ export {
   signalToNarrativeLinks,
   type GraphSignal,
 } from './narrativeGraph';
+// ---- Phase 9 (additive): community / amplification / cross-source ----------
+export {
+  detectCommunities,
+  MAX_COMMUNITY_ITERATIONS,
+  type CommunityGraphInput,
+  type Community,
+  type CommunityResult,
+} from './community';
+export {
+  computeAmplificationScores,
+  VELOCITY_HALF_LIFE_DAYS,
+  type AmplificationNarrative,
+  type AmplificationSignal,
+  type AmplificationEdge,
+  type AmplificationInput,
+  type AmplificationScore,
+  type AmplificationResult,
+} from './amplification';
+export {
+  clusterNarrativesCrossSource,
+  sourceNarrativeOverlap,
+  type CrossSourceSignal,
+  type CrossSourceDeps,
+  type CrossSourceCluster,
+  type CrossSourceResult,
+  type SourceOverlap,
+} from './crossSource';

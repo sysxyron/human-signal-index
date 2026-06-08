@@ -44,6 +44,12 @@ export interface Job {
   startedAt?: string;
   finishedAt?: string;
   errorMessage?: string;
+  /**
+   * Visibility lock (Phase 9). When a job is claimed it is held until this ISO
+   * timestamp; once `lockedUntil < now` a `running` job is reclaimable. Unset
+   * for jobs that are not currently claimed.
+   */
+  lockedUntil?: string;
   attemptCount: number;
   maxAttempts: number;
   createdAt: string;
@@ -144,8 +150,68 @@ export interface QueueStore {
     now: string,
     error: string,
     policy: RetryPolicy,
-  ): Promise<{ retried: boolean; nextRunAt?: string }>;
+  ): Promise<FailureOutcome>;
   recordAttempt(attempt: JobAttempt): Promise<void>;
   cancel(jobId: string, now: string): Promise<void>;
   get(jobId: string): Promise<Job | null>;
+
+  // --- Phase 9 (scaled queue hardening) — optional, visibility-aware ---------
+  // These are optional so existing Phase-8 implementations still satisfy the
+  // port. The DB store implements `claimBatch` via the Postgres
+  // `claim_hsin_jobs` SKIP LOCKED RPC and `deadLetter` via `hsin_dead_letter_jobs`.
+
+  /**
+   * Atomic, visibility-aware claim. Selects due `queued`/`retrying` jobs and
+   * reclaims `running` jobs whose visibility lock has expired, marks them
+   * `running`, sets `lockedUntil = now + visibilitySeconds`, bumps
+   * `attemptCount`, and returns them in deterministic order
+   * (priority desc, scheduledFor asc, createdAt asc).
+   */
+  claimBatch?(opts: {
+    now: string;
+    limit: number;
+    visibilitySeconds?: number;
+    jobTypes?: string[];
+  }): Promise<Job[]>;
+
+  /** Extend a running job's visibility lock (for long-running work). */
+  heartbeat?(
+    jobId: string,
+    now: string,
+    visibilitySeconds?: number,
+  ): Promise<void>;
+
+  /** Force a job terminal (`failed`) and record a dead-letter entry. */
+  deadLetter?(jobId: string, now: string, reason: string): Promise<void>;
+}
+
+/**
+ * Outcome of {@link QueueStore.markFailedOrRetry}. `deadLettered` is set when
+ * a terminal failure also produced a dead-letter entry (Phase 9). Back-compat:
+ * `deadLettered` is optional, so existing `{ retried, nextRunAt }` consumers
+ * are unaffected.
+ */
+export interface FailureOutcome {
+  retried: boolean;
+  nextRunAt?: string;
+  deadLettered?: boolean;
+}
+
+/**
+ * A {@link QueueStore} that also implements the Phase 9 scaled-queue methods as
+ * required (non-optional) members. The DB store should satisfy this interface.
+ */
+export interface ScalableQueueStore extends QueueStore {
+  claimBatch(opts: {
+    now: string;
+    limit: number;
+    visibilitySeconds?: number;
+    jobTypes?: string[];
+  }): Promise<Job[]>;
+  heartbeat(
+    jobId: string,
+    now: string,
+    visibilitySeconds?: number,
+  ): Promise<void>;
+  deadLetter(jobId: string, now: string, reason: string): Promise<void>;
 }

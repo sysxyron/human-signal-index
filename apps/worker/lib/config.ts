@@ -42,6 +42,37 @@ export interface Phase8WorkerConfig {
   captureMaxBytes: number;
   /** Whether a service-role Supabase client is configurable from env. */
   hasServiceRole: boolean;
+
+  // --- Phase 9 (real provider adapters + scaled queue) ----------------------
+  /**
+   * Per-request timeout (ms) for the Phase-9 PROVIDER layer (rss/website/
+   * youtube/podcast/forum). Distinct from the Phase-8 `captureTimeoutMs` so the
+   * provider layer can be tuned independently. Default 12000.
+   */
+  providerTimeoutMs: number;
+  /** Max response bytes the provider layer will read per request. Default 2_000_000. */
+  providerMaxBytes: number;
+  /**
+   * Visibility-timeout lease (seconds) for the scaled queue's atomic claim
+   * (`claim_hsin_jobs` / `claimBatch`). A claimed job is reclaimable once its
+   * lease expires (worker crash recovery). Default 300 (5 min).
+   */
+  jobVisibilityTimeoutSeconds: number;
+  /**
+   * Whether terminal (retry-exhausted) jobs are dead-lettered into
+   * hsin_dead_letter_jobs. Default TRUE. When false the queue store skips the
+   * dead-letter insert (the job still goes terminal `failed`).
+   */
+  deadLetterEnabled: boolean;
+  /**
+   * Whether the local (network-free) embedder is used for semantic work.
+   * Default TRUE — keeps embeddings fully offline unless a host opts out.
+   */
+  localEmbeddings: boolean;
+  /** Provider credentials (live mode only; blank/undefined offline). */
+  youtubeApiKey?: string;
+  podcastIndexApiKey?: string;
+  podcastIndexApiSecret?: string;
 }
 
 /** Documented offline-safe defaults (mirror .env.example). */
@@ -53,6 +84,21 @@ export const PHASE8_DEFAULTS = {
   captureTimeoutMs: 12000,
   captureMaxBytes: 2_000_000,
 } as const;
+
+/** Documented offline-safe Phase-9 defaults (mirror .env.example). */
+export const PHASE9_DEFAULTS = {
+  providerTimeoutMs: 12000,
+  providerMaxBytes: 2_000_000,
+  jobVisibilityTimeoutSeconds: 300,
+  deadLetterEnabled: true,
+  localEmbeddings: true,
+} as const;
+
+/** boolEnv that honours an explicit default when the var is unset. */
+function boolEnvWithDefault(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined || value === '') return fallback;
+  return value === 'true';
+}
 
 function boolEnv(value: string | undefined): boolean {
   return value === 'true';
@@ -91,6 +137,30 @@ export function readPhase8Config(
     captureTimeoutMs: intEnv(env.SIGNAL_CAPTURE_TIMEOUT_MS, PHASE8_DEFAULTS.captureTimeoutMs),
     captureMaxBytes: intEnv(env.SIGNAL_CAPTURE_MAX_BYTES, PHASE8_DEFAULTS.captureMaxBytes),
     hasServiceRole,
+    // Phase 9.
+    providerTimeoutMs: intEnv(
+      env.HSIN_PROVIDER_TIMEOUT_MS,
+      PHASE9_DEFAULTS.providerTimeoutMs,
+    ),
+    providerMaxBytes: intEnv(
+      env.HSIN_PROVIDER_MAX_BYTES,
+      PHASE9_DEFAULTS.providerMaxBytes,
+    ),
+    jobVisibilityTimeoutSeconds: intEnv(
+      env.HSIN_JOB_VISIBILITY_TIMEOUT_SECONDS,
+      PHASE9_DEFAULTS.jobVisibilityTimeoutSeconds,
+    ),
+    deadLetterEnabled: boolEnvWithDefault(
+      env.HSIN_DEAD_LETTER_ENABLED,
+      PHASE9_DEFAULTS.deadLetterEnabled,
+    ),
+    localEmbeddings: boolEnvWithDefault(
+      env.HSIN_LOCAL_EMBEDDINGS,
+      PHASE9_DEFAULTS.localEmbeddings,
+    ),
+    youtubeApiKey: env.YOUTUBE_API_KEY || undefined,
+    podcastIndexApiKey: env.PODCAST_INDEX_API_KEY || undefined,
+    podcastIndexApiSecret: env.PODCAST_INDEX_API_SECRET || undefined,
   };
 }
 

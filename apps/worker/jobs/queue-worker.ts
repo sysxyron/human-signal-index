@@ -1,12 +1,19 @@
 // =============================================================================
-// apps/worker/jobs — queueWorkerJob (WorldForge/HSI Phase 8)
+// apps/worker/jobs — queueWorkerJob (WorldForge/HSI Phase 8 → 9)
 //
 // The QUEUE DRAINER. It builds a @hsi/scheduler `createRunner({ store, handlers,
 // policy, audit })` whose handlers map each JOB_TYPE to the corresponding
-// Phase-8 step, then calls `runner.runOnce({ now, limit: SIGNAL_QUEUE_BATCH_SIZE })`.
-// The runner claims due jobs, records attempts (hsin_job_attempts), runs each
-// handler in isolation, then completes or retries/fails them per the retry
-// policy. It logs the summary {claimed, completed, failed, retried}.
+// Phase-8 step, then calls
+//   `runner.runOnce({ now, limit: SIGNAL_QUEUE_BATCH_SIZE, visibilitySeconds })`.
+//
+// PHASE 9 (scaled queue): the runner PREFERS the store's visibility-aware
+// `claimBatch` — the atomic `claim_hsin_jobs` SKIP LOCKED RPC — so N workers
+// can drain the queue concurrently without double-claiming, and crashed-worker
+// jobs are reclaimed once their visibility lease expires. On exhausted retries a
+// job is DEAD-LETTERED into hsin_dead_letter_jobs. The runner records attempts
+// (hsin_job_attempts), runs each handler in isolation, then completes or
+// retries/fails them per the retry policy. It logs the summary
+// {claimed, completed, failed, retried, deadLettered}.
 //
 // HANDLERS — by default each is a SAFE no-op that returns ok:true (the real work
 // is driven offline by the dedicated capture/classification/drift/alert/triage
@@ -29,6 +36,7 @@ import {
   type Job as QueueJob,
   type JobHandler,
   type QueueStore,
+  type RunSummary,
 } from '@hsi/scheduler';
 import { logger } from '../src/logger';
 import { readPhase8Config, retryPolicyFromConfig } from '../lib/config';
@@ -100,6 +108,10 @@ export function makeQueueWorkerJob(
         batchSize: cfg.queueBatchSize,
         maxAttempts: cfg.jobMaxAttempts,
         backoffBaseSeconds: cfg.backoffBaseSeconds,
+        // Phase 9: the visibility lease used by the atomic claimBatch RPC and the
+        // dead-letter toggle (terminal jobs parked in hsin_dead_letter_jobs).
+        visibilitySeconds: cfg.jobVisibilityTimeoutSeconds,
+        deadLetterEnabled: cfg.deadLetterEnabled,
         serviceRole: cfg.hasServiceRole,
         runAt: now,
       };
@@ -116,10 +128,22 @@ export function makeQueueWorkerJob(
       });
 
       // runOnce NEVER throws (the runner isolates per-job failures), but guard
-      // anyway so a store-level surprise can't crash the worker process.
-      let summary = { claimed: 0, completed: 0, failed: 0, retried: 0 };
+      // anyway so a store-level surprise can't crash the worker process. The
+      // runner prefers the store's visibility-aware claimBatch (Phase 9, atomic
+      // RPC) and dead-letters jobs whose retries are exhausted.
+      let summary: RunSummary = {
+        claimed: 0,
+        completed: 0,
+        failed: 0,
+        retried: 0,
+        deadLettered: 0,
+      };
       try {
-        summary = await runner.runOnce({ now, limit: cfg.queueBatchSize });
+        summary = await runner.runOnce({
+          now,
+          limit: cfg.queueBatchSize,
+          visibilitySeconds: cfg.jobVisibilityTimeoutSeconds,
+        });
       } catch (e) {
         logger.warn('job.queueWorker.runFailed', {
           error: e instanceof Error ? e.message : String(e),

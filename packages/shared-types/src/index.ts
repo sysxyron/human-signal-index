@@ -1677,3 +1677,177 @@ export interface JobWithAttempts {
   job: HsinJobQueueRecord;
   attempts: HsinJobAttemptRecord[];
 }
+
+// =============================================================================
+// Provider Adapters & Scaled Queue — Phase 9
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 9 persistence (migration 0013): the
+// hsin_job_queue visibility-timeout + dead-letter additions, the dead-letter
+// queue, real-provider run observability, derived source-reliability + narrative-
+// amplification scoring, narrative-graph community detection, and the WorldForge
+// fusion bridge (signal/narrative -> research run/world) — plus the view-model
+// shapes the providers/communities/amplification consoles render.
+//
+// NAMING: the underlying tables use the `hsin_` prefix (consistent with Phases 7-8);
+// their TS record names carry the `Hsin` prefix to mirror that. Timestamps are ISO
+// strings; uuid columns are strings. jsonb payloads are typed as
+// `Record<string, unknown>` so shared-types stays decoupled from the engine internals.
+// =============================================================================
+
+/**
+ * Why a real provider adapter invocation ended (success implied when absent).
+ * Mirrors hsin_provider_runs.reason and hsin_dead_letter_jobs.reason.
+ */
+export type ProviderReason =
+  | 'provider_not_configured'
+  | 'blocked'
+  | 'timeout'
+  | 'fetch_error'
+  | 'parse_error'
+  | 'policy_violation';
+
+/** Coarse reliability tier for a source. Mirrors hsin_source_reliability.tier. */
+export type SourceReliabilityTier = 'high' | 'medium' | 'low' | 'unproven';
+
+/** Lifecycle status of a WorldForge fusion link. Mirrors hsin_worldforge_links.status. */
+export type WorldforgeLinkStatus = 'draft' | 'approved' | 'rejected' | 'created';
+
+/**
+ * A job that exhausted its retry budget and was moved off the live queue.
+ * Mirrors the `hsin_dead_letter_jobs` table.
+ */
+export interface HsinDeadLetterJobRecord {
+  id: string;
+  job_id?: string;
+  job_type?: string;
+  source_id?: string;
+  /** Snapshot of the failed job's input (jsonb). */
+  payload_json?: Record<string, unknown>;
+  attempt_count?: number;
+  max_attempts?: number;
+  /** Terminal failure reason. */
+  reason?: ProviderReason | string;
+  last_error?: string;
+  dead_lettered_at?: string;
+  /** Set when the job was manually re-driven back onto the queue. */
+  requeued_at?: string;
+  created_at: string;
+}
+
+/** One real provider-adapter invocation + its observability counters. Mirrors `hsin_provider_runs`. */
+export interface HsinProviderRunRecord {
+  id: string;
+  provider_name: string;
+  source_id?: string;
+  started_at?: string;
+  finished_at?: string;
+  ok?: boolean;
+  reason?: ProviderReason | string;
+  /** Items parsed from the response. */
+  item_count?: number;
+  /** Bytes read from the response. */
+  bytes?: number;
+  http_status?: number;
+  note?: string;
+  created_at: string;
+}
+
+/** A derived per-source reliability profile. Mirrors the `hsin_source_reliability` table. */
+export interface HsinSourceReliabilityRecord {
+  id: string;
+  source_id: string;
+  /** 0..100 blended reliability score. */
+  reliability_score?: number;
+  tier?: SourceReliabilityTier;
+  /** 0..1 fraction of capture attempts that succeeded. */
+  capture_success_rate?: number;
+  /** 0..1 fraction of attempts blocked by the provider/source. */
+  blocked_rate?: number;
+  /** 0..1 fraction of downstream signals approved. */
+  approved_rate?: number;
+  /** 0..1 fraction of downstream signals contradicted. */
+  contradiction_rate?: number;
+  signal_count?: number;
+  rationale?: string;
+  computed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A derived per-narrative amplification profile. Mirrors the `hsin_amplification_scores` table. */
+export interface HsinAmplificationScoreRecord {
+  id: string;
+  narrative_id: string;
+  /** 0..100 amplification score. */
+  amplification?: number;
+  source_count?: number;
+  signal_count?: number;
+  /** Amplification velocity (rate of spread). */
+  velocity?: number;
+  rationale?: string;
+  computed_at?: string;
+  created_at: string;
+}
+
+/** A detected community (cluster) over the narrative graph. Mirrors the `hsin_graph_communities` table. */
+export interface HsinGraphCommunityRecord {
+  id: string;
+  label?: string;
+  /** Community-detection algorithm (default 'label-propagation'). */
+  algorithm?: string;
+  /** Member narrative ids (uuid[]). */
+  member_narrative_ids: string[];
+  size?: number;
+  /** Arbitrary computed community metrics (jsonb). */
+  metrics_json?: Record<string, unknown>;
+  computed_at?: string;
+  created_at: string;
+}
+
+/**
+ * The cross-subsystem bridge fusing a captured signal/narrative into a WorldForge
+ * research run / world. Mirrors the `hsin_worldforge_links` table.
+ */
+export interface HsinWorldforgeLinkRecord {
+  id: string;
+  signal_id?: string;
+  narrative_id?: string;
+  research_run_id?: string;
+  world_id?: string;
+  prompt_draft?: string;
+  status: WorldforgeLinkStatus;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Aggregate data backing the providers console (runs + live rate limits + reliabilities). */
+export interface ProvidersOverview {
+  runs: HsinProviderRunRecord[];
+  rateLimits: HsinProviderRateLimitRecord[];
+  reliabilities: HsinSourceReliabilityRecord[];
+}
+
+/** The narrative-graph community view: detected communities + the narratives they cluster. */
+export interface CommunitiesView {
+  communities: HsinGraphCommunityRecord[];
+  narratives: HsinNarrativeRecord[];
+}
+
+/** The amplification view: per-narrative amplification scores + the narratives they score. */
+export interface AmplificationView {
+  scores: HsinAmplificationScoreRecord[];
+  narratives: HsinNarrativeRecord[];
+}
+
+/**
+ * A draft of a WorldForge fusion proposal assembled from a captured signal/narrative
+ * before it is turned into a research run / world.
+ */
+export interface WorldforgeFusionDraft {
+  signalId?: string;
+  narrativeId?: string;
+  title: string;
+  promptDraft: string;
+  rationale: string[];
+}

@@ -22,6 +22,8 @@ import { classificationWorkerJob } from './classification-worker';
 import { driftWorkerJob } from './drift-worker';
 import { alertWorkerJob } from './alert-worker';
 import { triageWorkerJob } from './triage-worker';
+// HSI Phase 9 — SLA escalation watchdog.
+import { slaEscalationJob } from './sla-escalation-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -49,6 +51,12 @@ export * from './classification-worker';
 export * from './drift-worker';
 export * from './alert-worker';
 export * from './triage-worker';
+// HSI Phase 9 exports. sla-escalation-worker only IMPORTS the SLA types
+// (SlaPolicy/SlaSeverity/SlaStatus) from @hsi/source-intelligence — it does not
+// re-export them — and its public names (SlaReviewItem, SlaEscalation,
+// slaEscalationJob, makeSlaEscalationJob, dbLoad/dbPersist...) don't collide
+// with the triage-worker's exports above.
+export * from './sla-escalation-worker';
 
 /** All registered jobs, in pipeline order. */
 export const jobs: Job[] = [
@@ -73,6 +81,9 @@ export const jobs: Job[] = [
   driftWorkerJob,
   alertWorkerJob,
   triageWorkerJob,
+  // HSI Phase 9 — SLA escalation watchdog (offline-safe; DB-backed when the
+  // service-role env is configured, else a clean no-op). NEVER auto-publishes.
+  slaEscalationJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

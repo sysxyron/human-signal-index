@@ -52,6 +52,11 @@ export interface RunOnceOptions {
   now: string;
   jobTypes?: string[];
   limit?: number;
+  /**
+   * Visibility window (seconds) used when the store supports the Phase 9
+   * visibility-aware `claimBatch`. Ignored by the legacy `claimNext` path.
+   */
+  visibilitySeconds?: number;
 }
 
 /** Summary of a run pass. */
@@ -60,6 +65,8 @@ export interface RunSummary {
   completed: number;
   failed: number;
   retried: number;
+  /** Failures that exhausted retries and were dead-lettered (Phase 9). */
+  deadLettered: number;
 }
 
 /** A runner instance bound to a store + handlers + policy. */
@@ -93,15 +100,27 @@ export function createRunner(config: RunnerConfig): Runner {
       completed: 0,
       failed: 0,
       retried: 0,
+      deadLettered: 0,
     };
 
     let claimed: Job[];
     try {
-      claimed = await store.claimNext({
-        now: opts.now,
-        jobTypes: opts.jobTypes,
-        limit: opts.limit,
-      });
+      // Prefer the visibility-aware atomic claim when the store supports it
+      // (Phase 9); otherwise fall back to the legacy claimNext.
+      if (typeof store.claimBatch === 'function') {
+        claimed = await store.claimBatch({
+          now: opts.now,
+          limit: opts.limit ?? 1,
+          jobTypes: opts.jobTypes,
+          visibilitySeconds: opts.visibilitySeconds,
+        });
+      } else {
+        claimed = await store.claimNext({
+          now: opts.now,
+          jobTypes: opts.jobTypes,
+          limit: opts.limit,
+        });
+      }
     } catch {
       // If even claiming fails, report an empty pass rather than throwing.
       return summary;
@@ -163,7 +182,7 @@ export function createRunner(config: RunnerConfig): Runner {
       }
 
       const error = result.error ?? 'handler returned ok=false';
-      let outcome: { retried: boolean; nextRunAt?: string };
+      let outcome: { retried: boolean; nextRunAt?: string; deadLettered?: boolean };
       try {
         outcome = await store.markFailedOrRetry(job.id, opts.now, error, policy);
       } catch {
@@ -192,6 +211,19 @@ export function createRunner(config: RunnerConfig): Runner {
         );
       } else {
         summary.failed += 1;
+        // Terminal failure. If the store didn't already dead-letter (some stores
+        // do so inside markFailedOrRetry) and it supports an explicit
+        // deadLetter, route it there. Never throw.
+        let deadLettered = outcome.deadLettered === true;
+        if (!deadLettered && typeof store.deadLetter === 'function') {
+          try {
+            await store.deadLetter(job.id, opts.now, error);
+            deadLettered = true;
+          } catch {
+            /* best-effort */
+          }
+        }
+        if (deadLettered) summary.deadLettered += 1;
         audit?.record(jobFailed(opts.now, job.id, error, { jobType: job.jobType }));
       }
     }

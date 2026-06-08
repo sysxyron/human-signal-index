@@ -27,6 +27,7 @@ import {
   getJob,
   getNarrativeGraph,
   getOperationsOverview,
+  listDeadLetterJobs,
   listJobs,
   listSchedulerRules,
   listSlaPolicies,
@@ -35,6 +36,7 @@ import {
   persistNarrativeGraph,
   retryJob,
   toggleSchedulerRule,
+  requireOperationsRole,
   type CreateSchedulerRuleInput,
   type DbResult,
   type JobFilters,
@@ -45,6 +47,26 @@ import {
   runScheduledCapture,
   type ScheduledCaptureOutcome,
 } from './pipeline';
+import {
+  getProvidersOverview,
+  listProviderRuns,
+  type ProviderRunFilters,
+} from './providers';
+import {
+  getAmplification,
+  getCommunities,
+  getSourceReliability,
+  rebuildAmplification,
+  rebuildCommunities,
+  rebuildReliability,
+} from './intelligence-graph';
+import {
+  approveWorldforgeFusion,
+  draftWorldforgeFromSignal,
+  listWorldforgeLinks,
+  type ApproveWorldforgeFusionInput,
+} from './fusion';
+import { createSupabaseQueueStore } from './queue-store';
 import type { TriageOutcome } from '@hsi/source-intelligence';
 import type { NarrativeGraphData } from '@hsi/shared-types';
 
@@ -56,6 +78,13 @@ const JOBS_ROUTE = '/operations/jobs';
 const SCHEDULER_ROUTE = '/operations/scheduler';
 const GRAPH_ROUTE = '/operations/graph';
 const SIGNALS_ROUTE = '/signals';
+const PROVIDERS_ROUTE = '/operations/providers';
+const DLQ_ROUTE = '/operations/dead-letter';
+const COMMUNITIES_ROUTE = '/operations/communities';
+const AMPLIFICATION_ROUTE = '/operations/amplification';
+const RELIABILITY_ROUTE = '/operations/reliability';
+const FUSION_ROUTE = '/operations/fusion';
+const WORLDFORGE_ROUTE = '/worldforge';
 
 function revalidate(...paths: string[]): void {
   for (const p of paths) {
@@ -267,7 +296,123 @@ export async function applyTriageToSignalAction(
 }
 
 // =============================================================================
-// RE-EXPORTS for the UI — DbResult + Phase-8 view-model / record types.
+// PHASE 9 — PROVIDERS + DEAD-LETTER QUEUE
+// =============================================================================
+
+/** The providers console aggregate (recent runs + rate limits + reliability). */
+export async function getProvidersOverviewAction() {
+  return getProvidersOverview();
+}
+
+/** List recent provider-adapter runs (filtered), newest first. */
+export async function listProviderRunsAction(filters?: ProviderRunFilters) {
+  return listProviderRuns(filters);
+}
+
+/** List parked dead-letter jobs (reviewer+ via RLS). */
+export async function listDeadLetterJobsAction() {
+  return listDeadLetterJobs();
+}
+
+/**
+ * Requeue a parked dead-letter job (curator+). Gates on curator here (the DLQ
+ * write path is curator/admin per migration 0013), then re-creates a fresh queued
+ * job from the DLQ snapshot via the ScalableQueueStore. NEVER throws.
+ */
+export async function requeueDeadLetterAction(
+  id: string,
+): Promise<DbResult<{ jobId: string }>> {
+  try {
+    const client = operationsDbClient();
+    const gate = await requireOperationsRole(client, 'curator');
+    if (!gate.ok) return gate;
+
+    const store = createSupabaseQueueStore(client);
+    const job = await store.requeueDeadLetter(id);
+    if (!job || !job.id) {
+      return {
+        ok: false,
+        error: 'Could not requeue the dead-letter job (not found or insert failed).',
+        code: 'DB_ERROR',
+      };
+    }
+    revalidate(DLQ_ROUTE, JOBS_ROUTE, OPERATIONS_ROUTE);
+    return { ok: true, data: { jobId: job.id } };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+      code: 'DB_ERROR',
+    };
+  }
+}
+
+// =============================================================================
+// PHASE 9 — COMMUNITIES / AMPLIFICATION / RELIABILITY
+// =============================================================================
+
+export async function getCommunitiesAction() {
+  return getCommunities();
+}
+
+export async function rebuildCommunitiesAction() {
+  const result = await rebuildCommunities();
+  if (result.ok) revalidate(COMMUNITIES_ROUTE, GRAPH_ROUTE, OPERATIONS_ROUTE);
+  return result;
+}
+
+export async function getAmplificationAction() {
+  return getAmplification();
+}
+
+export async function rebuildAmplificationAction() {
+  const result = await rebuildAmplification();
+  if (result.ok) revalidate(AMPLIFICATION_ROUTE, GRAPH_ROUTE, OPERATIONS_ROUTE);
+  return result;
+}
+
+export async function getSourceReliabilityAction(sourceId?: string) {
+  return getSourceReliability(sourceId);
+}
+
+export async function rebuildReliabilityAction() {
+  const result = await rebuildReliability();
+  if (result.ok) revalidate(RELIABILITY_ROUTE, PROVIDERS_ROUTE, OPERATIONS_ROUTE);
+  return result;
+}
+
+// =============================================================================
+// PHASE 9 — WORLDFORGE FUSION (HSI <-> WorldForge)
+// =============================================================================
+
+/** Assemble a WorldForge fusion DRAFT from a signal + persist a 'draft' link. */
+export async function draftWorldforgeFromSignalAction(signalId: string) {
+  const result = await draftWorldforgeFromSignal(signalId);
+  if (result.ok) revalidate(FUSION_ROUTE, `${SIGNALS_ROUTE}/${signalId}`);
+  return result;
+}
+
+/**
+ * Approve a fusion (researcher+): create the research run (DRAFT) + advance the
+ * link to 'created'. NEVER auto-publishes.
+ */
+export async function approveWorldforgeFusionAction(
+  input: ApproveWorldforgeFusionInput,
+) {
+  const result = await approveWorldforgeFusion(input);
+  if (result.ok) {
+    revalidate(FUSION_ROUTE, WORLDFORGE_ROUTE, OPERATIONS_ROUTE);
+  }
+  return result;
+}
+
+/** List WorldForge fusion links (RLS scoped), newest first. */
+export async function listWorldforgeLinksAction() {
+  return listWorldforgeLinks();
+}
+
+// =============================================================================
+// RE-EXPORTS for the UI — DbResult + Phase-8/9 view-model / record types.
 // (Type re-exports are erased at compile time; safe in a 'use server' module.)
 // =============================================================================
 export type { DbResult, DbResultCode } from './persistence';
@@ -278,6 +423,8 @@ export type {
   ProviderRateLimitInput,
 } from './persistence';
 export type { ScheduledCaptureOutcome } from './pipeline';
+export type { ProviderRunFilters } from './providers';
+export type { ApproveWorldforgeFusionInput } from './fusion';
 export type {
   HsinJobQueueRecord,
   HsinJobAttemptRecord,
@@ -300,5 +447,19 @@ export type {
   NarrativeEdgeType,
   TriageActionType,
   SlaSeverity,
+  // Phase 9 records + view-models + unions.
+  HsinDeadLetterJobRecord,
+  HsinProviderRunRecord,
+  HsinSourceReliabilityRecord,
+  HsinAmplificationScoreRecord,
+  HsinGraphCommunityRecord,
+  HsinWorldforgeLinkRecord,
+  ProvidersOverview,
+  CommunitiesView,
+  AmplificationView,
+  WorldforgeFusionDraft,
+  ProviderReason,
+  SourceReliabilityTier,
+  WorldforgeLinkStatus,
 } from '@hsi/shared-types';
 export type { TriageOutcome, TriageContext } from '@hsi/source-intelligence';

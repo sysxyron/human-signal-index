@@ -23,11 +23,15 @@ import type {
 } from '@hsi/shared-types';
 import {
   getOperationsOverviewAction,
+  getProvidersOverviewAction,
   listJobsAction,
   listSchedulerRulesAction,
   listSlaPoliciesAction,
   listTriageRulesAction,
 } from '@/lib/operations/actions';
+import type { HsinProviderRunRecord } from '@hsi/shared-types';
+import { demoProviderRuns } from '@/lib/operations/phase9-view';
+import { OperationsPhase9Strip } from '@/components/providers/OperationsPhase9Strip';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import {
   canOperate,
@@ -88,6 +92,22 @@ export default async function OperationsPage({
     ]);
 
   const operate = canOperate(role) && Boolean(user);
+
+  // ADDITIVE (Phase 9): a defensive recent-provider-runs preview. A failure here
+  // (e.g. action not yet present) must never break the operations page.
+  let providerRuns: HsinProviderRunRecord[] | null = null;
+  let providerRunsDemo = false;
+  try {
+    const provRes = await getProvidersOverviewAction();
+    if (provRes.ok) {
+      providerRuns = provRes.data.runs;
+    } else if (provRes.code === 'NOT_CONFIGURED') {
+      providerRuns = demoProviderRuns();
+      providerRunsDemo = true;
+    }
+  } catch {
+    providerRuns = null;
+  }
 
   // Resolve the overview: live, demo (NOT_CONFIGURED), or a real error.
   let overview: OperationsOverview | null = null;
@@ -170,6 +190,9 @@ export default async function OperationsPage({
         </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}
+
+        {/* ADDITIVE (Phase 9): dead-letter link + recent provider-runs strip. */}
+        <OperationsPhase9Strip runs={providerRuns} demo={providerRunsDemo} />
 
         {/* Job-status stat cards */}
         <JobStatusCards overview={o} />
