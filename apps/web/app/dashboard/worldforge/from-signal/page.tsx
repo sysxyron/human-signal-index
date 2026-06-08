@@ -12,8 +12,12 @@ import { TopNav, Card } from '@hsi/ui';
 import { GitMerge, Info, Inbox, ArrowRight } from 'lucide-react';
 import type {
   HsinWorldforgeLinkRecord,
+  NarrativeHistory,
   WorldforgeFusionDraft,
 } from '@hsi/shared-types';
+import { getNarrativeHistoryAction } from '@/lib/temporal/actions';
+import { demoNarrativeHistory } from '@/lib/temporal/view';
+import { NarrativeHistoryPanel } from '@/components/temporal/NarrativeHistoryPanel';
 import {
   draftWorldforgeFromSignalAction,
   listWorldforgeLinksAction,
@@ -74,6 +78,30 @@ export default async function FromSignalPage({
       draftDemo = true;
     } else {
       draftErr = { message: res.error, code: res.code };
+    }
+  }
+
+  // ADDITIVE (Phase 10): when the drafted fusion is tied to a narrative, show its
+  // compact temporal history (snapshots / evolution / forecast) feeding the world
+  // hypothesis. Wrapped so any failure (e.g. action not present) hides the block.
+  let history: NarrativeHistory | null = null;
+  let historyDemo = false;
+  if (draft?.narrativeId) {
+    try {
+      if (draftDemo) {
+        history = await demoNarrativeHistory(draft.narrativeId);
+        historyDemo = true;
+      } else {
+        const hRes = await getNarrativeHistoryAction(draft.narrativeId);
+        if (hRes.ok) {
+          history = hRes.data;
+        } else if (hRes.code === 'NOT_CONFIGURED') {
+          history = await demoNarrativeHistory(draft.narrativeId);
+          historyDemo = true;
+        }
+      }
+    } catch {
+      history = null;
     }
   }
 
@@ -140,6 +168,9 @@ export default async function FromSignalPage({
           </div>
 
           <div className="space-y-6">
+            {history ? (
+              <NarrativeHistoryPanel history={history} demo={historyDemo} />
+            ) : null}
             <WorldforgeLinkList links={links} />
           </div>
         </div>

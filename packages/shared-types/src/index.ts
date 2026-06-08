@@ -1851,3 +1851,156 @@ export interface WorldforgeFusionDraft {
   promptDraft: string;
   rationale: string[];
 }
+
+// =============================================================================
+// Temporal Intelligence — Phase 10
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 10 persistence (migration 0014): the temporal
+// layer over the narrative-intelligence graph — point-in-time narrative SNAPSHOTS,
+// the typed EVOLUTION between consecutive snapshots, cross-narrative GENEALOGY
+// (lineage) and INFLUENCE edges, and probabilistic FORECASTS — plus the view-model
+// shapes the WorldForge evolution/genealogy/influence/forecast consoles render and
+// the NarrativeHistory bundle the WorldForge fusion bridge consumes.
+//
+// NAMING: the underlying tables use the `hsin_` prefix (consistent with Phases 7-9);
+// their TS record names carry the `Hsin` prefix to mirror that. Timestamps are ISO
+// strings; uuid columns are strings. jsonb payloads are typed as
+// `Record<string, unknown>` so shared-types stays decoupled from the engine internals.
+// =============================================================================
+
+/** A typed change observed between two snapshots of a narrative. Mirrors hsin_narrative_evolution.change_type. */
+export type NarrativeChangeType = 'growth' | 'decline' | 'mutation' | 'split' | 'merge';
+
+/** A typed lineage edge between two narratives. Mirrors hsin_narrative_genealogy.relationship. */
+export type NarrativeGenealogyRelationship =
+  | 'derived_from'
+  | 'split_from'
+  | 'merged_from'
+  | 'contradicts'
+  | 'amplifies';
+
+/** A forecasted trajectory state for a narrative. Mirrors hsin_narrative_forecasts.forecast_type. */
+export type NarrativeForecastState = 'emerging' | 'rising' | 'stable' | 'declining' | 'dead';
+
+/** How often the temporal worker captures narrative snapshots. */
+export type SnapshotCadence = 'daily' | 'weekly' | 'monthly';
+
+/** A point-in-time capture of a narrative's shape. Mirrors the `hsin_narrative_snapshots` table. */
+export interface HsinNarrativeSnapshotRecord {
+  id: string;
+  narrative_id: string;
+  captured_at: string;
+  signal_count?: number;
+  source_count?: number;
+  community_count?: number;
+  amplification_score?: number;
+  reliability_score?: number;
+  support_ratio?: number;
+  contradiction_ratio?: number;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A typed change between two snapshots of a narrative. Mirrors the `hsin_narrative_evolution` table. */
+export interface HsinNarrativeEvolutionRecord {
+  id: string;
+  narrative_id?: string;
+  parent_snapshot_id?: string;
+  child_snapshot_id?: string;
+  change_type?: NarrativeChangeType;
+  growth_pct?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  metrics_json?: Record<string, unknown>;
+  reasoning_json?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A typed lineage edge between two narratives. Mirrors the `hsin_narrative_genealogy` table. */
+export interface HsinNarrativeGenealogyRecord {
+  id: string;
+  parent_narrative_id?: string;
+  child_narrative_id?: string;
+  relationship?: NarrativeGenealogyRelationship;
+  /** 0..1 confidence. */
+  confidence?: number;
+  shared_entities?: number;
+  shared_sources?: number;
+  similarity?: number;
+  rationale?: string;
+  created_at: string;
+}
+
+/** A directed influence score between two narratives. Mirrors the `hsin_narrative_influence` table. */
+export interface HsinNarrativeInfluenceRecord {
+  id: string;
+  source_narrative_id?: string;
+  target_narrative_id?: string;
+  /** 0..100 influence score. */
+  influence_score?: number;
+  shared_entities?: number;
+  shared_sources?: number;
+  shared_communities?: number;
+  rationale?: string;
+  created_at: string;
+}
+
+/** A probabilistic trajectory forecast for a narrative. Mirrors the `hsin_narrative_forecasts` table. */
+export interface HsinNarrativeForecastRecord {
+  id: string;
+  narrative_id?: string;
+  forecast_type?: NarrativeForecastState;
+  /** 0..1 probability of the forecast_type state. */
+  probability?: number;
+  reasoning?: Record<string, unknown>;
+  distribution_json?: Record<string, unknown>;
+  generated_at: string;
+  created_at: string;
+}
+
+/** The evolution view: narratives with their snapshots and the typed changes between them. */
+export interface EvolutionView {
+  narratives: HsinNarrativeRecord[];
+  snapshots: HsinNarrativeSnapshotRecord[];
+  evolution: HsinNarrativeEvolutionRecord[];
+}
+
+/** The genealogy view: narratives + their typed lineage edges. */
+export interface GenealogyView {
+  narratives: HsinNarrativeRecord[];
+  edges: HsinNarrativeGenealogyRecord[];
+}
+
+/** The influence view: narratives + their directed influence edges. */
+export interface InfluenceView {
+  narratives: HsinNarrativeRecord[];
+  edges: HsinNarrativeInfluenceRecord[];
+}
+
+/** The forecast view: narratives + their probabilistic trajectory forecasts. */
+export interface ForecastView {
+  narratives: HsinNarrativeRecord[];
+  forecasts: HsinNarrativeForecastRecord[];
+}
+
+/** Headline temporal callouts surfaced on the temporal-intelligence dashboard. */
+export interface TemporalHighlights {
+  fastestGrowing?: { narrativeId: string; name: string; growthPct: number };
+  largestCommunityExpansion?: { narrativeId: string; name: string; communityDelta: number };
+  largestAmplificationSpike?: { narrativeId: string; name: string; amplificationDelta: number };
+  mostInfluential?: { narrativeId: string; name: string; influenceScore: number };
+  newestEmerging?: { narrativeId: string; name: string; probability: number };
+}
+
+/**
+ * The full temporal history bundle for a single narrative (snapshots + evolution +
+ * genealogy + influence + latest forecast). Consumed by the WorldForge fusion bridge.
+ */
+export interface NarrativeHistory {
+  narrativeId: string;
+  snapshots: HsinNarrativeSnapshotRecord[];
+  evolution: HsinNarrativeEvolutionRecord[];
+  genealogy: HsinNarrativeGenealogyRecord[];
+  influence: HsinNarrativeInfluenceRecord[];
+  forecast?: HsinNarrativeForecastRecord;
+}

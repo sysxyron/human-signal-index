@@ -29,9 +29,12 @@ import {
   listSlaPoliciesAction,
   listTriageRulesAction,
 } from '@/lib/operations/actions';
-import type { HsinProviderRunRecord } from '@hsi/shared-types';
+import type { HsinProviderRunRecord, TemporalHighlights } from '@hsi/shared-types';
 import { demoProviderRuns } from '@/lib/operations/phase9-view';
 import { OperationsPhase9Strip } from '@/components/providers/OperationsPhase9Strip';
+import { getTemporalHighlightsAction } from '@/lib/temporal/actions';
+import { demoTemporalHighlights } from '@/lib/temporal/view';
+import { TemporalHighlightCards } from '@/components/temporal/TemporalHighlightCards';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import {
   canOperate,
@@ -107,6 +110,23 @@ export default async function OperationsPage({
     }
   } catch {
     providerRuns = null;
+  }
+
+  // ADDITIVE (Phase 10): a defensive temporal-highlights strip. A failure here
+  // (e.g. action not yet present) must never break the operations page — on any
+  // error we simply hide the strip.
+  let temporalHighlights: TemporalHighlights | null = null;
+  let temporalDemoLabeled = false;
+  try {
+    const thRes = await getTemporalHighlightsAction();
+    if (thRes.ok) {
+      temporalHighlights = thRes.data;
+    } else if (thRes.code === 'NOT_CONFIGURED') {
+      temporalHighlights = await demoTemporalHighlights();
+      temporalDemoLabeled = true;
+    }
+  } catch {
+    temporalHighlights = null;
   }
 
   // Resolve the overview: live, demo (NOT_CONFIGURED), or a real error.
@@ -193,6 +213,14 @@ export default async function OperationsPage({
 
         {/* ADDITIVE (Phase 9): dead-letter link + recent provider-runs strip. */}
         <OperationsPhase9Strip runs={providerRuns} demo={providerRunsDemo} />
+
+        {/* ADDITIVE (Phase 10): temporal-intelligence highlights strip. */}
+        {temporalHighlights ? (
+          <TemporalHighlightCards
+            highlights={temporalHighlights}
+            demo={temporalDemoLabeled}
+          />
+        ) : null}
 
         {/* Job-status stat cards */}
         <JobStatusCards overview={o} />

@@ -24,6 +24,8 @@ import { alertWorkerJob } from './alert-worker';
 import { triageWorkerJob } from './triage-worker';
 // HSI Phase 9 — SLA escalation watchdog.
 import { slaEscalationJob } from './sla-escalation-worker';
+// HSI Phase 10 — temporal-intelligence pipeline.
+import { temporalWorkerJob } from './temporal-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -57,6 +59,16 @@ export * from './triage-worker';
 // slaEscalationJob, makeSlaEscalationJob, dbLoad/dbPersist...) don't collide
 // with the triage-worker's exports above.
 export * from './sla-escalation-worker';
+// HSI Phase 10 exports. temporal-worker IMPORTS the engine types under aliased
+// names (TemporalEvolutionRecord / TemporalGenealogyEdge / TemporalInfluenceEdge
+// / TemporalNarrativeForecast / TemporalNarrativeSnapshot / TemporalNarrativeInput
+// / TemporalSignalInput / TemporalSnapshotCadence / TemporalDeps) and re-exports
+// NONE of them, so the unaliased @hsi/temporal-intelligence types (EvolutionRecord,
+// GenealogyEdge, InfluenceEdge, NarrativeForecast, SnapshotCadence, …) never
+// collide with the drift/alert/queue jobs' own `export *` symbols above. Its
+// public names (TemporalWorld, TemporalOutputs, TemporalPersistResult, the
+// loader/persister types, makeTemporalWorkerJob, temporalWorkerJob) are distinct.
+export * from './temporal-worker';
 
 /** All registered jobs, in pipeline order. */
 export const jobs: Job[] = [
@@ -84,6 +96,10 @@ export const jobs: Job[] = [
   // HSI Phase 9 — SLA escalation watchdog (offline-safe; DB-backed when the
   // service-role env is configured, else a clean no-op). NEVER auto-publishes.
   slaEscalationJob,
+  // HSI Phase 10 — temporal-intelligence pipeline (daily 03:00). Offline-safe:
+  // DB-backed when the service-role env is configured, else a deterministic
+  // fixtures run that just logs the computed outputs. NEVER auto-publishes.
+  temporalWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

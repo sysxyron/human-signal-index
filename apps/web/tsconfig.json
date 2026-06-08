@@ -41,6 +41,9 @@
       "@hsi/source-intelligence": [
         "../../packages/source-intelligence/src"
       ],
+      "@hsi/temporal-intelligence": [
+        "../../packages/temporal-intelligence/src"
+      ],
       "@hsi/scheduler": [
         "../../packages/scheduler/src"
       ]
