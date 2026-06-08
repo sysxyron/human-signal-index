@@ -7,8 +7,10 @@
 // =============================================================================
 
 import { TopNav } from '@hsi/ui';
-import { getUser } from '@/lib/supabase/server';
+import { getUser, getSessionRole } from '@/lib/supabase/server';
 import { resolveRunView } from '../_resolve';
+import { SubmitForReviewButton } from '@/components/governance/SubmitForReviewButton';
+import { ReviewStatusBadge } from '@/components/governance/ReviewStatusBadge';
 import { disputesByDomain } from '@/lib/worldforge/research-view';
 import { RunHeader } from '@/components/worldforge/research/RunHeader';
 import { ResearchTabs } from '@/components/worldforge/research/ResearchTabs';
@@ -27,9 +29,10 @@ export default async function ResearchRunOverviewPage({
   params: { id: string };
   searchParams: { demo?: string };
 }) {
-  const [resolved, user] = await Promise.all([
+  const [resolved, user, role] = await Promise.all([
     resolveRunView(params.id, searchParams),
     getUser(),
+    getSessionRole(),
   ]);
 
   if (resolved.kind === 'error') {
@@ -50,6 +53,34 @@ export default async function ResearchRunOverviewPage({
       <main className="space-y-6 p-5 lg:p-6">
         <ResearchTabs runId={view.id} demoQuery={view.isDemo} />
         <RunHeader view={view} />
+
+        {/* Phase 6 — Human review affordance + governed-confidence badge. */}
+        {!view.isDemo ? (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface/60 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <ReviewStatusBadge status="draft" />
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-semibold"
+                style={{
+                  backgroundColor: 'rgba(59,130,246,0.12)',
+                  color: '#3B82F6',
+                  border: '1px solid rgba(59,130,246,0.45)',
+                }}
+                title="Consensus confidence (governed by evidence after review)"
+              >
+                Governed confidence {Math.round(view.overallConfidence)} ·{' '}
+                {view.disputes.length} contradiction
+                {view.disputes.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <SubmitForReviewButton
+              entityType="research_run"
+              entityId={view.id}
+              role={role}
+              isAuthenticated={Boolean(user)}
+            />
+          </section>
+        ) : null}
 
         {view.consensus ? (
           <ConsensusSummary consensus={view.consensus} compactFindings />

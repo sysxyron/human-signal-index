@@ -138,6 +138,12 @@ importers:
       '@hsi/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@hsi/evidence-engine':
+        specifier: workspace:*
+        version: link:../../packages/evidence-engine
+      '@hsi/research-agents':
+        specifier: workspace:*
+        version: link:../../packages/research-agents
       '@hsi/security':
         specifier: workspace:*
         version: link:../../packages/security

@@ -21,23 +21,43 @@ export { createPubmedProvider } from './pubmed';
 export { createSemanticScholarProvider } from './semanticScholar';
 export { createDoiProvider } from './doi';
 export { createWebFallbackProvider, type WebFetcher } from './webFallback';
+export {
+  fetchJson,
+  fetchText,
+  type FetchImpl,
+  type MillisClock,
+  type HttpResult,
+  type HttpOptions,
+} from './http';
+export { httpOptionsFor, type ProviderDeps } from './deps';
+
+import type { ProviderDeps } from './deps';
 
 /**
  * Build the network provider list for a config. Pure with respect to `now`
  * (passed through to each provider so retrieved timestamps stay deterministic).
- * `webFetcher` is an optional host-provided web backend for the fallback.
+ * `webFetcher` is an optional host-provided web backend for the fallback;
+ * `deps` injects fetch/clock/health/jitter (defaults are safe).
+ *
+ * Each created provider is also registered with the health tracker (if any) so
+ * its enabled/disabled state is reflected even before any call is made.
  */
 export function createProviders(
   cfg: EvidenceEngineConfig,
   now: string = DEFAULT_NOW,
   webFetcher?: WebFetcher,
+  deps?: ProviderDeps,
 ): EvidenceProvider[] {
-  return [
-    createArxivProvider(cfg, now),
-    createCrossrefProvider(cfg, now),
-    createPubmedProvider(cfg, now),
-    createSemanticScholarProvider(cfg, now),
-    createDoiProvider(cfg, now),
-    createWebFallbackProvider(cfg, now, webFetcher),
+  const providers = [
+    createArxivProvider(cfg, now, deps),
+    createCrossrefProvider(cfg, now, deps),
+    createPubmedProvider(cfg, now, deps),
+    createSemanticScholarProvider(cfg, now, deps),
+    createDoiProvider(cfg, now, deps),
+    createWebFallbackProvider(cfg, now, webFetcher, deps),
   ];
+  if (deps?.healthTracker) {
+    for (const p of providers) deps.healthTracker.register(p.name, p.enabled());
+  }
+  return providers;
 }

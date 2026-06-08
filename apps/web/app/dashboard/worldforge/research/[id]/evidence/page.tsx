@@ -8,8 +8,9 @@
 // are auth-gated. force-dynamic so the DAL/action never runs during prerender.
 // =============================================================================
 
+import Link from 'next/link';
 import { TopNav, Card } from '@hsi/ui';
-import { FileStack } from 'lucide-react';
+import { FileStack, Network, ArrowRight } from 'lucide-react';
 import { getUser } from '@/lib/supabase/server';
 import { resolveRunView } from '../../_resolve';
 import { resolveEvidenceView } from './_resolve-evidence';
@@ -20,6 +21,8 @@ import { EvidenceCoveragePanel } from '@/components/worldforge/research/Evidence
 import { EvidenceSourceCard } from '@/components/worldforge/research/EvidenceSourceCard';
 import { ClaimEvidenceList } from '@/components/worldforge/research/ClaimEvidenceList';
 import { RefreshEvidenceButton } from '@/components/worldforge/research/RefreshEvidenceButton';
+import { EvidenceWeightedPanel } from '@/components/worldforge/evidence/EvidenceWeightedPanel';
+import { extendedCoverage } from '@/lib/worldforge/evidence-intel-view';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -100,6 +103,40 @@ export default async function ResearchEvidencePage({
         <ResearchTabs runId={view.id} demoQuery={view.isDemo} />
 
         <EvidenceCoveragePanel coverage={coverage} sourceCount={sources.length} />
+
+        {/* Phase 5: evidence-weighted confidence (research vs evidence vs
+            weighted + why-changed) alongside coverage. */}
+        <EvidenceWeightedPanel
+          coverage={extendedCoverage(coverage)}
+          researchConfidenceFallback={view.overallConfidence}
+        />
+
+        {/* Prominent entry to the interactive claim → evidence graph. */}
+        <Link
+          href={
+            `/dashboard/worldforge/research/${view.id}/evidence-graph${view.isDemo ? '?demo=1' : ''}` as never
+          }
+          className="block"
+        >
+          <Card className="group flex items-center justify-between gap-3" interactive padded>
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-electric/15 text-electric">
+                <Network className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="text-h6 font-semibold text-text-primary">
+                  Claim → evidence graph
+                </h3>
+                <p className="text-caption text-text-muted">
+                  Visualize claims and their supporting / contradicting sources.
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 text-caption font-semibold text-electric">
+              Open <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+            </span>
+          </Card>
+        </Link>
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

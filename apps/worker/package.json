@@ -15,6 +15,8 @@
     "@hsi/classifiers": "workspace:*",
     "@hsi/ai-prompts": "workspace:*",
     "@hsi/security": "workspace:*",
+    "@hsi/evidence-engine": "workspace:*",
+    "@hsi/research-agents": "workspace:*",
     "@supabase/supabase-js": "^2.0.0",
     "dotenv": "^16.3.0",
     "node-fetch": "^3.3.2"

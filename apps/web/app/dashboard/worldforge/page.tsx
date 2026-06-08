@@ -17,6 +17,7 @@ import {
   Gauge,
   Sparkles,
   ShieldAlert,
+  ShieldCheck,
   Brain,
 } from 'lucide-react';
 import { getEvaluation, getChronidDemo } from '@/lib/worldforge/worlds';
@@ -86,6 +87,13 @@ const SUBPAGES = [
     desc: 'The WHY-chain for any value, mirroring the HSI traceability engine.',
     icon: Route,
     accent: '#3B82F6',
+  },
+  {
+    href: '/dashboard/worldforge/evidence-intelligence',
+    title: 'Evidence Intelligence',
+    desc: 'Phase 5 — cross-run evidence health: coverage, support vs contradiction, provider health, and trends.',
+    icon: ShieldCheck,
+    accent: '#10B981',
   },
   {
     href: '/dashboard/worldforge/universes',

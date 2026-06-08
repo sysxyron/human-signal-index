@@ -9,6 +9,7 @@ import { TopNav, Card } from '@hsi/ui';
 import { ListChecks, MessageSquareWarning, SlidersHorizontal } from 'lucide-react';
 import { getUser } from '@/lib/supabase/server';
 import { resolveRunView } from '../../_resolve';
+import { resolveEvidenceView } from '../evidence/_resolve-evidence';
 import { ResearchTabs } from '@/components/worldforge/research/ResearchTabs';
 import { ConsensusSummary } from '@/components/worldforge/research/ConsensusSummary';
 import { DisputeCard } from '@/components/worldforge/research/DisputeCard';
@@ -18,6 +19,8 @@ import {
 } from '@/components/worldforge/research/BlueprintPanel';
 import { GenerateWorldButton } from '@/components/worldforge/research/GenerateWorldButton';
 import { RunErrorState } from '@/components/worldforge/research/RunErrorState';
+import { EvidenceWeightedPanel } from '@/components/worldforge/evidence/EvidenceWeightedPanel';
+import { extendedCoverage } from '@/lib/worldforge/evidence-intel-view';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -29,8 +32,9 @@ export default async function ResearchConsensusPage({
   params: { id: string };
   searchParams: { demo?: string };
 }) {
-  const [resolved, user] = await Promise.all([
+  const [resolved, resolvedEvidence, user] = await Promise.all([
     resolveRunView(params.id, searchParams),
+    resolveEvidenceView(params.id, searchParams),
     getUser(),
   ]);
 
@@ -46,6 +50,15 @@ export default async function ResearchConsensusPage({
   const view = resolved.view;
   const consensus = view.consensus;
 
+  // Evidence-weighted layer: the extended coverage carries
+  // researchConfidence / evidenceWeightedConfidence / explanation when evidence
+  // has been gathered. Absent (or evidence-load failure) → the panel shows the
+  // "run evidence to see evidence-weighted confidence" prompt.
+  const weightedCoverage =
+    resolvedEvidence.kind === 'ok'
+      ? extendedCoverage(resolvedEvidence.bundle.coverage)
+      : null;
+
   return (
     <>
       <TopNav title={view.title} subtitle="Consensus report" />
@@ -55,6 +68,24 @@ export default async function ResearchConsensusPage({
         {consensus ? (
           <>
             <ConsensusSummary consensus={consensus} />
+
+            {/* Evidence-weighted confidence layer (research vs evidence vs
+                weighted + the "why the score changed" explanation). */}
+            <EvidenceWeightedPanel
+              coverage={
+                weightedCoverage ?? {
+                  totalClaims: 0,
+                  supported: 0,
+                  contradicted: 0,
+                  background: 0,
+                  unsupported: 0,
+                  coverageScore: 0,
+                  bySource: {},
+                  mode: 'fixture',
+                }
+              }
+              researchConfidenceFallback={view.overallConfidence}
+            />
 
             {/* Open disputes */}
             {consensus.openDisputes.length ? (

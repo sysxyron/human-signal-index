@@ -17,6 +17,8 @@ import type {
   EvidenceResult,
 } from '../types';
 import { normalizeResult } from '../normalize';
+import { fetchText } from './http';
+import { httpOptionsFor, type ProviderDeps } from './deps';
 
 const ARXIV_ENDPOINT = 'http://export.arxiv.org/api/query';
 
@@ -76,38 +78,29 @@ function parseAtom(xml: string, now: string): EvidenceResult[] {
 export function createArxivProvider(
   cfg: EvidenceEngineConfig,
   now: string,
+  deps?: ProviderDeps,
 ): EvidenceProvider {
+  const name = 'arXiv';
   return {
-    name: 'arXiv',
+    name,
     // arXiv needs no key — but we still only call the network in live mode.
     enabled: () => cfg.mode === 'live',
     async search(query: EvidenceQuery): Promise<EvidenceResult[]> {
       if (cfg.mode !== 'live') return [];
-      try {
-        const limit = query.limit ?? 10;
-        const url = `${ARXIV_ENDPOINT}?search_query=${encodeURIComponent(
-          `all:${query.text}`,
-        )}&max_results=${limit}`;
-        const res = await fetch(url);
-        if (!res.ok) return [];
-        const xml = await res.text();
-        return parseAtom(xml, now);
-      } catch {
-        return []; // never throw, never fabricate
-      }
+      const limit = query.limit ?? 10;
+      const url = `${ARXIV_ENDPOINT}?search_query=${encodeURIComponent(
+        `all:${query.text}`,
+      )}&max_results=${limit}`;
+      const res = await fetchText(url, httpOptionsFor(deps, name, now));
+      if (!res.ok) return []; // never throw, never fabricate
+      return parseAtom(res.value, now);
     },
     async lookupById(id: string): Promise<EvidenceResult | null> {
       if (cfg.mode !== 'live') return null;
-      try {
-        const url = `${ARXIV_ENDPOINT}?id_list=${encodeURIComponent(id)}&max_results=1`;
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const xml = await res.text();
-        const parsed = parseAtom(xml, now);
-        return parsed[0] ?? null;
-      } catch {
-        return null;
-      }
+      const url = `${ARXIV_ENDPOINT}?id_list=${encodeURIComponent(id)}&max_results=1`;
+      const res = await fetchText(url, httpOptionsFor(deps, name, now));
+      if (!res.ok) return null;
+      return parseAtom(res.value, now)[0] ?? null;
     },
   };
 }

@@ -24,20 +24,26 @@ export type WebFetcher = (
 ) => Promise<{ title: string; url: string; snippet?: string }[]>;
 
 import { normalizeResult } from '../normalize';
+import type { ProviderDeps } from './deps';
 
 export function createWebFallbackProvider(
   cfg: EvidenceEngineConfig,
   now: string,
   fetcher?: WebFetcher,
+  deps?: ProviderDeps,
 ): EvidenceProvider {
+  const name = 'Web';
   return {
-    name: 'Web',
+    name,
     // Requires both live mode AND a host-provided fetcher — off by default.
     enabled: () => cfg.mode === 'live' && Boolean(fetcher),
     async search(query: EvidenceQuery): Promise<EvidenceResult[]> {
       if (cfg.mode !== 'live' || !fetcher) return [];
+      const clock = deps?.clock ?? (() => 0);
+      const start = clock();
       try {
         const hits = await fetcher(query);
+        deps?.healthTracker?.recordSuccess(name, clock() - start, now);
         return hits.map((h) =>
           normalizeResult(
             {
@@ -52,7 +58,12 @@ export function createWebFallbackProvider(
             now,
           ),
         );
-      } catch {
+      } catch (err) {
+        deps?.healthTracker?.recordFailure(
+          name,
+          now,
+          err instanceof Error ? err.message : String(err),
+        );
         return [];
       }
     },

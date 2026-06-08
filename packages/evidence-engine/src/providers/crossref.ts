@@ -18,6 +18,8 @@ import type {
   PublicationType,
 } from '../types';
 import { normalizeResult } from '../normalize';
+import { fetchJson } from './http';
+import { httpOptionsFor, type ProviderDeps } from './deps';
 
 const CROSSREF_ENDPOINT = 'https://api.crossref.org/works';
 
@@ -90,40 +92,37 @@ function mapItem(item: CrossrefItem, now: string): EvidenceResult {
 export function createCrossrefProvider(
   cfg: EvidenceEngineConfig,
   now: string,
+  deps?: ProviderDeps,
 ): EvidenceProvider {
   const mailto = cfg.crossrefMailto;
+  const name = 'Crossref';
   return {
-    name: 'Crossref',
+    name,
     enabled: () => cfg.mode === 'live' && Boolean(mailto),
     async search(query: EvidenceQuery): Promise<EvidenceResult[]> {
       if (cfg.mode !== 'live' || !mailto) return [];
-      try {
-        const rows = query.limit ?? 10;
-        const url = `${CROSSREF_ENDPOINT}?query=${encodeURIComponent(
-          query.text,
-        )}&rows=${rows}&mailto=${encodeURIComponent(mailto)}`;
-        const res = await fetch(url);
-        if (!res.ok) return [];
-        const json = (await res.json()) as { message?: { items?: CrossrefItem[] } };
-        const items = json.message?.items ?? [];
-        return items.map((i) => mapItem(i, now));
-      } catch {
-        return [];
-      }
+      const rows = query.limit ?? 10;
+      const url = `${CROSSREF_ENDPOINT}?query=${encodeURIComponent(
+        query.text,
+      )}&rows=${rows}&mailto=${encodeURIComponent(mailto)}`;
+      const res = await fetchJson<{ message?: { items?: CrossrefItem[] } }>(
+        url,
+        httpOptionsFor(deps, name, now),
+      );
+      if (!res.ok) return [];
+      const items = res.value.message?.items ?? [];
+      return items.map((i) => mapItem(i, now));
     },
     async lookupById(id: string): Promise<EvidenceResult | null> {
       if (cfg.mode !== 'live' || !mailto) return null;
-      try {
-        const doi = id.replace(/^doi:/i, '');
-        const url = `${CROSSREF_ENDPOINT}/${encodeURIComponent(doi)}?mailto=${encodeURIComponent(mailto)}`;
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const json = (await res.json()) as { message?: CrossrefItem };
-        if (!json.message) return null;
-        return mapItem(json.message, now);
-      } catch {
-        return null;
-      }
+      const doi = id.replace(/^doi:/i, '');
+      const url = `${CROSSREF_ENDPOINT}/${encodeURIComponent(doi)}?mailto=${encodeURIComponent(mailto)}`;
+      const res = await fetchJson<{ message?: CrossrefItem }>(
+        url,
+        httpOptionsFor(deps, name, now),
+      );
+      if (!res.ok || !res.value.message) return null;
+      return mapItem(res.value.message, now);
     },
   };
 }

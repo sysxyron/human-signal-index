@@ -14,6 +14,10 @@ import { createClient } from '@/lib/supabase/server';
 import {
   runEvidenceForRun,
   getEvidenceForRun,
+  getProviderHealth,
+  listEvidenceReviewQueue,
+  getEvidenceIntelligence,
+  getClaimEvidenceGraph,
   type DbResult,
 } from '@/lib/worldforge/evidence-persistence';
 import type {
@@ -21,6 +25,10 @@ import type {
   RunEvidenceBundle,
   EvidenceReviewRecord,
   EvidenceReviewStatus,
+  ProviderHealthRecord,
+  EvidenceReviewQueueItem,
+  EvidenceIntelligence,
+  ClaimEvidenceGraph,
 } from '@hsi/shared-types';
 
 const WF_BASE = '/dashboard/worldforge';
@@ -39,6 +47,16 @@ export type {
   EvidenceReliabilityTier,
   EvidenceReviewStatus,
   RunEvidenceStatus,
+  // Phase 5 — Evidence Hardening.
+  ProviderHealthRecord,
+  ProviderHealthStatus,
+  EvidenceCacheRecord,
+  ClaimReliabilitySummary,
+  EvidenceReviewQueueItem,
+  EvidenceIntelligence,
+  ClaimEvidenceGraph,
+  ClaimEvidenceGraphNode,
+  ClaimEvidenceGraphEdge,
 } from '@hsi/shared-types';
 
 /**
@@ -104,4 +122,36 @@ export async function reviewEvidenceAction(
     const message = e instanceof Error ? e.message : String(e);
     return { ok: false, error: message, code: 'DB_ERROR' };
   }
+}
+
+// =============================================================================
+// Phase 5 — Evidence Hardening read actions.
+// =============================================================================
+
+/** Read the persisted provider-health table (HEALTHY/DEGRADED/OFFLINE per provider). */
+export async function getProviderHealthAction(): Promise<
+  DbResult<ProviderHealthRecord[]>
+> {
+  return getProviderHealth();
+}
+
+/** Load the reviewer queue (sources + latest verdict + support/contradiction counts). */
+export async function listEvidenceReviewQueueAction(): Promise<
+  DbResult<EvidenceReviewQueueItem[]>
+> {
+  return listEvidenceReviewQueue();
+}
+
+/** Cross-run evidence intelligence aggregate for the dashboard. */
+export async function getEvidenceIntelligenceAction(): Promise<
+  DbResult<EvidenceIntelligence>
+> {
+  return getEvidenceIntelligence();
+}
+
+/** Build the claim<->evidence graph (nodes + edges) for one run. */
+export async function getClaimEvidenceGraphAction(
+  runId: string,
+): Promise<DbResult<ClaimEvidenceGraph>> {
+  return getClaimEvidenceGraph(runId);
 }

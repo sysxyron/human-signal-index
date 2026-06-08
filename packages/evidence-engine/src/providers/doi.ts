@@ -16,6 +16,8 @@ import type {
   PublicationType,
 } from '../types';
 import { normalizeResult } from '../normalize';
+import { fetchJson } from './http';
+import { httpOptionsFor, type ProviderDeps } from './deps';
 
 interface CslAuthor {
   given?: string;
@@ -55,9 +57,11 @@ function authorName(a: CslAuthor): string {
 export function createDoiProvider(
   cfg: EvidenceEngineConfig,
   now: string,
+  deps?: ProviderDeps,
 ): EvidenceProvider {
+  const name = 'DOI';
   return {
-    name: 'DOI',
+    name,
     enabled: () => cfg.mode === 'live',
     // DOIs are not searchable terms — searching is a deliberate no-op.
     async search(): Promise<EvidenceResult[]> {
@@ -65,31 +69,29 @@ export function createDoiProvider(
     },
     async lookupById(id: string): Promise<EvidenceResult | null> {
       if (cfg.mode !== 'live') return null;
-      try {
-        const doi = id.replace(/^doi:/i, '').replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
-        const res = await fetch(`https://doi.org/${doi}`, {
-          headers: { Accept: 'application/vnd.citationstyle.csl+json' },
-        });
-        if (!res.ok) return null;
-        const json = (await res.json()) as CslJson;
-        if (!json.title) return null;
-        return normalizeResult(
-          {
-            title: json.title,
-            authors: (json.author ?? []).map(authorName).filter((n) => n.length > 0),
-            year: json.issued?.['date-parts']?.[0]?.[0],
-            abstract: json.abstract?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
-            url: json.URL,
-            doi: json.DOI,
-            publicationType: cslType(json.type),
-            raw: { provider: 'doi' },
-          },
-          'DOI',
-          now,
-        );
-      } catch {
-        return null;
-      }
+      const doi = id.replace(/^doi:/i, '').replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
+      const res = await fetchJson<CslJson>(
+        `https://doi.org/${doi}`,
+        httpOptionsFor(deps, name, now, {
+          Accept: 'application/vnd.citationstyle.csl+json',
+        }),
+      );
+      if (!res.ok || !res.value.title) return null;
+      const json = res.value;
+      return normalizeResult(
+        {
+          title: json.title,
+          authors: (json.author ?? []).map(authorName).filter((n) => n.length > 0),
+          year: json.issued?.['date-parts']?.[0]?.[0],
+          abstract: json.abstract?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+          url: json.URL,
+          doi: json.DOI,
+          publicationType: cslType(json.type),
+          raw: { provider: 'doi' },
+        },
+        'DOI',
+        now,
+      );
     },
   };
 }

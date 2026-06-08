@@ -768,6 +768,21 @@ export interface EvidenceCoverageSummary {
   bySource: Record<string, number>;
   /** Whether the evidence came from fixtures, the network, or both. */
   mode: 'fixture' | 'live' | 'mixed';
+  // --- Phase 5: evidence-weighted consensus (optional; absent on Phase 4 rows). ---
+  /** 0..100 — confidence after weighting research confidence by evidence. */
+  evidenceWeightedConfidence?: number;
+  /** 0..100 — the original agent/consensus confidence the weighting started from. */
+  researchConfidence?: number;
+  /** 0..1 — supported / totalClaims. */
+  supportRatio?: number;
+  /** 0..1 — contradicted / totalClaims. */
+  contradictionRatio?: number;
+  /** 0..1 — unsupported / totalClaims. */
+  unsupportedRatio?: number;
+  /** Human-readable "why the score changed" reasons (headline first). */
+  explanation?: string[];
+  /** Per-claim reliability verdicts (tier-capped). */
+  claimReliabilities?: ClaimReliabilitySummary[];
 }
 
 /** A run's full evidence load: its sources, links, and aggregate coverage. */
@@ -775,4 +790,319 @@ export interface RunEvidenceBundle {
   sources: EvidenceSourceRecord[];
   links: ClaimEvidenceLinkRecord[];
   coverage: EvidenceCoverageSummary;
+}
+
+// =============================================================================
+// Evidence Hardening (Phase 5 — Live Retrieval & Evidence Hardening)
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 5 persistence (migration 0009) + the
+// aggregate/graph shapes the dashboard renders. The rich engine objects
+// (ProviderHealth, EvidenceWeightedResult, ClaimReliability, ...) live in
+// '@hsi/evidence-engine' / '@hsi/research-agents'; here we mirror only the
+// stored/serializable shapes so shared-types stays decoupled from the engines.
+// =============================================================================
+
+/** Operational status of a retrieval provider. Mirrors the engine ProviderStatus. */
+export type ProviderHealthStatus = 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+
+/** A persisted provider-health snapshot. Mirrors the `provider_health` table. */
+export interface ProviderHealthRecord {
+  id: string;
+  provider: string;
+  enabled: boolean;
+  available: boolean;
+  last_success?: string;
+  last_failure?: string;
+  latency_ms?: number;
+  error_count: number;
+  success_count: number;
+  status: ProviderHealthStatus;
+  updated_at: string;
+  created_at: string;
+}
+
+/** A persisted retrieval-cache entry. Mirrors the `evidence_cache` table. */
+export interface EvidenceCacheRecord {
+  id: string;
+  provider: string;
+  query_hash: string;
+  query_text?: string;
+  /** Cached EvidenceResult[] union (jsonb). */
+  response_json?: unknown;
+  created_at: string;
+  expires_at: string;
+}
+
+/** A per-claim reliability verdict (tier-capped). Mirrors engine ClaimReliability. */
+export interface ClaimReliabilitySummary {
+  claimId: string;
+  tier: string;
+  /** 0..1 — blended + coverage-modulated confidence (before tier ceiling). */
+  finalConfidence: number;
+  /** 0..100 — finalConfidence*100, capped by the tier ceiling. */
+  reliabilityScore: number;
+  coverage: 'supported' | 'contradicted' | 'background' | 'unsupported';
+  rationale?: string;
+}
+
+/**
+ * One row of the reviewer queue: an evidence source, its latest review verdict
+ * (if any), and the aggregate support/contradiction counts across all runs that
+ * link to it. `status` is the effective review status ('pending' until reviewed).
+ */
+export interface EvidenceReviewQueueItem {
+  source: EvidenceSourceRecord;
+  latestReview?: EvidenceReviewRecord;
+  status: 'pending' | 'validated' | 'rejected' | 'needs_more';
+  /** Distinct research_run ids that link this source. */
+  linkedRunIds: string[];
+  /** Count of 'supports' links to this source. */
+  supportCount: number;
+  /** Count of 'contradicts' links to this source. */
+  contradictionCount: number;
+}
+
+/** Cross-run evidence intelligence aggregate for the dashboard. */
+export interface EvidenceIntelligence {
+  totalRuns: number;
+  avgCoverageScore: number;
+  avgSupportRatio: number;
+  avgContradictionRatio: number;
+  avgUnsupportedRatio: number;
+  totalSupported: number;
+  totalContradicted: number;
+  totalBackground: number;
+  totalUnsupported: number;
+  providerHealth: ProviderHealthRecord[];
+  coverageTimeline: {
+    runId: string;
+    label: string;
+    date: string;
+    coverageScore: number;
+    evidenceWeightedConfidence?: number;
+  }[];
+  /** evidence_sources.publication_type -> count. */
+  sourceTypeBreakdown: Record<string, number>;
+}
+
+/** A node in the claim<->evidence graph (a claim or a source). */
+export interface ClaimEvidenceGraphNode {
+  id: string;
+  kind: 'claim' | 'source';
+  label: string;
+  tier?: string;
+  supportType?: string;
+  meta?: Record<string, unknown>;
+}
+
+/** An edge linking a claim node to a source node. */
+export interface ClaimEvidenceGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  supportType: 'supports' | 'contradicts' | 'background' | 'unclear';
+  confidence?: number;
+}
+
+/** The claim<->evidence graph for one run. */
+export interface ClaimEvidenceGraph {
+  nodes: ClaimEvidenceGraphNode[];
+  edges: ClaimEvidenceGraphEdge[];
+}
+
+// =============================================================================
+// Review & Curation — Phase 6 (Human Review & Curation)
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 6 persistence (migration 0010): the review
+// queue + assignments + decisions, publication records/versions, threaded review
+// comments, reviewer-trust aggregates, and per-user notifications — plus the
+// view-model shapes the curation UI renders. The 5-role ladder is mirrored by
+// `AppRole`. Timestamps are ISO strings; uuid columns are strings.
+// =============================================================================
+
+/** Entity kinds that can enter the review/curation pipeline. */
+export type ReviewEntityType =
+  | 'research_run'
+  | 'consensus_report'
+  | 'evidence_summary'
+  | 'worldforge_report'
+  | 'evidence_source'
+  | 'publication';
+
+/** Workflow status of a review queue entry. Mirrors review_queues.status. */
+export type ReviewQueueStatus =
+  | 'draft'
+  | 'under_review'
+  | 'approved'
+  | 'published'
+  | 'rejected'
+  | 'needs_evidence'
+  | 'escalated';
+
+/** Reviewer worklist priority. Mirrors review_queues.priority. */
+export type ReviewPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+/** A reviewer verdict. Mirrors review_decisions.decision. */
+export type ReviewDecisionType = 'APPROVE' | 'REJECT' | 'NEEDS_EVIDENCE' | 'ESCALATE';
+
+/** Publication visibility tier. Mirrors publication_records.visibility. */
+export type PublicationVisibility = 'PRIVATE' | 'TEAM' | 'PUBLIC';
+
+/** The 5-role privilege ladder (ascending). Mirrors public.roles + has_role(). */
+export type AppRole = 'viewer' | 'researcher' | 'reviewer' | 'curator' | 'admin';
+
+/** Notification kinds emitted by the governance pipeline. Mirrors notifications.type. */
+export type NotificationType =
+  | 'review_assigned'
+  | 'review_completed'
+  | 'publication_approved'
+  | 'escalation_created'
+  | 'evidence_rejected'
+  | 'comment_mention'
+  | 'review_requested';
+
+/** A review queue entry. Mirrors the `review_queues` table. */
+export interface ReviewQueueRecord {
+  id: string;
+  entity_type: ReviewEntityType | string;
+  entity_id: string;
+  status: ReviewQueueStatus;
+  priority: ReviewPriority;
+  assigned_to?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An assignment-history row for a queue entry. Mirrors the `review_assignments` table. */
+export interface ReviewAssignmentRecord {
+  id: string;
+  review_queue_id: string;
+  reviewer_id?: string;
+  assigned_at: string;
+  completed_at?: string;
+}
+
+/** An immutable reviewer verdict. Mirrors the `review_decisions` table. */
+export interface ReviewDecisionRecord {
+  id: string;
+  review_queue_id: string;
+  reviewer_id?: string;
+  decision: ReviewDecisionType;
+  notes?: string;
+  created_at: string;
+}
+
+/** A published entity record. Mirrors the `publication_records` table. */
+export interface PublicationRecord {
+  id: string;
+  entity_type: ReviewEntityType | string;
+  entity_id: string;
+  published_by?: string;
+  published_at: string;
+  visibility: PublicationVisibility;
+  status?: string;
+  latest_version?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An immutable publication snapshot. Mirrors the `publication_versions` table. */
+export interface PublicationVersionRecord {
+  id: string;
+  publication_record_id: string;
+  version_number: number;
+  /** Frozen public-facing payload (jsonb). */
+  snapshot_json: Record<string, unknown>;
+  created_by?: string;
+  created_at: string;
+}
+
+/** A threaded review comment with @mentions. Mirrors the `review_comments` table. */
+export interface ReviewCommentRecord {
+  id: string;
+  entity_type: ReviewEntityType | string;
+  entity_id: string;
+  user_id?: string;
+  comment: string;
+  /** Parent comment id when this is a reply (threading). */
+  parent_id?: string;
+  /** Mentioned user ids (uuid[]). */
+  mentions: string[];
+  created_at: string;
+}
+
+/** A per-reviewer trust aggregate. Mirrors the `reviewer_trust` table. */
+export interface ReviewerTrustRecord {
+  id: string;
+  reviewer_id: string;
+  approved_count: number;
+  reversed_count: number;
+  review_count: number;
+  /** 0..1 trust score (default 0.5). */
+  trust_score: number;
+  updated_at: string;
+  created_at: string;
+}
+
+/** A per-user notification. Mirrors the `notifications` table. */
+export interface NotificationRecord {
+  id: string;
+  user_id: string;
+  type: NotificationType | string;
+  title: string;
+  body?: string;
+  entity_type?: ReviewEntityType | string;
+  entity_id?: string;
+  read: boolean;
+  created_at: string;
+}
+
+/**
+ * One row of the curation queue list: the queue entry plus light denormalized
+ * context (assigned reviewer email, decision count, latest decision, and a small
+ * summary of the underlying entity) the UI renders without extra round-trips.
+ */
+export interface ReviewQueueItem {
+  queue: ReviewQueueRecord;
+  assignedReviewerEmail?: string;
+  decisionsCount: number;
+  latestDecision?: ReviewDecisionRecord;
+  entitySummary?: Record<string, unknown>;
+}
+
+/** The full detail view for a single queued item: queue + all related rows. */
+export interface ReviewItemDetail {
+  queue: ReviewQueueRecord;
+  assignments: ReviewAssignmentRecord[];
+  decisions: ReviewDecisionRecord[];
+  comments: ReviewCommentRecord[];
+  entitySummary?: Record<string, unknown>;
+}
+
+/** Aggregate data backing the curation dashboard. */
+export interface CurationDashboardData {
+  pendingPublications: PublicationRecord[];
+  highPriorityReviews: ReviewQueueItem[];
+  escalations: ReviewQueueItem[];
+  contradictionRuns: Record<string, unknown>[];
+  lowCoverageRuns: Record<string, unknown>[];
+}
+
+/**
+ * A draft of a public-facing report assembled for curator review before
+ * publication. Aggregates the executive summary, key claims, evidence summary,
+ * support ratio, contradictions, consensus, reviewer notes, and metadata.
+ */
+export interface PublicReportDraft {
+  entityType: ReviewEntityType;
+  entityId: string;
+  executiveSummary: string;
+  keyClaims: unknown[];
+  evidenceSummary: Record<string, unknown>;
+  supportRatio: number;
+  contradictions: unknown[];
+  consensus: Record<string, unknown>;
+  reviewerNotes: string[];
+  metadata: Record<string, unknown>;
 }

@@ -18,6 +18,8 @@ import type {
   EvidenceResult,
 } from '../types';
 import { normalizeResult } from '../normalize';
+import { fetchJson, fetchText } from './http';
+import { httpOptionsFor, type ProviderDeps } from './deps';
 
 const ESEARCH = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi';
 const EFETCH = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi';
@@ -77,45 +79,41 @@ function parseEfetch(xml: string, now: string): EvidenceResult[] {
 export function createPubmedProvider(
   cfg: EvidenceEngineConfig,
   now: string,
+  deps?: ProviderDeps,
 ): EvidenceProvider {
   const email = cfg.pubmedEmail;
+  const name = 'PubMed';
   const fetchByIds = async (ids: string[]): Promise<EvidenceResult[]> => {
     if (ids.length === 0) return [];
     const url = `${EFETCH}?db=pubmed&id=${ids.join(',')}&retmode=xml&email=${encodeURIComponent(
       email ?? '',
     )}`;
-    const res = await fetch(url);
+    const res = await fetchText(url, httpOptionsFor(deps, name, now));
     if (!res.ok) return [];
-    return parseEfetch(await res.text(), now);
+    return parseEfetch(res.value, now);
   };
   return {
-    name: 'PubMed',
+    name,
     enabled: () => cfg.mode === 'live' && Boolean(email),
     async search(query: EvidenceQuery): Promise<EvidenceResult[]> {
       if (cfg.mode !== 'live' || !email) return [];
-      try {
-        const retmax = query.limit ?? 10;
-        const url = `${ESEARCH}?db=pubmed&term=${encodeURIComponent(
-          query.text,
-        )}&retmax=${retmax}&retmode=json&email=${encodeURIComponent(email)}`;
-        const res = await fetch(url);
-        if (!res.ok) return [];
-        const json = (await res.json()) as { esearchresult?: { idlist?: string[] } };
-        const ids = json.esearchresult?.idlist ?? [];
-        return await fetchByIds(ids);
-      } catch {
-        return [];
-      }
+      const retmax = query.limit ?? 10;
+      const url = `${ESEARCH}?db=pubmed&term=${encodeURIComponent(
+        query.text,
+      )}&retmax=${retmax}&retmode=json&email=${encodeURIComponent(email)}`;
+      const res = await fetchJson<{ esearchresult?: { idlist?: string[] } }>(
+        url,
+        httpOptionsFor(deps, name, now),
+      );
+      if (!res.ok) return [];
+      const ids = res.value.esearchresult?.idlist ?? [];
+      return await fetchByIds(ids);
     },
     async lookupById(id: string): Promise<EvidenceResult | null> {
       if (cfg.mode !== 'live' || !email) return null;
-      try {
-        const pmid = id.replace(/^pmid:/i, '');
-        const results = await fetchByIds([pmid]);
-        return results[0] ?? null;
-      } catch {
-        return null;
-      }
+      const pmid = id.replace(/^pmid:/i, '');
+      const results = await fetchByIds([pmid]);
+      return results[0] ?? null;
     },
   };
 }

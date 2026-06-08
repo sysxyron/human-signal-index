@@ -30,18 +30,33 @@ import type {
   EvidenceCoverageSummary,
   RunEvidenceBundle,
   EvidenceSupportType,
+  ProviderHealthRecord,
+  EvidenceReviewQueueItem,
+  EvidenceIntelligence,
+  ClaimEvidenceGraph,
+  ClaimEvidenceGraphNode,
+  ClaimEvidenceGraphEdge,
+  ClaimReliabilitySummary,
 } from '@hsi/shared-types';
 import type { Claim } from '@hsi/research-agents';
+import {
+  evidenceWeightedConsensus,
+  computeClaimReliabilities,
+  type ComputeClaimReliabilityInput,
+} from '@hsi/research-agents';
 import {
   createEvidenceEngine,
   gatherEvidence,
   DEFAULT_NOW,
+  ProviderHealthTracker,
   type EvidenceEngine,
   type EvidenceEngineConfig,
   type EvidenceResult,
   type ClaimEvidence,
   type EvidenceCoverage,
+  type ProviderHealth,
 } from '@hsi/evidence-engine';
+import { createSupabaseCacheStore } from './evidence-cache-store';
 
 // -----------------------------------------------------------------------------
 // Result type — identical shape to research-persistence.ts. Re-declared here so
@@ -102,18 +117,36 @@ function evidenceConfig(): Partial<EvidenceEngineConfig> {
   const minRelevanceRaw = process.env.EVIDENCE_MIN_RELEVANCE;
   const parsed = minRelevanceRaw ? Number(minRelevanceRaw) : NaN;
   const minRelevance = Number.isFinite(parsed) ? parsed : 0.65;
+  const ttlRaw = process.env.EVIDENCE_CACHE_TTL;
+  const ttlParsed = ttlRaw ? Number(ttlRaw) : NaN;
+  const cacheTtlSeconds = Number.isFinite(ttlParsed) ? ttlParsed : 86400;
   return {
     mode,
     minRelevance,
     semanticScholarApiKey: process.env.SEMANTIC_SCHOLAR_API_KEY || undefined,
     pubmedEmail: process.env.PUBMED_EMAIL || undefined,
     crossrefMailto: process.env.CROSSREF_MAILTO || undefined,
+    openaiApiKey: process.env.OPENAI_API_KEY || undefined,
+    cacheTtlSeconds,
   };
 }
 
-/** Build the configured engine. Deterministic timestamp via DEFAULT_NOW unless overridden. */
-function buildEngine(now: string): EvidenceEngine {
-  return createEvidenceEngine(evidenceConfig(), { now });
+/**
+ * Build the configured engine, wired with a Supabase-backed retrieval cache and
+ * a fresh provider-health tracker so the caller can persist the health snapshot
+ * after the run. Deterministic timestamp via DEFAULT_NOW unless overridden.
+ */
+function buildEngine(
+  client: SupabaseClient,
+  now: string,
+): { engine: EvidenceEngine; healthTracker: ProviderHealthTracker } {
+  const healthTracker = new ProviderHealthTracker();
+  const engine = createEvidenceEngine(evidenceConfig(), {
+    now,
+    cacheStore: createSupabaseCacheStore(client, now),
+    healthTracker,
+  });
+  return { engine, healthTracker };
 }
 
 // -----------------------------------------------------------------------------
@@ -505,8 +538,10 @@ export async function runEvidenceForRun(
     if (outputsError) return fail(outputsError);
 
     // Map each claim id -> the agent_output row it came from, to stamp links.
+    // Also retain the claim's tier + confidence for the reliability model.
     const claims: Claim[] = [];
     const claimToOutputId = new Map<string, string>();
+    const claimById = new Map<string, Claim>();
     for (const row of outputRows ?? []) {
       const domain = row.domain as string;
       if (domain === 'consensus') continue;
@@ -514,15 +549,17 @@ export async function runEvidenceForRun(
       const rowClaims = Array.isArray(output.claims) ? output.claims : [];
       for (const c of rowClaims) {
         claims.push(c);
+        if (!claimById.has(c.id)) claimById.set(c.id, c);
         if (!claimToOutputId.has(c.id)) {
           claimToOutputId.set(c.id, row.id as string);
         }
       }
     }
 
-    // 3. Build the engine + gather evidence (deterministic in fixture mode).
+    // 3. Build the engine (cache-backed + health-tracked) + gather evidence
+    //    (deterministic in fixture mode; live mode degrades gracefully).
     const now = DEFAULT_NOW;
-    const engine = buildEngine(now);
+    const { engine, healthTracker } = buildEngine(client, now);
     const { matches, sources, coverage } = await gatherEvidence(
       claims,
       engine,
@@ -572,18 +609,516 @@ export async function runEvidenceForRun(
       if (linkError) return fail(linkError);
     }
 
-    // 7. Store coverage + status on the run (owner/curator RLS authorizes update).
-    const summary = coverageToSummary(coverage);
+    // 7. Evidence-WEIGHTED consensus (Phase 5). Read the run's research
+    //    confidence (prefer the consensus report's overallConfidence; fall back
+    //    to research_runs.overall_confidence), then weight it by the evidence
+    //    statistics and compute a per-claim reliability (tier-capped).
+    const researchConfidence = await loadResearchConfidence(client, runId);
+    const weighted = evidenceWeightedConsensus(researchConfidence, {
+      totalClaims: coverage.totalClaims,
+      supported: coverage.supported,
+      contradicted: coverage.contradicted,
+      background: coverage.background,
+      unsupported: coverage.unsupported,
+      coverageScore: coverage.coverageScore,
+    });
+
+    // Per-claim reliability: map each gathered ClaimEvidence.coverage + the
+    // claim's own tier/confidence into the reliability model.
+    const reliabilityInputs: ComputeClaimReliabilityInput[] = [];
+    for (const match of matches as ClaimEvidence[]) {
+      const claim = claimById.get(match.claimId);
+      if (!claim) continue;
+      const evidenceConfidence =
+        match.results.length > 0 ? match.results[0].confidence : 0;
+      const supportingSources = match.results.filter(
+        (r) => r.supportType === 'supports',
+      ).length;
+      reliabilityInputs.push({
+        claimId: match.claimId,
+        tier: claim.tier,
+        claimConfidence: claim.confidence,
+        coverage: match.coverage,
+        evidenceConfidence,
+        supportingSources,
+      });
+    }
+    const reliabilities = computeClaimReliabilities(reliabilityInputs);
+    const claimReliabilities: ClaimReliabilitySummary[] = reliabilities.map(
+      (r) => ({
+        claimId: r.claimId,
+        tier: r.tier,
+        finalConfidence: r.finalConfidence,
+        reliabilityScore: r.reliabilityScore,
+        coverage: r.coverage,
+        rationale: r.rationale,
+      }),
+    );
+
+    // 8. Store coverage (extended with the Phase 5 block) + status + the
+    //    weighted-confidence columns on the run (owner/curator RLS authorizes).
+    const summary: EvidenceCoverageSummary = {
+      ...coverageToSummary(coverage),
+      evidenceWeightedConfidence: weighted.evidenceWeightedConfidence,
+      researchConfidence: weighted.researchConfidence,
+      supportRatio: weighted.supportRatio,
+      contradictionRatio: weighted.contradictionRatio,
+      unsupportedRatio: weighted.unsupportedRatio,
+      explanation: weighted.explanation,
+      claimReliabilities,
+    };
     const { error: updError } = await client
       .from('research_runs')
       .update({
         evidence_coverage: summary as unknown as JsonRecord,
         evidence_status: coverage.mode, // 'fixture' | 'live' | 'mixed'
+        evidence_weighted_confidence: weighted.evidenceWeightedConfidence,
+        support_ratio: weighted.supportRatio,
+        contradiction_ratio: weighted.contradictionRatio,
+        unsupported_ratio: weighted.unsupportedRatio,
       })
       .eq('id', runId);
     if (updError) return fail(updError);
 
+    // 9. Persist the provider-health snapshot (best-effort; never blocks the run).
+    await persistProviderHealth(healthTracker.snapshot());
+
     return { ok: true, data: summary };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Read a run's research (pre-evidence) overall confidence (0..100). Prefers the
+ * consensus report's overallConfidence; falls back to research_runs.
+ * overall_confidence; defaults to 0 when neither is present. Never throws.
+ */
+async function loadResearchConfidence(
+  client: SupabaseClient,
+  runId: string,
+): Promise<number> {
+  try {
+    const { data: reportRow } = await client
+      .from('research_consensus_reports')
+      .select('overall_confidence, report')
+      .eq('run_id', runId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (reportRow) {
+      const fromReport = (reportRow.report ?? {}) as { overallConfidence?: number };
+      if (typeof fromReport.overallConfidence === 'number') {
+        return fromReport.overallConfidence;
+      }
+      if (typeof reportRow.overall_confidence === 'number') {
+        return reportRow.overall_confidence;
+      }
+    }
+    const { data: runRow } = await client
+      .from('research_runs')
+      .select('overall_confidence')
+      .eq('id', runId)
+      .maybeSingle();
+    if (runRow && typeof runRow.overall_confidence === 'number') {
+      return runRow.overall_confidence;
+    }
+  } catch {
+    /* fall through to default */
+  }
+  return 0;
+}
+
+// =============================================================================
+// PROVIDER HEALTH (Phase 5)
+// =============================================================================
+
+/** ProviderHealth (engine) -> provider_health upsert row. */
+function healthToRow(h: ProviderHealth): JsonRecord {
+  return {
+    provider: h.name,
+    enabled: h.enabled,
+    available: h.available,
+    last_success: h.lastSuccess ?? null,
+    last_failure: h.lastFailure ?? null,
+    latency_ms: h.latencyMs ?? null,
+    error_count: h.errorCount,
+    success_count: h.successCount,
+    status: h.status,
+  };
+}
+
+/**
+ * Upsert a provider-health snapshot into provider_health (one row per provider,
+ * unique on `provider`). Best-effort: a non-curator caller is rejected by RLS
+ * and we swallow the error so a run never fails because health couldn't persist.
+ */
+export async function persistProviderHealth(
+  snapshot: ProviderHealth[],
+): Promise<DbResult<ProviderHealthRecord[]>> {
+  try {
+    if (snapshot.length === 0) return { ok: true, data: [] };
+    const client = db();
+    const user = await currentUser(client);
+    if (!user) return authRequired();
+
+    const { data, error } = await client
+      .from('provider_health')
+      .upsert(snapshot.map(healthToRow), { onConflict: 'provider' })
+      .select('*');
+    if (error) return fail(error);
+    return { ok: true, data: (data ?? []) as ProviderHealthRecord[] };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Read the persisted provider-health table, ordered by provider name. */
+export async function getProviderHealth(): Promise<
+  DbResult<ProviderHealthRecord[]>
+> {
+  try {
+    const client = db();
+    const { data, error } = await client
+      .from('provider_health')
+      .select('*')
+      .order('provider', { ascending: true });
+    if (error) return fail(error);
+    return { ok: true, data: (data ?? []) as ProviderHealthRecord[] };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// =============================================================================
+// EVIDENCE REVIEW QUEUE (Phase 5)
+// =============================================================================
+
+/** Best support type rank (highest wins) for effective-status display. */
+const REVIEW_STATUS_DEFAULT: EvidenceReviewQueueItem['status'] = 'pending';
+
+function normalizeReviewStatus(
+  s: string | undefined,
+): EvidenceReviewQueueItem['status'] {
+  if (s === 'validated' || s === 'rejected' || s === 'needs_more') return s;
+  return REVIEW_STATUS_DEFAULT;
+}
+
+/**
+ * Build the reviewer queue: every evidence source the caller can see, joined to
+ * its latest review verdict + the support/contradiction counts across the links
+ * that reference it. Sources are prioritized: UNREVIEWED first, then those with
+ * any CONTRADICTION, then the rest — so reviewers triage the riskiest citations.
+ *
+ * RLS-aware: evidence_sources are world-readable, but claim_evidence_links are
+ * scoped to the caller's visible runs, so the counts reflect only what they may
+ * see. Never throws.
+ */
+export async function listEvidenceReviewQueue(
+  opts?: { limit?: number },
+): Promise<DbResult<EvidenceReviewQueueItem[]>> {
+  try {
+    const client = db();
+    const limit = Math.max(1, Math.min(opts?.limit ?? 200, 500));
+
+    const { data: srcRows, error: srcError } = await client
+      .from('evidence_sources')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (srcError) return fail(srcError);
+    const sources = (srcRows ?? []) as EvidenceSourceRecord[];
+    if (sources.length === 0) return { ok: true, data: [] };
+
+    const sourceIds = sources.map((s) => s.id);
+
+    // Latest review per source.
+    const { data: reviewRows, error: reviewError } = await client
+      .from('evidence_reviews')
+      .select('*')
+      .in('evidence_source_id', sourceIds)
+      .order('created_at', { ascending: false });
+    if (reviewError) return fail(reviewError);
+    const latestReview = new Map<string, EvidenceReviewRecord>();
+    for (const r of (reviewRows ?? []) as EvidenceReviewRecord[]) {
+      if (!latestReview.has(r.evidence_source_id)) {
+        latestReview.set(r.evidence_source_id, r);
+      }
+    }
+
+    // Links referencing these sources (RLS-scoped to visible runs).
+    const { data: linkRows, error: linkError } = await client
+      .from('claim_evidence_links')
+      .select('evidence_source_id, research_run_id, support_type')
+      .in('evidence_source_id', sourceIds);
+    if (linkError) return fail(linkError);
+
+    const runIds = new Map<string, Set<string>>();
+    const supportCounts = new Map<string, number>();
+    const contradictionCounts = new Map<string, number>();
+    for (const l of (linkRows ?? []) as Array<{
+      evidence_source_id: string;
+      research_run_id: string;
+      support_type?: string;
+    }>) {
+      const sid = l.evidence_source_id;
+      if (!runIds.has(sid)) runIds.set(sid, new Set());
+      runIds.get(sid)!.add(l.research_run_id);
+      if (l.support_type === 'supports') {
+        supportCounts.set(sid, (supportCounts.get(sid) ?? 0) + 1);
+      } else if (l.support_type === 'contradicts') {
+        contradictionCounts.set(sid, (contradictionCounts.get(sid) ?? 0) + 1);
+      }
+    }
+
+    const items: EvidenceReviewQueueItem[] = sources.map((source) => {
+      const review = latestReview.get(source.id);
+      return {
+        source,
+        latestReview: review,
+        status: normalizeReviewStatus(
+          review?.status as string | undefined,
+        ),
+        linkedRunIds: Array.from(runIds.get(source.id) ?? []),
+        supportCount: supportCounts.get(source.id) ?? 0,
+        contradictionCount: contradictionCounts.get(source.id) ?? 0,
+      };
+    });
+
+    // Prioritize: unreviewed first, then any contradictions, then the rest.
+    items.sort((a, b) => {
+      const aUnreviewed = a.latestReview ? 0 : 1;
+      const bUnreviewed = b.latestReview ? 0 : 1;
+      if (aUnreviewed !== bUnreviewed) return bUnreviewed - aUnreviewed;
+      if (a.contradictionCount !== b.contradictionCount) {
+        return b.contradictionCount - a.contradictionCount;
+      }
+      return 0;
+    });
+
+    return { ok: true, data: items };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// =============================================================================
+// EVIDENCE INTELLIGENCE (Phase 5) — cross-run aggregate for the dashboard.
+// =============================================================================
+
+/**
+ * Aggregate evidence intelligence across the runs the caller can see (RLS scoped):
+ * average ratios + coverage, support/contradiction/background/unsupported totals
+ * from claim_evidence_links, provider health, a coverage timeline (one point per
+ * run with stored coverage), and a source-type breakdown. Never throws.
+ */
+export async function getEvidenceIntelligence(): Promise<
+  DbResult<EvidenceIntelligence>
+> {
+  try {
+    const client = db();
+
+    const { data: runRows, error: runError } = await client
+      .from('research_runs')
+      .select(
+        'id, title, created_at, evidence_coverage, evidence_weighted_confidence, support_ratio, contradiction_ratio, unsupported_ratio',
+      )
+      .order('created_at', { ascending: true });
+    if (runError) return fail(runError);
+    const runs = (runRows ?? []) as Array<{
+      id: string;
+      title?: string;
+      created_at: string;
+      evidence_coverage?: unknown;
+      evidence_weighted_confidence?: number;
+      support_ratio?: number;
+      contradiction_ratio?: number;
+      unsupported_ratio?: number;
+    }>;
+
+    // Coverage timeline + ratio averages from runs that actually have coverage.
+    const coverageTimeline: EvidenceIntelligence['coverageTimeline'] = [];
+    let sumCoverage = 0;
+    let sumSupport = 0;
+    let sumContradiction = 0;
+    let sumUnsupported = 0;
+    let withCoverage = 0;
+    for (const r of runs) {
+      const cov = toJsonRecord(r.evidence_coverage) as unknown as
+        | EvidenceCoverageSummary
+        | null;
+      if (!cov || typeof cov.totalClaims !== 'number') continue;
+      withCoverage += 1;
+      sumCoverage += cov.coverageScore ?? 0;
+      sumSupport += r.support_ratio ?? cov.supportRatio ?? 0;
+      sumContradiction += r.contradiction_ratio ?? cov.contradictionRatio ?? 0;
+      sumUnsupported += r.unsupported_ratio ?? cov.unsupportedRatio ?? 0;
+      coverageTimeline.push({
+        runId: r.id,
+        label: r.title ?? r.id.slice(0, 8),
+        date: r.created_at,
+        coverageScore: cov.coverageScore ?? 0,
+        evidenceWeightedConfidence:
+          r.evidence_weighted_confidence ?? cov.evidenceWeightedConfidence,
+      });
+    }
+    const div = withCoverage || 1;
+
+    // Support-type totals across all visible links.
+    const { data: linkRows, error: linkError } = await client
+      .from('claim_evidence_links')
+      .select('support_type');
+    if (linkError) return fail(linkError);
+    let totalSupported = 0;
+    let totalContradicted = 0;
+    let totalBackground = 0;
+    let totalUnsupported = 0;
+    for (const l of (linkRows ?? []) as Array<{ support_type?: string }>) {
+      if (l.support_type === 'supports') totalSupported += 1;
+      else if (l.support_type === 'contradicts') totalContradicted += 1;
+      else if (l.support_type === 'background') totalBackground += 1;
+      else totalUnsupported += 1;
+    }
+
+    // Source-type breakdown from evidence_sources.publication_type.
+    const { data: srcRows, error: srcError } = await client
+      .from('evidence_sources')
+      .select('publication_type');
+    if (srcError) return fail(srcError);
+    const sourceTypeBreakdown: Record<string, number> = {};
+    for (const s of (srcRows ?? []) as Array<{ publication_type?: string }>) {
+      const key = s.publication_type ?? 'unknown';
+      sourceTypeBreakdown[key] = (sourceTypeBreakdown[key] ?? 0) + 1;
+    }
+
+    const health = await getProviderHealth();
+    const providerHealth = health.ok ? health.data : [];
+
+    return {
+      ok: true,
+      data: {
+        totalRuns: withCoverage,
+        avgCoverageScore: Math.round((sumCoverage / div) * 10) / 10,
+        avgSupportRatio: Math.round((sumSupport / div) * 100) / 100,
+        avgContradictionRatio: Math.round((sumContradiction / div) * 100) / 100,
+        avgUnsupportedRatio: Math.round((sumUnsupported / div) * 100) / 100,
+        totalSupported,
+        totalContradicted,
+        totalBackground,
+        totalUnsupported,
+        providerHealth,
+        coverageTimeline,
+        sourceTypeBreakdown,
+      },
+    };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// =============================================================================
+// CLAIM<->EVIDENCE GRAPH (Phase 5)
+// =============================================================================
+
+/**
+ * Build the claim<->evidence graph for one run: a node per distinct claim and a
+ * node per linked source, with an edge per claim_evidence_link carrying its
+ * support_type + confidence. RLS-aware (only links/sources the caller can see).
+ * Never throws.
+ */
+export async function getClaimEvidenceGraph(
+  runId: string,
+): Promise<DbResult<ClaimEvidenceGraph>> {
+  try {
+    const client = db();
+
+    const { data: linkRows, error: linkError } = await client
+      .from('claim_evidence_links')
+      .select('id, claim_id, evidence_source_id, support_type, confidence')
+      .eq('research_run_id', runId);
+    if (linkError) return fail(linkError);
+    const links = (linkRows ?? []) as Array<{
+      id: string;
+      claim_id?: string;
+      evidence_source_id: string;
+      support_type?: string;
+      confidence?: number;
+    }>;
+
+    const sourceIds = Array.from(
+      new Set(links.map((l) => l.evidence_source_id).filter(Boolean)),
+    );
+    let sources: EvidenceSourceRecord[] = [];
+    if (sourceIds.length > 0) {
+      const { data: srcRows, error: srcError } = await client
+        .from('evidence_sources')
+        .select('*')
+        .in('id', sourceIds);
+      if (srcError) return fail(srcError);
+      sources = (srcRows ?? []) as EvidenceSourceRecord[];
+    }
+
+    // To label claim nodes with their tier, load the run's agent claims.
+    const claimTier = new Map<string, string>();
+    const claimText = new Map<string, string>();
+    const { data: outputRows } = await client
+      .from('research_agent_outputs')
+      .select('domain, output')
+      .eq('run_id', runId);
+    for (const row of outputRows ?? []) {
+      if ((row.domain as string) === 'consensus') continue;
+      const output = (row.output ?? {}) as { claims?: Claim[] };
+      for (const c of Array.isArray(output.claims) ? output.claims : []) {
+        if (!claimTier.has(c.id)) claimTier.set(c.id, c.tier);
+        if (!claimText.has(c.id)) claimText.set(c.id, c.text);
+      }
+    }
+
+    const nodes: ClaimEvidenceGraphNode[] = [];
+    const seenNode = new Set<string>();
+    const addNode = (n: ClaimEvidenceGraphNode): void => {
+      if (seenNode.has(n.id)) return;
+      seenNode.add(n.id);
+      nodes.push(n);
+    };
+
+    const sourceById = new Map(sources.map((s) => [s.id, s]));
+    const edges: ClaimEvidenceGraphEdge[] = [];
+
+    for (const l of links) {
+      const claimNodeId = `claim:${l.claim_id ?? l.id}`;
+      addNode({
+        id: claimNodeId,
+        kind: 'claim',
+        label: claimText.get(l.claim_id ?? '') ?? (l.claim_id ?? 'claim'),
+        tier: l.claim_id ? claimTier.get(l.claim_id) : undefined,
+      });
+      const sourceNodeId = `source:${l.evidence_source_id}`;
+      const src = sourceById.get(l.evidence_source_id);
+      addNode({
+        id: sourceNodeId,
+        kind: 'source',
+        label: src?.title ?? l.evidence_source_id,
+        supportType: l.support_type,
+        meta: src
+          ? { sourceName: src.source_name, url: src.url, year: src.year }
+          : undefined,
+      });
+      const st = l.support_type;
+      const supportType: ClaimEvidenceGraphEdge['supportType'] =
+        st === 'supports' || st === 'contradicts' || st === 'background'
+          ? st
+          : 'unclear';
+      edges.push({
+        id: l.id,
+        source: claimNodeId,
+        target: sourceNodeId,
+        supportType,
+        confidence: l.confidence,
+      });
+    }
+
+    return { ok: true, data: { nodes, edges } };
   } catch (e) {
     return fail(e);
   }

@@ -75,6 +75,11 @@ export interface EvidenceResult {
   confidence: number;
   /** True when this came from the curated demo fixture set. */
   isFixture?: boolean;
+  /**
+   * Optional short, human-readable justification for this source's support
+   * classification (Phase 5). Populated by the support classifier.
+   */
+  rationale?: string;
   /** Provider-specific payload (never typed `any` in the public API). */
   raw?: unknown;
 }
@@ -123,6 +128,15 @@ export interface EvidenceCoverage {
 export type EvidenceMode = 'fixture' | 'live';
 
 /**
+ * How relevance ranking is performed (Phase 5):
+ * - `lexical`   — deterministic Jaccard ranker (default; no keys).
+ * - `embedding` — cosine over embeddings (OpenAI or injected embed fn), with a
+ *                 lexical fallback when neither is available.
+ * - `auto`      — embedding when a key/embed fn is present, else lexical.
+ */
+export type RelevanceMode = 'lexical' | 'embedding' | 'auto';
+
+/**
  * Engine configuration. The PURE package never reads process.env — the host app
  * passes resolved config in (so keys/emails come from the app's own loader).
  */
@@ -136,4 +150,14 @@ export interface EvidenceEngineConfig {
   pubmedEmail?: string;
   /** Contact mailto for the Crossref "polite pool" (enables Crossref live). */
   crossrefMailto?: string;
+  /**
+   * OpenAI API key (Phase 5). When present, enables the embedding relevance
+   * ranker and the LLM support classifier. NEVER read from env by this package —
+   * the host app passes it in. Absent → deterministic lexical + heuristic.
+   */
+  openaiApiKey?: string;
+  /** Retrieval-cache TTL in seconds (default 86400 = 24h). */
+  cacheTtlSeconds?: number;
+  /** Relevance ranking strategy (default 'auto'). */
+  relevanceMode?: RelevanceMode;
 }

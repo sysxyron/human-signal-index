@@ -1,6 +1,6 @@
 # @hsi/evidence-engine
 
-**WorldForge Phase 4 — Evidence & Citation Engine.**
+**WorldForge Phase 4 + Phase 5 (hardened) — Evidence & Citation Engine.**
 
 Replaces the placeholder research citations produced in Phase 3 with **real,
 retrievable evidence sources** for the atomic `Claim`s an agent emits. It is
@@ -8,6 +8,16 @@ retrievable evidence sources** for the atomic `Claim`s an agent emits. It is
 touches the network when explicitly put into `live` mode with the right
 key/email. **Zero required runtime dependencies** — real providers use the
 global `fetch` and are never called at import time.
+
+**Phase 5 hardening** adds: a hardened HTTP layer (timeout + retry/backoff +
+graceful typed failure), provider **health tracking**, a pluggable retrieval
+**cache** (interface + in-memory impl + key hashing), **embedding relevance**
+ranking (OpenAI or an injected `embed` fn, with a lexical fallback), and a
+support/contradiction **NLI** classifier (heuristic or LLM, uncertainty
+preserved). All new live/OpenAI paths are gated by config + injected deps,
+never at import time, and degrade gracefully (the run never throws). No
+`Date.now()` / `Math.random()` in pure code — a `clock` / `now` / jitter seed is
+injected for determinism.
 
 ---
 
@@ -70,7 +80,74 @@ const engine = createEvidenceEngine({
 | Web fallback      | host-provided `WebFetcher` (low reliability `web`)          | live mode + injected fetcher       |
 | Fixture           | bundled `CHRONID_FIXTURES`                                  | always (fixture mode)              |
 
-All network calls are wrapped in `try/catch` returning `[]` / `null`.
+All network calls go through the hardened HTTP layer (`providers/http.ts`):
+timeout (AbortController, default 8000ms), retry with exponential backoff +
+deterministic jitter (default 2 retries, 300ms base; jitter seeded, **not**
+`Math.random`), and a typed `{ ok:false, error }` result — they **never throw**
+and **never fabricate** (always `[]` / `null` on failure). Every call records
+into the provider-health tracker.
+
+---
+
+## Hardened architecture (Phase 5)
+
+The `gatherEvidence` pipeline, per claim, is now:
+
+1. **Retrieve** — `engine.search(query)`:
+   cache lookup → on miss fan out across enabled providers (each self-gated,
+   hardened HTTP, health-recorded) → de-dupe → store in cache. Cache
+   misses/failures degrade to a direct provider search.
+2. **Rank** — the **relevance engine** ranks candidates (`relevanceScore` set,
+   sorted desc). Lexical (Jaccard, deterministic, default) or embedding (cosine
+   over OpenAI / injected embeddings, lexical fallback).
+3. **Classify** — the **support classifier** classifies each ranked result above
+   `minRelevance` (`supports`/`contradicts`/`background`/`unclear` + confidence +
+   `rationale`). Heuristic (deterministic) or LLM (OpenAI, heuristic fallback).
+4. **Assemble** — a `ClaimEvidence` (same shape as Phase 4; results now also
+   carry an optional `rationale`). Sub-`minRelevance` matches are dropped (no
+   fabrication).
+
+Every step is wrapped so a failure yields a graceful unsupported result — the
+run **never throws and never fails**, and stays **deterministic in fixture mode**
+(pass a fixed `now`).
+
+### Components
+
+| Module                         | What it provides                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `providers/http.ts`            | `fetchJson` / `fetchText` — timeout, retry/backoff, typed graceful failure       |
+| `providerHealth.ts`            | `ProviderHealthTracker`, `getProviderHealth()` — HEALTHY / DEGRADED / OFFLINE    |
+| `cache/`                       | `CacheStore` interface, `InMemoryCacheStore`, `cacheKey` / `hashQuery` (FNV-1a)  |
+| `relevance/`                   | `createRelevanceEngine`, lexical + embedding rankers                             |
+| `nli/`                         | `createSupportClassifier`, heuristic + LLM classifiers                           |
+
+> The **Supabase-backed cache** lives in the *app* (it needs supabase). The
+> engine only defines the `CacheStore` interface + the in-memory impl + the key
+> hashing, and accepts any `CacheStore` via `createEvidenceEngine` options.
+
+### Provider health
+
+`engine.health()` (or the module-level `getProviderHealth()`) returns a
+`ProviderHealth[]` snapshot: `enabled`, `available`, `lastSuccess`/`lastFailure`,
+`latencyMs`, `errorCount`, `successCount`, and a derived `status`:
+
+- **OFFLINE** — disabled, or failing with no successes.
+- **DEGRADED** — some failures but also some successes.
+- **HEALTHY** — enabled with no outstanding failures.
+
+### Embeddings & LLM (gated, optional)
+
+Set `openaiApiKey` to enable the embedding ranker
+(`text-embedding-3-small`) and the LLM classifier (`gpt-4o-mini`). Or inject an
+`embed(texts) => number[][]` function (e.g. a local embedder). With neither,
+both transparently fall back to the deterministic lexical / heuristic paths.
+
+```ts
+const engine = createEvidenceEngine(
+  { mode: 'live', openaiApiKey: '...', relevanceMode: 'auto', cacheTtlSeconds: 86400, crossrefMailto: 'you@x.co' },
+  { cacheStore: new InMemoryCacheStore(), healthTracker, embed, fetchImpl, clock, jitterSeed: 1 },
+);
+```
 
 ---
 
@@ -83,7 +160,11 @@ The engine is built to **not over-claim**:
 2. **Speculative / fictional / violates-known-physics** claims are **never
    upgraded to `supports`** on weak (lexical-only) evidence. The strongest such
    a match can reach without an *explicit* curated fixture stance is
-   `background`.
+   `background`. This guardrail holds for **both** the heuristic **and** the LLM
+   classifier (a live model cannot override the cap on an ungrounded claim).
+5. The classifier **preserves uncertainty**: when a source neither clearly
+   affirms nor contradicts a claim it returns `unclear` (low confidence) or
+   `background` — it does **not** force a class.
 3. Reliability is driven by **publication type**; a citation with no durable
    identifier (DOI/arXiv/PMID/S2/URL) is `unsupported`, and a malformed one
    (no title, bad DOI) is `invalid`.
@@ -125,7 +206,22 @@ encyclopedia entry with **no DOI** is used rather than inventing one.
   `relevanceScore`, `supportTypeFor`, `confidenceFor`.
 - **`claimMatcher.ts`** — `matchClaim`, `matchClaims`, `computeCoverage`,
   `claimToQuery`, `resolveConfig`.
-- **`providers/`** — `createProviders`, plus per-provider factories.
+- **`providers/`** — `createProviders(cfg, now?, webFetcher?, deps?)`, per-provider
+  factories, plus the hardened HTTP layer: `fetchJson`, `fetchText`,
+  `httpOptionsFor`, types `FetchImpl`, `MillisClock`, `HttpResult`, `HttpOptions`,
+  `ProviderDeps`.
+- **`providerHealth.ts`** — `ProviderHealthTracker`, `getProviderHealth()`,
+  `defaultProviderHealthTracker`, `HEALTH_WINDOW`, types `ProviderHealth`,
+  `ProviderStatus`.
+- **`cache/`** — `InMemoryCacheStore`, `cacheKey(provider, query)`,
+  `hashQuery(s)`, types `CacheStore`, `CachedEntry`.
+- **`relevance/`** — `createRelevanceEngine(cfg, deps?)`, `createLexicalRanker()`,
+  `createEmbeddingRanker(cfg, deps?)`, `rankLexical(text, results)`, types
+  `RelevanceEngine`, `RelevanceDeps`, `EmbeddingRankerDeps`, `EmbedFn`.
+- **`nli/`** — `createSupportClassifier(cfg, deps?)`, `createHeuristicClassifier()`,
+  `createLlmClassifier(cfg, deps?)`, `classifyHeuristic(claim, result, relevance)`,
+  types `SupportClassifier`, `SupportClassification`, `SupportClassifierDeps`,
+  `LlmClassifierDeps`.
 - **`fixtures/chronid-sources.ts`** — `CHRONID_FIXTURES`, `FixtureProvider`,
   `createFixtureProvider`.
 
@@ -133,10 +229,25 @@ encyclopedia entry with **no DOI** is used rather than inventing one.
 
 ## Tests
 
-`tests/evidence-engine.test.ts` uses `node:test` + `node:assert` (no test
-framework dependency). It covers fixture retrieval, the speculative-claim
-honesty rule, the unsupported (no-evidence) case, reliability tiers, malformed
-citation detection, coverage math, and determinism.
+`tests/evidence-engine.test.ts` (Phase 4) and `tests/hardening.test.ts`
+(Phase 5) use `node:test` + `node:assert` (no test framework dependency). They
+cover fixture retrieval + ranking, the speculative-claim honesty rule, the
+unsupported (no-evidence) case, reliability tiers, malformed citation detection,
+coverage math, determinism, **provider failure** (rejecting fetch → `[]`, run
+completes, health not HEALTHY, retries/backoff via injected sleep), the
+**cache** (hit/miss + TTL expiry via injected clock, engine cache reuse),
+**embedding ranking** (injected `embed` ranks most-similar first; lexical
+fallback without a key), and **NLI classification**
+(supports/contradicts/background/unclear, uncertainty preserved,
+speculative-not-forced-to-supports).
+
+Run (tsx):
+
+```
+node node_modules/.pnpm/tsx@*/node_modules/tsx/dist/cli.mjs --test \
+  packages/evidence-engine/tests/evidence-engine.test.ts \
+  packages/evidence-engine/tests/hardening.test.ts
+```
 
 ---
 
