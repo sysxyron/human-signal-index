@@ -20,12 +20,22 @@ import {
   TrendingUp,
   Bell,
 } from 'lucide-react';
-import type { IntelligenceOverview } from '@hsi/shared-types';
+import type {
+  IntelligenceOverview,
+  OperationsOverview,
+} from '@hsi/shared-types';
 import { getIntelligenceOverviewAction } from '@/lib/signals/actions';
+import { getOperationsOverviewAction } from '@/lib/operations/actions';
 import {
   demoIntelligenceOverview,
   sourceHealthDecor,
 } from '@/lib/signals/view';
+import { demoOperationsOverview } from '@/lib/operations/view';
+import {
+  QueueStatusStrip,
+  GraphLinkCard,
+  OperationsLinkCard,
+} from '@/components/operations/QueueStatusStrip';
 import { IntelNav } from '@/components/signals/IntelNav';
 import { IntelStatCard } from '@/components/signals/IntelStatCard';
 import { SignalVelocityChart } from '@/components/signals/SignalVelocityChart';
@@ -53,6 +63,22 @@ export default async function IntelligencePage() {
     isDemo = true;
   } else {
     errored = { message: res.error, code: res.code };
+  }
+
+  // ADDITIVE (Phase 8): a defensive operations queue strip. A failure here must
+  // never break the intelligence page — on error we simply hide the strip.
+  let opsOverview: OperationsOverview | null = null;
+  let opsDemo = false;
+  try {
+    const opsRes = await getOperationsOverviewAction();
+    if (opsRes.ok) {
+      opsOverview = opsRes.data;
+    } else if (opsRes.code === 'NOT_CONFIGURED') {
+      opsOverview = demoOperationsOverview();
+      opsDemo = true;
+    }
+  } catch {
+    opsOverview = null;
   }
 
   if (!overview) {
@@ -93,6 +119,15 @@ export default async function IntelligencePage() {
         </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}
+
+        {/* ADDITIVE (Phase 8): operations queue strip + graph/console links. */}
+        {opsOverview ? (
+          <QueueStatusStrip overview={opsOverview} demo={opsDemo} />
+        ) : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <GraphLinkCard />
+          <OperationsLinkCard />
+        </div>
 
         {/* Stat widgets */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

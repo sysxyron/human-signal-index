@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { TopNav } from '@hsi/ui';
-import { Inbox, LayoutGrid, Rows3 } from 'lucide-react';
+import { Inbox, LayoutGrid, Rows3, Network, Filter } from 'lucide-react';
 import Link from 'next/link';
 import type {
   HsinWatchlistRecord,
@@ -112,6 +112,24 @@ export default async function SignalsPage({
         </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}
+
+        {/* ADDITIVE (Phase 8): triage + narrative-graph quick links. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={'/dashboard/intelligence/graph' as never}
+            className="inline-flex items-center gap-1.5 rounded-btn border border-border bg-surface-2/60 px-3 py-1.5 text-caption font-semibold text-text-secondary transition hover:border-accent hover:text-white"
+            title="See how these signals connect in the narrative graph"
+          >
+            <Network className="h-3.5 w-3.5" /> Narrative graph
+          </Link>
+          <Link
+            href={'/dashboard/operations' as never}
+            className="inline-flex items-center gap-1.5 rounded-btn border border-border bg-surface-2/60 px-3 py-1.5 text-caption font-semibold text-text-secondary transition hover:border-electric hover:text-white"
+            title="View triage rules & the processing queue in operations"
+          >
+            <Filter className="h-3.5 w-3.5" /> Triage &amp; queue
+          </Link>
+        </div>
 
         <SignalFilters watchlists={watchlists} />
 

@@ -51,6 +51,15 @@ export * from './drift';
 export * from './alerts';
 export * from './watchlists';
 export * from './fixtures';
+// ---- Phase 8 (additive): semantic / graph / triage / sla -------------------
+// These ENRICH Phase-7 without modifying it. Semantic classification +
+// narrative clustering, the narrative/entity graph, the triage rule-engine, and
+// SLA deadline math. All deterministic + offline; embeddings only via an
+// injected `embed` fn (graceful lexical fallback otherwise).
+export * from './semantic';
+export * from './graph';
+export * from './triage';
+export * from './sla';
 export { sha256Hex, fnv1a } from './internal/hash';
 export {
   htmlToText,

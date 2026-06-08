@@ -13,6 +13,7 @@
     "@hsi/database": "workspace:*",
     "@hsi/evidence-engine": "workspace:*",
     "@hsi/research-agents": "workspace:*",
+    "@hsi/scheduler": "workspace:*",
     "@hsi/shared-types": "workspace:*",
     "@hsi/simulation-engine": "workspace:*",
     "@hsi/source-intelligence": "workspace:*",

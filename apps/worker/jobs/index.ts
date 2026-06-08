@@ -14,6 +14,14 @@ import { rssMonitorJob } from './rss-monitor';
 import { signalClassifierJob } from './signal-classifier';
 import { driftDetectorJob } from './drift-detector';
 import { alertGeneratorJob } from './alert-generator';
+// HSI Phase 8 — scheduler, queue & narrative-graph jobs.
+import { schedulerRunnerJob } from './scheduler-runner';
+import { queueWorkerJob } from './queue-worker';
+import { captureWorkerJob } from './capture-worker';
+import { classificationWorkerJob } from './classification-worker';
+import { driftWorkerJob } from './drift-worker';
+import { alertWorkerJob } from './alert-worker';
+import { triageWorkerJob } from './triage-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -29,6 +37,18 @@ export * from './rss-monitor';
 export * from './signal-classifier';
 export * from './drift-detector';
 export * from './alert-generator';
+// HSI Phase 8 exports. NOTE: drift-worker re-exports its own DriftEventRecord /
+// NarrativeTimeline types; alert-worker its AlertableSignal; no symbol collides
+// with the Phase-7 jobs above (driftDetector exports DriftCandidate/DriftRecord;
+// alertGenerator exports ScannableSignal). Job NAMES are distinct too
+// (driftWorker vs driftDetector, alertWorker vs alertGenerator).
+export * from './scheduler-runner';
+export * from './queue-worker';
+export * from './capture-worker';
+export * from './classification-worker';
+export * from './drift-worker';
+export * from './alert-worker';
+export * from './triage-worker';
 
 /** All registered jobs, in pipeline order. */
 export const jobs: Job[] = [
@@ -44,6 +64,15 @@ export const jobs: Job[] = [
   signalClassifierJob,
   driftDetectorJob,
   alertGeneratorJob,
+  // HSI Phase 8 — scheduler, queue & narrative-graph jobs. Disabled-by-default
+  // (env-gated) and offline-safe; they no-op cleanly until flags/keys are set.
+  schedulerRunnerJob,
+  queueWorkerJob,
+  captureWorkerJob,
+  classificationWorkerJob,
+  driftWorkerJob,
+  alertWorkerJob,
+  triageWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

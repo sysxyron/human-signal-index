@@ -40,6 +40,9 @@
       ],
       "@hsi/source-intelligence": [
         "../../packages/source-intelligence/src"
+      ],
+      "@hsi/scheduler": [
+        "../../packages/scheduler/src"
       ]
     },
     "allowJs": true,

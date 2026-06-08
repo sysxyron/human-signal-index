@@ -6,6 +6,7 @@
 // black-box conclusions. Offline (NOT_CONFIGURED) → labeled demo. force-dynamic.
 // =============================================================================
 
+import Link from 'next/link';
 import { TopNav } from '@hsi/ui';
 import { Bell } from 'lucide-react';
 import type { HsinSignalAlertRecord } from '@hsi/shared-types';
@@ -14,6 +15,7 @@ import { getSessionRole, getUser } from '@/lib/supabase/server';
 import { canReview, demoAlerts } from '@/lib/signals/view';
 import { IntelNav } from '@/components/signals/IntelNav';
 import { AlertTable } from '@/components/signals/AlertTable';
+import { SlaBadge } from '@/components/operations/SlaBadge';
 import { DemoBadge } from '@/components/signals/badges';
 import {
   ErrorState,
@@ -66,6 +68,22 @@ export default async function AlertsPage() {
           — a human acknowledges, escalates, or opens research. Every alert carries
           an explanation.
         </p>
+
+        {/* ADDITIVE (Phase 8): SLA state legend — alert review deadlines map to
+            these states (full SLA tracking lives in the operations console). */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-label text-text-muted">SLA states:</span>
+          <SlaBadge state="on_track" />
+          <SlaBadge state="due_soon" />
+          <SlaBadge state="overdue_review" />
+          <SlaBadge state="overdue_escalation" />
+          <Link
+            href={'/dashboard/operations' as never}
+            className="ml-1 inline-flex items-center gap-1 text-caption font-semibold text-electric hover:underline"
+          >
+            Operations console
+          </Link>
+        </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}
 

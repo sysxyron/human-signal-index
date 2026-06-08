@@ -28,7 +28,8 @@
       "@hsi/timeline-engine": ["packages/timeline-engine/src"],
       "@hsi/research-agents": ["packages/research-agents/src"],
       "@hsi/evidence-engine": ["packages/evidence-engine/src"],
-      "@hsi/source-intelligence": ["packages/source-intelligence/src"]
+      "@hsi/source-intelligence": ["packages/source-intelligence/src"],
+      "@hsi/scheduler": ["packages/scheduler/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

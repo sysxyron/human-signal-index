@@ -65,6 +65,9 @@ importers:
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../../packages/research-agents
+      '@hsi/scheduler':
+        specifier: workspace:*
+        version: link:../../packages/scheduler
       '@hsi/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -150,6 +153,9 @@ importers:
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../../packages/research-agents
+      '@hsi/scheduler':
+        specifier: workspace:*
+        version: link:../../packages/scheduler
       '@hsi/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -255,6 +261,12 @@ importers:
       '@hsi/world-models':
         specifier: workspace:*
         version: link:../world-models
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/scheduler:
     devDependencies:
       typescript:
         specifier: ^5.6.0

@@ -1408,3 +1408,272 @@ export interface IntelligenceOverview {
   /** Alerts raised per day. */
   alertActivity: { date: string; count: number }[];
 }
+
+// =============================================================================
+// Scheduler, Queue & Narrative Graph — Phase 8
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 8 persistence (migration 0012): the durable
+// job queue + per-attempt log, cron-style scheduler rules, capture-dedupe
+// bookkeeping, the entity/narrative knowledge graph (entities, signal<->entity
+// links, narratives, signal<->narrative links, narrative edges), triage rules,
+// SLA policies, and provider accounts + rate limits — plus the view-model shapes
+// the operations console and narrative-graph UI render.
+//
+// NAMING: the underlying tables use the `hsin_` prefix (consistent with Phase 7);
+// their TS record names carry the `Hsin` prefix to mirror that. Timestamps are ISO
+// strings; uuid columns are strings. jsonb payloads are typed as
+// `Record<string, unknown>` so shared-types stays decoupled from the engine internals.
+// =============================================================================
+
+/** Lifecycle status of a queued job. Mirrors hsin_job_queue.status. */
+export type JobStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'retrying'
+  | 'cancelled';
+
+/** Kind of entity node in the intelligence graph. Mirrors hsin_entities.entity_type. */
+export type HsinEntityType =
+  | 'person'
+  | 'organization'
+  | 'movement'
+  | 'ideology'
+  | 'topic'
+  | 'place'
+  | 'platform'
+  | 'publication'
+  | 'unknown';
+
+/** Kind of directed edge between two narratives. Mirrors hsin_narrative_edges.edge_type. */
+export type NarrativeEdgeType =
+  | 'related_to'
+  | 'contradicts'
+  | 'amplifies'
+  | 'evolves_into'
+  | 'derived_from'
+  | 'co_occurs_with';
+
+/**
+ * Kind of action a triage rule can take. Typed as a known union plus `string & {}`
+ * so callers keep autocompletion while accepting arbitrary engine-emitted actions.
+ * Carried inside hsin_triage_rules.actions_json.
+ */
+export type TriageActionType =
+  | 'tag'
+  | 'set_status'
+  | 'set_priority'
+  | 'assign'
+  | 'route'
+  | 'raise_alert'
+  | 'escalate'
+  | 'enqueue_research'
+  | 'suppress'
+  | (string & {});
+
+/** SLA severity scale. Mirrors hsin_sla_policies.severity. */
+export type SlaSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+/** A durable unit of work for the background worker. Mirrors the `hsin_job_queue` table. */
+export interface HsinJobQueueRecord {
+  id: string;
+  job_type: string;
+  status: JobStatus;
+  /** Worklist priority (lower = sooner by convention). */
+  priority: number;
+  source_id?: string;
+  /** Arbitrary job input (jsonb). */
+  payload_json?: Record<string, unknown>;
+  scheduled_for: string;
+  started_at?: string;
+  finished_at?: string;
+  error_message?: string;
+  attempt_count: number;
+  max_attempts: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One execution attempt of a queued job. Mirrors the `hsin_job_attempts` table. */
+export interface HsinJobAttemptRecord {
+  id: string;
+  job_id: string;
+  attempt_number: number;
+  started_at?: string;
+  finished_at?: string;
+  status?: string;
+  error_message?: string;
+  /** Arbitrary structured attempt log (jsonb). */
+  log_json?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A cron-style scheduler rule. Mirrors the `hsin_scheduler_rules` table. */
+export interface HsinSchedulerRuleRecord {
+  id: string;
+  source_id?: string;
+  job_type: string;
+  cron_expression: string;
+  enabled: boolean;
+  next_run_at?: string;
+  last_run_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Capture de-dup bookkeeping per source. Mirrors the `hsin_capture_dedupes` table. */
+export interface HsinCaptureDedupeRecord {
+  id: string;
+  source_id?: string;
+  content_hash: string;
+  canonical_url?: string;
+  first_seen_at?: string;
+  last_seen_at?: string;
+  signal_id?: string;
+  created_at: string;
+}
+
+/** An entity node in the shared intelligence graph. Mirrors the `hsin_entities` table. */
+export interface HsinEntityRecord {
+  id: string;
+  name: string;
+  entity_type: HsinEntityType;
+  description?: string;
+  /** Arbitrary structured metadata (jsonb). */
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A signal<->entity link with extraction confidence. Mirrors the `hsin_signal_entities` table. */
+export interface HsinSignalEntityRecord {
+  id: string;
+  signal_id: string;
+  entity_id: string;
+  /** 0..1 extraction confidence. */
+  confidence?: number;
+  evidence_text?: string;
+  created_at: string;
+}
+
+/** A tracked narrative in the graph. Mirrors the `hsin_narratives` table. */
+export interface HsinNarrativeRecord {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  /** 1..5 baseline risk level. */
+  risk_level?: number;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A signal<->narrative link with confidence. Mirrors the `hsin_signal_narratives` table. */
+export interface HsinSignalNarrativeRecord {
+  id: string;
+  signal_id: string;
+  narrative_id: string;
+  /** 0..1 confidence. */
+  confidence?: number;
+  rationale?: string;
+  created_at: string;
+}
+
+/** A directed edge between two narratives. Mirrors the `hsin_narrative_edges` table. */
+export interface HsinNarrativeEdgeRecord {
+  id: string;
+  source_narrative_id: string;
+  target_narrative_id: string;
+  edge_type: NarrativeEdgeType;
+  weight?: number;
+  rationale?: string;
+  created_at: string;
+}
+
+/** A declarative triage rule (conditions -> actions). Mirrors the `hsin_triage_rules` table. */
+export interface HsinTriageRuleRecord {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  /** Match conditions (jsonb array). */
+  conditions_json: Record<string, unknown>[];
+  /** Actions to apply on match (jsonb array). */
+  actions_json: Record<string, unknown>[];
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A per-severity SLA policy. Mirrors the `hsin_sla_policies` table. */
+export interface HsinSlaPolicyRecord {
+  id: string;
+  name: string;
+  severity?: SlaSeverity;
+  /** Review deadline in hours. */
+  review_deadline_hours?: number;
+  /** Escalation deadline in hours. */
+  escalation_deadline_hours?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An outbound provider account + config. Mirrors the `hsin_provider_accounts` table. */
+export interface HsinProviderAccountRecord {
+  id: string;
+  provider_name: string;
+  enabled: boolean;
+  /** Provider credentials/options (jsonb). */
+  config_json?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+/** The current rate-limit window for a provider. Mirrors the `hsin_provider_rate_limits` table. */
+export interface HsinProviderRateLimitRecord {
+  id: string;
+  provider_name: string;
+  window_seconds?: number;
+  max_requests?: number;
+  remaining_requests?: number;
+  reset_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Aggregate data backing the operations console. */
+export interface OperationsOverview {
+  queued: number;
+  running: number;
+  failed: number;
+  retrying: number;
+  /** Jobs completed in the last 24 hours. */
+  completed24h: number;
+  recentAttempts: HsinJobAttemptRecord[];
+  /** hsin_source_health.status (or derived source status) -> count. */
+  sourceHealthSummary: Record<string, number>;
+  providerRateLimits: HsinProviderRateLimitRecord[];
+  schedulerRules: HsinSchedulerRuleRecord[];
+  /** Signals captured per day. */
+  captureThroughput: { date: string; count: number }[];
+  /** Alerts raised per day. */
+  alertThroughput: { date: string; count: number }[];
+}
+
+/** The narrative/entity knowledge graph payload backing the graph UI. */
+export interface NarrativeGraphData {
+  narratives: HsinNarrativeRecord[];
+  entities: HsinEntityRecord[];
+  edges: HsinNarrativeEdgeRecord[];
+  signalNarratives: HsinSignalNarrativeRecord[];
+  signalEntities: HsinSignalEntityRecord[];
+}
+
+/** A queued job plus its full attempt history (the job detail load shape). */
+export interface JobWithAttempts {
+  job: HsinJobQueueRecord;
+  attempts: HsinJobAttemptRecord[];
+}

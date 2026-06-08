@@ -4,8 +4,9 @@
 // (NOT_CONFIGURED) → labeled DEFAULT_WATCHLISTS view. force-dynamic.
 // =============================================================================
 
+import Link from 'next/link';
 import { TopNav } from '@hsi/ui';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, Network } from 'lucide-react';
 import type { HsinWatchlistRecord } from '@hsi/shared-types';
 import { listWatchlistsAction } from '@/lib/signals/actions';
 import { getSessionRole } from '@/lib/supabase/server';
@@ -68,7 +69,17 @@ export default async function WatchlistsPage() {
             </h2>
             {isDemo ? <DemoBadge /> : null}
           </div>
-          <WatchlistForm canManage={manage} demo={isDemo} />
+          <div className="flex items-center gap-2">
+            {/* ADDITIVE (Phase 8): link to the narrative graph. */}
+            <Link
+              href={'/dashboard/intelligence/graph' as never}
+              className="inline-flex items-center gap-1.5 rounded-btn border border-border bg-surface-2/60 px-3 py-1.5 text-caption font-semibold text-text-secondary transition hover:border-accent hover:text-white"
+              title="See how watched narratives relate in the narrative graph"
+            >
+              <Network className="h-3.5 w-3.5" /> Narrative graph
+            </Link>
+            <WatchlistForm canManage={manage} demo={isDemo} />
+          </div>
         </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}

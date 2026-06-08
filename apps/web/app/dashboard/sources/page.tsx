@@ -5,8 +5,9 @@
 // Offline (NOT_CONFIGURED) → labeled DEMO_SOURCES view. force-dynamic.
 // =============================================================================
 
+import Link from 'next/link';
 import { TopNav } from '@hsi/ui';
-import { Database } from 'lucide-react';
+import { Database, CalendarClock } from 'lucide-react';
 import type { HsinWatchlistRecord, SourceWithStats } from '@hsi/shared-types';
 import {
   listSourcesAction,
@@ -77,7 +78,18 @@ export default async function SourcesPage() {
             </h2>
             {isDemo ? <DemoBadge /> : null}
           </div>
-          <SourceForm canManage={manage} demo={isDemo} />
+          <div className="flex items-center gap-2">
+            {/* ADDITIVE (Phase 8): link to scheduler/health in the operations
+                console (per-source schedule data is owned by operations). */}
+            <Link
+              href={'/dashboard/operations' as never}
+              className="inline-flex items-center gap-1.5 rounded-btn border border-border bg-surface-2/60 px-3 py-1.5 text-caption font-semibold text-text-secondary transition hover:border-electric hover:text-white"
+              title="View capture schedules & source health in the operations console"
+            >
+              <CalendarClock className="h-3.5 w-3.5" /> Schedules &amp; health
+            </Link>
+            <SourceForm canManage={manage} demo={isDemo} />
+          </div>
         </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}
