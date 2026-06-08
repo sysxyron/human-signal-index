@@ -183,6 +183,8 @@ const ENTITY_LABELS: Record<ReviewEntityType, string> = {
   worldforge_report: 'WorldForge report',
   evidence_source: 'Evidence source',
   publication: 'Publication',
+  source: 'Source',
+  signal: 'Signal',
 };
 
 export function entityLabel(entityType: string): string {

@@ -920,14 +920,19 @@ export interface ClaimEvidenceGraph {
 // `AppRole`. Timestamps are ISO strings; uuid columns are strings.
 // =============================================================================
 
-/** Entity kinds that can enter the review/curation pipeline. */
+/**
+ * Entity kinds that can enter the review/curation pipeline.
+ * Extended in Phase 7 to include HSIN `signal` and `source` (additive).
+ */
 export type ReviewEntityType =
   | 'research_run'
   | 'consensus_report'
   | 'evidence_summary'
   | 'worldforge_report'
   | 'evidence_source'
-  | 'publication';
+  | 'publication'
+  | 'signal'
+  | 'source';
 
 /** Workflow status of a review queue entry. Mirrors review_queues.status. */
 export type ReviewQueueStatus =
@@ -1105,4 +1110,301 @@ export interface PublicReportDraft {
   consensus: Record<string, unknown>;
   reviewerNotes: string[];
   metadata: Record<string, unknown>;
+}
+
+// =============================================================================
+// Signal Intelligence Network — Phase 7 (Human Signal Intelligence Network)
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 7 persistence (migration 0011): the HSIN
+// monitored sources + groups, watchlists, captured signals + versions/events/tags/
+// reviews, alerts, source-health, capture-jobs, and narrative-drift — plus the
+// view-model shapes the intelligence dashboard renders.
+//
+// NAMING: the underlying tables use the `hsin_` prefix to preserve the Phase-1
+// `sources`/`signals` tables (see migration 0011 header). These record types mirror
+// the prefixed tables; their TS names carry the `Hsin` prefix to mirror that and to
+// avoid colliding with the Phase-1 `Source`/`Signal`/`SourceRecord`/`SignalRecord`.
+// Timestamps are ISO strings; uuid columns are strings. jsonb payloads are typed as
+// `Record<string, unknown>` so shared-types stays decoupled from the engine internals.
+// =============================================================================
+
+/** Kind of monitored source. Mirrors hsin_sources.source_type. */
+export type HsinSourceType =
+  | 'website'
+  | 'rss'
+  | 'youtube'
+  | 'tiktok'
+  | 'podcast'
+  | 'forum'
+  | 'document'
+  | 'manual';
+
+/** Lifecycle status of a monitored source. Mirrors hsin_sources.status. */
+export type HsinSourceStatus = 'active' | 'paused' | 'disabled' | 'error';
+
+/** Kind of captured signal. Mirrors hsin_signals.signal_type. */
+export type HsinSignalType =
+  | 'article'
+  | 'video'
+  | 'podcast_episode'
+  | 'forum_post'
+  | 'social_post'
+  | 'document'
+  | 'manual_submission'
+  | 'rss_item';
+
+/**
+ * Signal category. The 16 well-known categories (incl 'other'), but typed to also
+ * allow custom strings (`string & {}`) so callers keep IDE autocompletion for the
+ * known values while still accepting arbitrary engine-emitted categories.
+ * Mirrors hsin_signals.signal_category (a free-form text column).
+ */
+export type HsinSignalCategory =
+  | 'ideology'
+  | 'recruitment'
+  | 'radicalization'
+  | 'misinformation'
+  | 'disinformation'
+  | 'propaganda'
+  | 'extremism'
+  | 'coordination'
+  | 'mobilization'
+  | 'narrative_shift'
+  | 'self_harm'
+  | 'violence'
+  | 'targeting'
+  | 'financing'
+  | 'technology'
+  | 'other'
+  | (string & {});
+
+/** Triage workflow status of a captured signal. Mirrors hsin_signals.status. */
+export type HsinSignalStatus =
+  | 'new'
+  | 'reviewing'
+  | 'approved'
+  | 'rejected'
+  | 'needs_research'
+  | 'published';
+
+/** Trigger classification for an alert. Mirrors hsin_signal_alerts.alert_type. */
+export type HsinAlertType =
+  | 'new_signal'
+  | 'source_changed'
+  | 'narrative_shift'
+  | 'watchlist_match'
+  | 'high_risk_signal'
+  | 'review_escalation'
+  | 'research_created'
+  | 'publication_created';
+
+/** Alert/watchlist severity scale. Mirrors hsin_signal_alerts.severity / hsin_watchlists.severity. */
+export type HsinAlertSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+/** Triage status of an alert. Mirrors hsin_signal_alerts.status. */
+export type HsinAlertStatus = 'open' | 'acknowledged' | 'escalated' | 'resolved';
+
+/** A reviewer verdict on a captured signal. Mirrors hsin_signal_reviews.decision. */
+export type HsinSignalDecision = 'APPROVE' | 'REJECT' | 'NEEDS_RESEARCH' | 'ESCALATE';
+
+/** A monitored signal source. Mirrors the `hsin_sources` table. */
+export interface HsinSourceRecord {
+  id: string;
+  name: string;
+  description?: string;
+  source_type: HsinSourceType | string;
+  platform?: string;
+  homepage_url?: string;
+  rss_url?: string;
+  status: HsinSourceStatus;
+  /** 1..5 baseline risk level. */
+  risk_level?: number;
+  monitoring_enabled?: boolean;
+  last_checked_at?: string;
+  last_changed_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A named grouping of sources. Mirrors the `hsin_source_groups` table. */
+export interface HsinSourceGroupRecord {
+  id: string;
+  name: string;
+  description?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+/** A source<->group membership. Mirrors the `hsin_source_group_members` table. */
+export interface HsinSourceGroupMemberRecord {
+  id: string;
+  group_id: string;
+  source_id: string;
+}
+
+/** A watchlist of terms at a severity. Mirrors the `hsin_watchlists` table. */
+export interface HsinWatchlistRecord {
+  id: string;
+  name: string;
+  description?: string;
+  severity?: HsinAlertSeverity;
+  terms: string[];
+  created_by?: string;
+  created_at: string;
+}
+
+/** A watchlist<->source scoping. Mirrors the `hsin_watchlist_sources` table. */
+export interface HsinWatchlistSourceRecord {
+  id: string;
+  watchlist_id: string;
+  source_id: string;
+}
+
+/** A captured signal. Mirrors the `hsin_signals` table. */
+export interface HsinSignalRecord {
+  id: string;
+  source_id?: string;
+  title: string;
+  summary?: string;
+  raw_content?: string;
+  content_hash?: string;
+  signal_type?: HsinSignalType | string;
+  signal_category?: HsinSignalCategory;
+  /** 0..1 capture/classification confidence. */
+  confidence?: number;
+  status: HsinSignalStatus;
+  captured_at?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+/** An immutable signal snapshot. Mirrors the `hsin_signal_versions` table. */
+export interface HsinSignalVersionRecord {
+  id: string;
+  signal_id: string;
+  version_number: number;
+  /** Frozen captured payload (jsonb). */
+  snapshot_json: Record<string, unknown>;
+  created_at: string;
+}
+
+/** An append-only signal event. Mirrors the `hsin_signal_events` table. */
+export interface HsinSignalEventRecord {
+  id: string;
+  signal_id: string;
+  event_type: string;
+  /** Arbitrary structured context (jsonb). */
+  event_payload?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A free-form tag on a signal. Mirrors the `hsin_signal_tags` table. */
+export interface HsinSignalTagRecord {
+  id: string;
+  signal_id: string;
+  tag: string;
+}
+
+/** A reviewer verdict on a captured signal. Mirrors the `hsin_signal_reviews` table. */
+export interface HsinSignalReviewRecord {
+  id: string;
+  signal_id: string;
+  reviewer_id?: string;
+  decision?: HsinSignalDecision;
+  notes?: string;
+  created_at: string;
+}
+
+/** An alert raised by the network. Mirrors the `hsin_signal_alerts` table. */
+export interface HsinSignalAlertRecord {
+  id: string;
+  signal_id?: string;
+  source_id?: string;
+  alert_type: HsinAlertType;
+  severity: HsinAlertSeverity;
+  title?: string;
+  explanation?: string;
+  status: HsinAlertStatus;
+  created_at: string;
+}
+
+/** A point-in-time source health observation. Mirrors the `hsin_source_health` table. */
+export interface HsinSourceHealthRecord {
+  id: string;
+  source_id: string;
+  status?: string;
+  /** Response time (ms). */
+  response_time?: number;
+  last_success?: string;
+  last_failure?: string;
+  failure_count?: number;
+  created_at: string;
+}
+
+/** A capture run against a source. Mirrors the `hsin_capture_jobs` table. */
+export interface HsinCaptureJobRecord {
+  id: string;
+  source_id?: string;
+  status: 'pending' | 'running' | 'success' | 'failed';
+  started_at?: string;
+  finished_at?: string;
+  error_message?: string;
+  created_at: string;
+}
+
+/** A detected narrative-drift event. Mirrors the `hsin_narrative_drift` table. */
+export interface HsinNarrativeDriftRecord {
+  id: string;
+  source_id?: string;
+  signal_id?: string;
+  before_text?: string;
+  after_text?: string;
+  explanation?: string;
+  /** 0..1 confidence in the drift detection. */
+  confidence?: number;
+  /** Magnitude of the detected drift. */
+  drift_score?: number;
+  detected_at?: string;
+  created_at: string;
+}
+
+/** A source plus its denormalized stats for the sources list/detail view. */
+export interface SourceWithStats {
+  source: HsinSourceRecord;
+  health?: HsinSourceHealthRecord;
+  signalCount: number;
+  alertCount: number;
+  /** Names of watchlists this source is scoped to. */
+  watchlists?: string[];
+}
+
+/** A captured signal plus its full surrounding context for the signal detail view. */
+export interface SignalWithContext {
+  signal: HsinSignalRecord;
+  source?: HsinSourceRecord;
+  versionCount: number;
+  tags: string[];
+  alerts: HsinSignalAlertRecord[];
+  reviewStatus?: string;
+  /** research_runs.id values spawned from this signal (origin_signal_id). */
+  researchRunIds: string[];
+}
+
+/** Aggregate data backing the intelligence overview dashboard. */
+export interface IntelligenceOverview {
+  totalSources: number;
+  activeSources: number;
+  signalsCaptured: number;
+  signalsReviewed: number;
+  watchlistMatches: number;
+  narrativeShifts: number;
+  researchRunsGenerated: number;
+  publicationsGenerated: number;
+  /** hsin_source_health.status -> count. */
+  sourceHealthSummary: Record<string, number>;
+  /** Signals captured per day. */
+  signalVelocity: { date: string; count: number }[];
+  /** Alerts raised per day. */
+  alertActivity: { date: string; count: number }[];
 }

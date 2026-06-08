@@ -1,42 +1,85 @@
-import { DashboardPage } from '../../../components/dashboard-shell';
-import { Card, Button, MetricCard, AlertCard } from '@hsi/ui';
-import { Bell, AlertTriangle, BellRing, CheckCircle2 } from 'lucide-react';
+// =============================================================================
+// HSI Phase 7 — Alert Center (/dashboard/alerts). Server Component.
+// Explainable alerts (alert type, severity, status, related signal/source) with
+// per-alert View / Acknowledge / Escalate / Create-Research actions and
+// severity/status/type filters. EVERY alert shows its explanation — no
+// black-box conclusions. Offline (NOT_CONFIGURED) → labeled demo. force-dynamic.
+// =============================================================================
 
-const alerts = [
-  { severity: 'critical' as const, title: 'Recruitment surge detected', description: 'High-risk pattern across 4 platforms in the last 90 minutes.', time: '2 min ago' },
-  { severity: 'high' as const, title: 'Misinformation virality spike', description: 'Health claim cluster crossed 250K estimated reach.', time: '18 min ago' },
-  { severity: 'high' as const, title: 'New influence-op indicators', description: 'State-aligned amplification signature matched.', time: '41 min ago' },
-  { severity: 'medium' as const, title: 'Source trust downgraded', description: 'channel-x dropped below trust threshold (64%).', time: '1h ago' },
-  { severity: 'info' as const, title: 'Weekly digest ready', description: 'Public report draft compiled for editorial review.', time: '3h ago' },
-];
+import { TopNav } from '@hsi/ui';
+import { Bell } from 'lucide-react';
+import type { HsinSignalAlertRecord } from '@hsi/shared-types';
+import { listAlertsAction } from '@/lib/signals/actions';
+import { getSessionRole, getUser } from '@/lib/supabase/server';
+import { canReview, demoAlerts } from '@/lib/signals/view';
+import { IntelNav } from '@/components/signals/IntelNav';
+import { AlertTable } from '@/components/signals/AlertTable';
+import { DemoBadge } from '@/components/signals/badges';
+import {
+  ErrorState,
+  OfflineDemoBanner,
+  type DbErrorCode,
+} from '@/components/signals/states';
 
-export default function AlertsPage() {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function AlertsPage() {
+  const [res, role, user] = await Promise.all([
+    listAlertsAction(),
+    getSessionRole(),
+    getUser(),
+  ]);
+
+  const canAct = canReview(role) && Boolean(user);
+
+  let alerts: HsinSignalAlertRecord[] = [];
+  let isDemo = false;
+  let errored: { message: string; code?: DbErrorCode } | null = null;
+
+  if (res.ok) {
+    alerts = res.data;
+  } else if (res.code === 'NOT_CONFIGURED') {
+    alerts = demoAlerts();
+    isDemo = true;
+  } else {
+    errored = { message: res.error, code: res.code };
+  }
+
   return (
-    <DashboardPage
-      title="Alerts"
-      subtitle="Real-time risk and operational notifications"
-      actions={
-        <>
-          <Button variant="secondary" size="sm">Configure rules</Button>
-          <Button variant="primary" size="sm">Mark all read</Button>
-        </>
-      }
-    >
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Active Alerts" value="27" accent="#EF4444" icon={BellRing} delta={{ value: '+5', trend: 'up' }} deltaTone="negative" />
-        <MetricCard label="Critical" value="3" accent="#B91C1C" icon={AlertTriangle} />
-        <MetricCard label="Acknowledged" value="148" accent="#3B82F6" icon={Bell} />
-        <MetricCard label="Resolved / 24h" value="92" accent="#10B981" icon={CheckCircle2} delta={{ value: '+11', trend: 'up' }} />
-      </div>
+    <>
+      <TopNav title="Alert Center" subtitle="Explainable alerts for human review" />
+      <main className="space-y-6 p-5 lg:p-6">
+        <IntelNav />
 
-      <Card className="space-y-4">
-        <h3 className="text-h6 font-semibold text-text-primary">Live alert feed</h3>
-        <div className="grid gap-3 lg:grid-cols-2">
-          {alerts.map((a) => (
-            <AlertCard key={a.title} {...a} />
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="flex items-center gap-2 text-h5 font-semibold text-text-primary">
+              <Bell className="h-5 w-5 text-electric" /> Alerts
+            </h2>
+            {isDemo ? <DemoBadge /> : null}
+          </div>
         </div>
-      </Card>
-    </DashboardPage>
+
+        <p className="text-caption text-text-muted">
+          Alerts are raised by the network as drafts. They are never auto-actioned
+          — a human acknowledges, escalates, or opens research. Every alert carries
+          an explanation.
+        </p>
+
+        {isDemo ? <OfflineDemoBanner /> : null}
+
+        {errored ? (
+          <ErrorState
+            title="Could not load alerts"
+            message={errored.message}
+            code={errored.code}
+            redirectedFrom="/dashboard/alerts"
+          />
+        ) : (
+          <AlertTable alerts={alerts} canAct={canAct} demo={isDemo} />
+        )}
+      </main>
+    </>
   );
 }
