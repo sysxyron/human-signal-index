@@ -9,7 +9,7 @@
 
 import Link from 'next/link';
 import { TopNav, Card } from '@hsi/ui';
-import { GitMerge, Info, Inbox, ArrowRight } from 'lucide-react';
+import { GitMerge, Info, Inbox, ArrowRight, Globe2 } from 'lucide-react';
 import type {
   HsinWorldforgeLinkRecord,
   NarrativeHistory,
@@ -149,12 +149,21 @@ export default async function FromSignalPage({
             </h2>
             {isDemo ? <DemoBadge /> : null}
           </div>
-          <Link
-            href={'/dashboard/signals' as never}
-            className="inline-flex items-center gap-1.5 text-caption font-semibold text-electric hover:text-white"
-          >
-            <Inbox className="h-3.5 w-3.5" /> Pick a signal
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* ADDITIVE (Phase 12): jump to counterfactual WorldForge scenarios. */}
+            <Link
+              href={'/dashboard/worldforge/scenarios/counterfactual' as never}
+              className="inline-flex items-center gap-1.5 text-caption font-semibold text-electric hover:text-white"
+            >
+              <Globe2 className="h-3.5 w-3.5" /> WorldForge scenarios
+            </Link>
+            <Link
+              href={'/dashboard/signals' as never}
+              className="inline-flex items-center gap-1.5 text-caption font-semibold text-electric hover:text-white"
+            >
+              <Inbox className="h-3.5 w-3.5" /> Pick a signal
+            </Link>
+          </div>
         </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}

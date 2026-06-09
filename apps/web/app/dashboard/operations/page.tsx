@@ -39,6 +39,14 @@ import type { CausalHighlights } from '@hsi/shared-types';
 import { getCausalHighlightsAction } from '@/lib/causal/actions';
 import { demoCausalHighlights } from '@/lib/causal/view';
 import { CausalHighlightCards } from '@/components/causal/CausalHighlightCards';
+import type { SimulationHighlights } from '@hsi/shared-types';
+import { getSimulationHighlightsAction } from '@/lib/simulation/actions';
+import { demoSimulationHighlights } from '@/lib/simulation/view';
+import { SimulationHighlightCards } from '@/components/simulation/SimulationHighlightCards';
+import type { DecisionHighlights } from '@hsi/shared-types';
+import { getDecisionHighlightsAction } from '@/lib/decision/actions';
+import { demoDecisionHighlights } from '@/lib/decision/view';
+import { DecisionHighlightCards } from '@/components/decision/DecisionHighlightCards';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import {
   canOperate,
@@ -150,6 +158,40 @@ export default async function OperationsPage({
     causalHighlights = null;
   }
 
+  // ADDITIVE (Phase 12): a defensive simulation-highlights strip. A failure here
+  // (e.g. action not yet present) must never break the operations page — on any
+  // error we simply hide the strip.
+  let simulationHighlights: SimulationHighlights | null = null;
+  let simulationDemoLabeled = false;
+  try {
+    const shRes = await getSimulationHighlightsAction();
+    if (shRes.ok) {
+      simulationHighlights = shRes.data;
+    } else if (shRes.code === 'NOT_CONFIGURED') {
+      simulationHighlights = demoSimulationHighlights();
+      simulationDemoLabeled = true;
+    }
+  } catch {
+    simulationHighlights = null;
+  }
+
+  // ADDITIVE (Phase 13): a defensive decision-intelligence highlights strip. A
+  // failure here (e.g. action not yet present) must never break the operations
+  // page — on any error we simply hide the strip.
+  let decisionHighlights: DecisionHighlights | null = null;
+  let decisionDemoLabeled = false;
+  try {
+    const dhRes = await getDecisionHighlightsAction();
+    if (dhRes.ok) {
+      decisionHighlights = dhRes.data;
+    } else if (dhRes.code === 'NOT_CONFIGURED') {
+      decisionHighlights = demoDecisionHighlights();
+      decisionDemoLabeled = true;
+    }
+  } catch {
+    decisionHighlights = null;
+  }
+
   // Resolve the overview: live, demo (NOT_CONFIGURED), or a real error.
   let overview: OperationsOverview | null = null;
   let isDemo = false;
@@ -248,6 +290,22 @@ export default async function OperationsPage({
           <CausalHighlightCards
             highlights={causalHighlights}
             demo={causalDemoLabeled}
+          />
+        ) : null}
+
+        {/* ADDITIVE (Phase 12): counterfactual-simulation highlights strip. */}
+        {simulationHighlights ? (
+          <SimulationHighlightCards
+            highlights={simulationHighlights}
+            demo={simulationDemoLabeled}
+          />
+        ) : null}
+
+        {/* ADDITIVE (Phase 13): decision-intelligence highlights strip. */}
+        {decisionHighlights ? (
+          <DecisionHighlightCards
+            highlights={decisionHighlights}
+            demo={decisionDemoLabeled}
           />
         ) : null}
 

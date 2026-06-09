@@ -28,6 +28,10 @@ import { slaEscalationJob } from './sla-escalation-worker';
 import { temporalWorkerJob } from './temporal-worker';
 // HSI Phase 11 — causal-intelligence pipeline.
 import { causalWorkerJob } from './causal-worker';
+// HSI Phase 12 — counterfactual-simulation pipeline.
+import { counterfactualWorkerJob } from './counterfactual-worker';
+// HSI Phase 13 — decision-intelligence pipeline.
+import { decisionWorkerJob } from './decision-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -81,6 +85,30 @@ export * from './temporal-worker';
 // the loader/persister types, makeCausalWorkerJob, causalWorkerJob) are distinct
 // (e.g. its CausalWorld vs the temporal worker's TemporalWorld).
 export * from './causal-worker';
+// HSI Phase 12 exports. counterfactual-worker IMPORTS the engine types under
+// aliased names (CfInput / CfResult / CfWorld / CfBacktestRecord /
+// CfForecastAccuracy / CfScenarioType / CfInterventionKey / CfCausalEvent /
+// CfEvolutionRecord / CfNarrativeForecast / CfNarrativeSnapshot) and re-exports
+// NONE of them, so the unaliased @hsi/counterfactual-engine types never collide
+// with the causal/temporal jobs' own `export *` symbols above. Its public names
+// (CfBacktestSample, CounterfactualWorld, CounterfactualOutputs,
+// CounterfactualRunOutput, CounterfactualPersistResult, the loader/persister
+// types, makeCounterfactualWorkerJob, counterfactualWorkerJob, plus the
+// COUNTERFACTUAL_* / DEFAULT_COUNTERFACTUAL_* constants) are distinct (e.g. its
+// CounterfactualWorld vs the causal worker's CausalWorld / temporal's TemporalWorld).
+export * from './counterfactual-worker';
+// HSI Phase 13 exports. decision-worker IMPORTS the engine types under aliased
+// names (DecInput / DecRun / DecAudit / DecInterventionRanking / DecInterventionType
+// / DecScenarioBattle / DecCrossImpact / DecCrossTarget / DecCausalEvent /
+// DecEvolutionRecord / DecInfluenceEdge / DecNarrativeForecast / DecNarrativeSnapshot)
+// and re-exports NONE of them, so the unaliased @hsi/decision-intelligence types
+// never collide with the counterfactual/causal/temporal jobs' own `export *`
+// symbols above. Its public names (DecisionWorld, DecisionRunOutput,
+// DecisionOutputs, DecisionPersistResult, the loader/persister types,
+// makeDecisionWorkerJob, decisionWorkerJob, plus the DEFAULT_DECISION_SCENARIO_*
+// constants) are distinct (e.g. its DecisionWorld vs the counterfactual worker's
+// CounterfactualWorld / causal's CausalWorld / temporal's TemporalWorld).
+export * from './decision-worker';
 
 /** All registered jobs, in pipeline order. */
 export const jobs: Job[] = [
@@ -117,6 +145,18 @@ export const jobs: Job[] = [
   // else a deterministic fixtures run that just logs the computed outputs
   // (events → chains → replay frames → milestones). NEVER auto-publishes.
   causalWorkerJob,
+  // HSI Phase 12 — counterfactual-simulation pipeline (daily 05:00, after causal
+  // at 04:00). Offline-safe: DB-backed when the service-role env is configured,
+  // else a deterministic fixtures run that just logs the computed outputs
+  // (counterfactuals + interventions → backtest → calibrate → WorldForge
+  // scenarios). Every counterfactual is an ESTIMATE; NEVER auto-publishes.
+  counterfactualWorkerJob,
+  // HSI Phase 13 — decision-intelligence pipeline (daily 06:00, after
+  // counterfactual at 05:00). Offline-safe: DB-backed when the service-role env is
+  // configured, else a deterministic fixtures run that just logs the computed
+  // outputs (sensitivity → recommend → rank → decision run + audit → war-game →
+  // cross impacts). Every recommendation is a decision AID; NEVER auto-publishes.
+  decisionWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

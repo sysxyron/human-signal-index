@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@hsi/causal-intelligence": "workspace:*",
+    "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",
     "@hsi/database": "workspace:*",
+    "@hsi/decision-intelligence": "workspace:*",
     "@hsi/evidence-engine": "workspace:*",
     "@hsi/research-agents": "workspace:*",
     "@hsi/scheduler": "workspace:*",

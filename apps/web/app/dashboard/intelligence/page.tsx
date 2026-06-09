@@ -47,6 +47,14 @@ import {
   ForecastLinkCard,
 } from '@/components/temporal/TemporalLinkCards';
 import { CausalLinkCard, ReplayLinkCard } from '@/components/causal/CausalLinkCards';
+import {
+  SimulationLinkCard,
+  WorldforgeScenariosLinkCard,
+} from '@/components/simulation/SimulationLinkCard';
+import {
+  DecisionsLinkCard,
+  CrossImpactsLinkCard,
+} from '@/components/decision/DecisionLinkCards';
 import { IntelNav } from '@/components/signals/IntelNav';
 import { IntelStatCard } from '@/components/signals/IntelStatCard';
 import { SignalVelocityChart } from '@/components/signals/SignalVelocityChart';
@@ -155,6 +163,16 @@ export default async function IntelligencePage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <CausalLinkCard />
           <ReplayLinkCard />
+        </div>
+        {/* ADDITIVE (Phase 12): counterfactual simulation + WorldForge scenarios. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SimulationLinkCard />
+          <WorldforgeScenariosLinkCard />
+        </div>
+        {/* ADDITIVE (Phase 13): decision intelligence + cross-narrative impacts. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DecisionsLinkCard />
+          <CrossImpactsLinkCard />
         </div>
 
         {/* Stat widgets */}

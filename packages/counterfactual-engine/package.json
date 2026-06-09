@@ -1,0 +1,14 @@
+{
+  "name": "@hsi/counterfactual-engine",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@hsi/causal-intelligence": "workspace:*",
+    "@hsi/temporal-intelligence": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

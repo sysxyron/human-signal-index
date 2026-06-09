@@ -31,7 +31,9 @@
       "@hsi/source-intelligence": ["packages/source-intelligence/src"],
       "@hsi/scheduler": ["packages/scheduler/src"],
       "@hsi/temporal-intelligence": ["packages/temporal-intelligence/src"],
-      "@hsi/causal-intelligence": ["packages/causal-intelligence/src"]
+      "@hsi/causal-intelligence": ["packages/causal-intelligence/src"],
+      "@hsi/counterfactual-engine": ["packages/counterfactual-engine/src"],
+      "@hsi/decision-intelligence": ["packages/decision-intelligence/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

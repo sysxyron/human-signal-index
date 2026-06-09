@@ -20,6 +20,8 @@
     "@hsi/source-intelligence": "workspace:*",
     "@hsi/temporal-intelligence": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
+    "@hsi/counterfactual-engine": "workspace:*",
+    "@hsi/decision-intelligence": "workspace:*",
     "@hsi/scheduler": "workspace:*",
     "@supabase/supabase-js": "^2.0.0",
     "dotenv": "^16.3.0",

@@ -2158,3 +2158,325 @@ export interface WorldforgeTimeline {
   turningPoints: { at: string; milestoneType?: string; description: string }[];
   counterfactualSeeds: { prompt: string; basis: string }[];
 }
+
+// =============================================================================
+// Counterfactual Simulation — Phase 12
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 12 persistence (migration 0016): the
+// counterfactual + backtesting layer over the causal/temporal narrative-
+// intelligence graph (Phases 10-11). A simulation RUN asks "what if?" of a
+// narrative (remove/delay/accelerate an event, change amplification, add/remove a
+// source or community, shift reliability or contradiction); each run captures the
+// per-event ACTIONS it applied, stores simulated RESULTS against real forecasts,
+// feeds rolling FORECAST ACCURACY / calibration per narrative window, and
+// materializes WorldForge SCENARIOS (alternate world-states) — plus the view-model
+// shapes the WorldForge simulation / backtesting / scenarios consoles render and
+// the highlights payload the WorldForge fusion bridge consumes.
+//
+// NAMING: the underlying tables use the `hsin_` prefix (consistent with Phases
+// 7-11); their TS record names carry the `Hsin` prefix to mirror that. Timestamps
+// are ISO strings; uuid columns are strings. jsonb payloads are typed as
+// `Record<string, unknown>` so shared-types stays decoupled from the engine internals.
+// =============================================================================
+
+/** The intervention a counterfactual run applies. Mirrors hsin_counterfactual_runs.scenario_type. */
+export type CounterfactualScenarioType =
+  | 'remove_event'
+  | 'delay_event'
+  | 'accelerate_event'
+  | 'reduce_amplification'
+  | 'increase_amplification'
+  | 'remove_source'
+  | 'add_source'
+  | 'remove_community'
+  | 'increase_reliability'
+  | 'decrease_reliability'
+  | 'remove_contradiction'
+  | 'increase_contradiction';
+
+/** The action a run applied to a causal event. Mirrors hsin_counterfactual_events.action. */
+export type CounterfactualActionType =
+  | 'removed'
+  | 'reduced'
+  | 'amplified'
+  | 'delayed'
+  | 'accelerated';
+
+/** A coarse confidence band used by simulation view-models. */
+export type ConfidenceBand = 'low' | 'medium' | 'high';
+
+/** A single "what if?" counterfactual simulation over a narrative. Mirrors the `hsin_counterfactual_runs` table. */
+export interface HsinCounterfactualRunRecord {
+  id: string;
+  created_at: string;
+  narrative_id: string;
+  scenario_name?: string;
+  scenario_type: CounterfactualScenarioType;
+  /** 0..1 confidence. */
+  confidence?: number;
+  summary?: string;
+  inputs_json?: Record<string, unknown>;
+  results_json?: Record<string, unknown>;
+  generated_at?: string;
+  created_by?: string;
+}
+
+/** The action a counterfactual run applied to a causal event. Mirrors the `hsin_counterfactual_events` table. */
+export interface HsinCounterfactualEventRecord {
+  id: string;
+  counterfactual_run_id: string;
+  original_event_id?: string;
+  action?: CounterfactualActionType;
+  impact_score?: number;
+  reasoning?: string;
+  created_at: string;
+}
+
+/** A simulated predicted state/probability scored against the actual. Mirrors the `hsin_simulation_results` table. */
+export interface HsinSimulationResultRecord {
+  id: string;
+  counterfactual_run_id: string;
+  forecast_id?: string;
+  predicted_state?: string;
+  predicted_probability?: number;
+  actual_state?: string;
+  actual_probability?: number;
+  error_score?: number;
+  created_at: string;
+}
+
+/** Rolling accuracy/calibration per narrative + forecast window. Mirrors the `hsin_forecast_accuracy` table. */
+export interface HsinForecastAccuracyRecord {
+  id: string;
+  narrative_id: string;
+  forecast_window?: string;
+  prediction_count?: number;
+  /** 0..1 accuracy. */
+  accuracy_score?: number;
+  /** 0..1 calibration. */
+  calibration_score?: number;
+  updated_at?: string;
+  created_at: string;
+}
+
+/** An alternate world-state materialized from a counterfactual run. Mirrors the `hsin_worldforge_scenarios` table. */
+export interface HsinWorldforgeScenarioRecord {
+  id: string;
+  counterfactual_run_id: string;
+  worldforge_link_id?: string;
+  scenario_title?: string;
+  scenario_summary?: string;
+  world_state?: Record<string, unknown>;
+  /** 0..1 confidence. */
+  confidence?: number;
+  created_at: string;
+}
+
+/** The simulation overview: recent/top runs, accuracy, scenarios, and aggregate accuracy/calibration. */
+export interface SimulationOverview {
+  recentRuns: HsinCounterfactualRunRecord[];
+  topRuns: HsinCounterfactualRunRecord[];
+  accuracy: HsinForecastAccuracyRecord[];
+  scenarios: HsinWorldforgeScenarioRecord[];
+  avgAccuracy: number;
+  avgCalibration: number;
+}
+
+/** A single counterfactual run with its applied events, simulated results, and the source narrative. */
+export interface CounterfactualRunView {
+  run: HsinCounterfactualRunRecord;
+  events: HsinCounterfactualEventRecord[];
+  results: HsinSimulationResultRecord[];
+  narrative: HsinNarrativeRecord | null;
+}
+
+/** The backtesting view: accuracy/results across narratives, plus stated-vs-empirical confidence drift per window. */
+export interface BacktestingView {
+  accuracy: HsinForecastAccuracyRecord[];
+  results: HsinSimulationResultRecord[];
+  narratives: HsinNarrativeRecord[];
+  avgAccuracy: number;
+  avgCalibration: number;
+  confidenceDrift: { window: string; stated: number; empirical: number }[];
+}
+
+/** The WorldForge scenarios view: materialized scenarios (optionally with their run) + the source narratives. */
+export interface WorldforgeScenariosView {
+  scenarios: (HsinWorldforgeScenarioRecord & { run?: HsinCounterfactualRunRecord })[];
+  narratives: HsinNarrativeRecord[];
+}
+
+/** Headline simulation callouts surfaced on the counterfactual / backtesting dashboard. */
+export interface SimulationHighlights {
+  simulationQueue?: number;
+  latestRun?: {
+    id: string;
+    narrativeId: string;
+    name: string;
+    scenarioType: CounterfactualScenarioType;
+    confidence: number;
+  };
+  forecastAccuracy?: number;
+  calibrationHealth?: number;
+  scenariosGenerated?: number;
+}
+
+// =============================================================================
+// Decision Intelligence — Phase 13
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 13 persistence (migration 0017): the
+// decision-intelligence + strategic war-gaming layer over the counterfactual /
+// causal / temporal narrative-intelligence graph (Phases 10-12). A decision RUN
+// recommends a strategic action for a narrative (intervene / monitor / escalate /
+// no-action / counter-narrative); each run captures head-to-head SCENARIO
+// COMPARISONS (war-gaming "scenario A vs scenario B"), ranked candidate
+// INTERVENTIONS by expected effect / risk / confidence, CROSS-NARRATIVE IMPACTS
+// (how one narrative amplifies/dampens/triggers/competes-with/reinforces another),
+// and a tamper-evident DECISION AUDIT (output + confidence + limitations + log) —
+// plus the view-model shapes the decision / war-gaming / cross-narrative consoles
+// render and the highlights payload the WorldForge fusion bridge consumes.
+//
+// NAMING: the underlying tables use the `hsin_` prefix (consistent with Phases
+// 7-12); their TS record names carry the `Hsin` prefix to mirror that. Timestamps
+// are ISO strings; uuid columns are strings. jsonb payloads are typed as
+// `Record<string, unknown>` so shared-types stays decoupled from the engine internals.
+// =============================================================================
+
+/** The strategic action a decision run recommends. Mirrors hsin_decision_runs.decision_type. */
+export type DecisionType =
+  | 'intervention'
+  | 'monitor'
+  | 'escalate'
+  | 'no_action'
+  | 'counter_narrative';
+
+/** How one narrative affects another. Mirrors hsin_cross_narrative_impacts.impact_type. */
+export type DecisionImpactType =
+  | 'amplifies'
+  | 'dampens'
+  | 'triggers'
+  | 'competes'
+  | 'reinforces'
+  | 'neutral';
+
+/** The favoured side of a scenario comparison. Mirrors hsin_scenario_comparisons.winner. */
+export type ScenarioWinner = 'A' | 'B' | 'tie';
+
+/** A decision-intelligence run recommending a strategic action for a narrative. Mirrors the `hsin_decision_runs` table. */
+export interface HsinDecisionRunRecord {
+  id: string;
+  created_at: string;
+  narrative_id: string;
+  decision_name?: string;
+  decision_type?: DecisionType;
+  /** 0..1 confidence. */
+  confidence?: number;
+  recommended_action?: string;
+  reasoning?: Record<string, unknown>;
+  limitations?: Record<string, unknown>;
+  generated_at?: string;
+  created_by?: string;
+}
+
+/** A head-to-head scenario A vs scenario B war-game for a decision run. Mirrors the `hsin_scenario_comparisons` table. */
+export interface HsinScenarioComparisonRecord {
+  id: string;
+  decision_run_id: string;
+  scenario_a?: Record<string, unknown>;
+  scenario_b?: Record<string, unknown>;
+  winner?: string;
+  /** 0..1 confidence. */
+  confidence?: number;
+  comparison_reasoning?: string;
+  created_at: string;
+}
+
+/** A ranked candidate intervention for a decision run. Mirrors the `hsin_intervention_rankings` table. */
+export interface HsinInterventionRankingRecord {
+  id: string;
+  decision_run_id: string;
+  intervention_type?: string;
+  expected_effect?: number;
+  risk_score?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  rank_position?: number;
+  reasoning?: string;
+  created_at: string;
+}
+
+/** How a source narrative affects a target narrative. Mirrors the `hsin_cross_narrative_impacts` table. */
+export interface HsinCrossNarrativeImpactRecord {
+  id: string;
+  source_narrative_id: string;
+  target_narrative_id: string;
+  impact_type?: DecisionImpactType;
+  /** 0..100 impact strength. */
+  impact_strength?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  reasoning?: string;
+  created_at: string;
+}
+
+/** The audit record for a decision run. Mirrors the `hsin_decision_audits` table. */
+export interface HsinDecisionAuditRecord {
+  id: string;
+  decision_run_id: string;
+  decision_output?: Record<string, unknown>;
+  /** 0..1 confidence. */
+  confidence?: number;
+  limitations?: Record<string, unknown>;
+  audit_log?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** The decision dashboard overview: recent runs, top rankings, highest-risk narratives, recommendations, and aggregate confidence. */
+export interface DecisionDashboardData {
+  recentRuns: HsinDecisionRunRecord[];
+  topRankings: HsinInterventionRankingRecord[];
+  highestRiskNarratives: { narrativeId: string; name: string; riskScore: number }[];
+  recommendations: HsinDecisionRunRecord[];
+  avgConfidence: number;
+}
+
+/** A single decision run with its rankings, scenario comparisons, audit, and source narrative. */
+export interface DecisionRunView {
+  run: HsinDecisionRunRecord;
+  rankings: HsinInterventionRankingRecord[];
+  comparisons: HsinScenarioComparisonRecord[];
+  audit: HsinDecisionAuditRecord | null;
+  narrative: HsinNarrativeRecord | null;
+}
+
+/** The scenario war-gaming view: comparisons (optionally with their run) + the source narratives. */
+export interface ScenarioComparisonView {
+  comparisons: (HsinScenarioComparisonRecord & { run?: HsinDecisionRunRecord })[];
+  narratives: HsinNarrativeRecord[];
+}
+
+/** The cross-narrative impact view: the narratives and the directed impacts between them. */
+export interface CrossNarrativeImpactView {
+  narratives: HsinNarrativeRecord[];
+  impacts: HsinCrossNarrativeImpactRecord[];
+}
+
+/** Headline decision callouts surfaced on the decision-intelligence dashboard. */
+export interface DecisionHighlights {
+  decisionHealth?: number;
+  recommendationQueue?: number;
+  topRisks?: { narrativeId: string; name: string; riskScore: number }[];
+  scenarioBattles?: number;
+  crossNarrativeEffects?: number;
+}
+
+/** A flattened decision-explorer result row (intervention candidate + structured reasoning/limitations). */
+export interface DecisionExplorerResult {
+  narrativeId: string;
+  interventionType: string;
+  expectedEffect: number;
+  riskScore: number;
+  confidence: number;
+  reasoning: string[];
+  limitations: string[];
+}
