@@ -74,6 +74,8 @@ import { ThroughputChart } from '@/components/operations/ThroughputChart';
 import { JobAttemptsList } from '@/components/operations/JobAttemptsList';
 import { TriageRulesPanel } from '@/components/operations/TriageRulesPanel';
 import { OverduePanel, SlaPolicyList } from '@/components/operations/OverduePanel';
+// ADDITIVE (Phase 14): a discoverability link to the admin Security dashboard.
+import { SecurityHealthLink } from '@/components/security/SecurityHealthLink';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -273,6 +275,9 @@ export default async function OperationsPage({
         </div>
 
         {isDemo ? <OfflineDemoBanner /> : null}
+
+        {/* ADDITIVE (Phase 14): Security-health link to the admin dashboard. */}
+        <SecurityHealthLink />
 
         {/* ADDITIVE (Phase 9): dead-letter link + recent provider-runs strip. */}
         <OperationsPhase9Strip runs={providerRuns} demo={providerRunsDemo} />

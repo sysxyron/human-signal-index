@@ -2480,3 +2480,165 @@ export interface DecisionExplorerResult {
   reasoning: string[];
   limitations: string[];
 }
+
+// =============================================================================
+// Auth & Security Hardening — Phase 14
+// -----------------------------------------------------------------------------
+// Serializable mirrors of the Phase 14 persistence (migration 0018): the
+// PLATFORM-SECURITY telemetry layer. Structured logs for auth diagnostics,
+// security audit events, login attempts, session lifecycle events, and access
+// (authorization) denials, plus an admin triage/review queue over them — and the
+// view-model shapes the Security dashboard renders (health checks + the failed
+// login / access-denial / security-event / session feeds with 24h counts).
+//
+// These tables are intentionally NOT `hsin_`-prefixed (cross-cutting security
+// infrastructure, not part of the narrative-intelligence graph) and are named
+// distinctly from 0001's `security_events` / `audit_logs` (no collision).
+// Timestamps are ISO strings; uuid columns are strings. jsonb `metadata` is typed
+// as `Record<string, unknown>`. Every record carries the shared base columns
+// (user_id/event_type/severity/ip_address/user_agent/route/message/metadata),
+// all optional, plus per-table extras.
+// =============================================================================
+
+/** Severity tag shared by all Phase 14 security telemetry tables. Mirrors the `severity` CHECK constraint. */
+export type SecurityEventSeverity = 'info' | 'warning' | 'error' | 'critical';
+
+/** Triage state of an admin security review. Mirrors admin_security_reviews.status. */
+export type SecurityReviewStatus = 'open' | 'reviewed' | 'dismissed' | 'escalated';
+
+/** Status of a dependency health check surfaced on the Security dashboard. */
+export type HealthServiceStatus = 'ok' | 'degraded' | 'down' | 'unconfigured';
+
+/** A health/diagnostic probe for auth + dependent services. Mirrors the `auth_diagnostics` table. */
+export interface AuthDiagnosticRecord {
+  id: string;
+  user_id?: string;
+  event_type?: string;
+  severity?: SecurityEventSeverity;
+  ip_address?: string;
+  user_agent?: string;
+  route?: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  code?: string;
+  service?: string;
+  ok?: boolean;
+  created_at: string;
+}
+
+/** A general security audit-trail event. Mirrors the `security_audit_events` table. */
+export interface SecurityAuditEventRecord {
+  id: string;
+  user_id?: string;
+  event_type?: string;
+  severity?: SecurityEventSeverity;
+  ip_address?: string;
+  user_agent?: string;
+  route?: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A login attempt (success/failure) keyed by email + ip. Mirrors the `login_attempts` table. */
+export interface LoginAttemptRecord {
+  id: string;
+  user_id?: string;
+  event_type?: string;
+  severity?: SecurityEventSeverity;
+  ip_address?: string;
+  user_agent?: string;
+  route?: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  email?: string;
+  success?: boolean;
+  created_at: string;
+}
+
+/** A session lifecycle event (created/refreshed/revoked/expired). Mirrors the `session_events` table. */
+export interface SessionEventRecord {
+  id: string;
+  user_id?: string;
+  event_type?: string;
+  severity?: SecurityEventSeverity;
+  ip_address?: string;
+  user_agent?: string;
+  route?: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** An authorization denial (route + required vs actual role). Mirrors the `access_denials` table. */
+export interface AccessDenialRecord {
+  id: string;
+  user_id?: string;
+  event_type?: string;
+  severity?: SecurityEventSeverity;
+  ip_address?: string;
+  user_agent?: string;
+  route?: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  required_role?: string;
+  actual_role?: string;
+  created_at: string;
+}
+
+/** An admin triage/review record over the security signals. Mirrors the `admin_security_reviews` table. */
+export interface AdminSecurityReviewRecord {
+  id: string;
+  user_id?: string;
+  event_type?: string;
+  severity?: SecurityEventSeverity;
+  ip_address?: string;
+  user_agent?: string;
+  route?: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  reviewed_by?: string;
+  status?: SecurityReviewStatus;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** The result of a single dependency health check rendered on the Security dashboard. */
+export interface HealthCheckResult {
+  ok: boolean;
+  service: string;
+  status: HealthServiceStatus;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+/** The Security dashboard payload: health checks, security feeds, optional Cloudflare warning, and 24h counts. */
+/**
+ * Startup env-validation summary for the security dashboard / diagnostics.
+ * Contains NO raw env values (only presence/validity + readable warnings).
+ */
+export interface EnvValidationSummary {
+  ok: boolean;
+  requiredMissing: string[];
+  optionalMissing: string[];
+  required: { key: string; present: boolean; valid: boolean; message?: string }[];
+  optional: { key: string; present: boolean }[];
+  warnings: { key: string; message: string }[];
+}
+
+export interface SecurityDashboardData {
+  health: HealthCheckResult[];
+  failedLogins: LoginAttemptRecord[];
+  accessDenials: AccessDenialRecord[];
+  securityEvents: SecurityAuditEventRecord[];
+  sessionEvents: SessionEventRecord[];
+  cloudflareWarning?: string;
+  /** Phase 14B: startup env validation (required/optional). No secret values. */
+  env?: EnvValidationSummary;
+  counts: {
+    failedLogins24h: number;
+    accessDenials24h: number;
+    criticalEvents24h: number;
+  };
+}

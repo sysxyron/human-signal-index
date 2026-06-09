@@ -10,7 +10,9 @@ const nextConfig = {
     '@hsi/counterfactuals',
   ],
   experimental: {
-    typedRoutes: true
+    typedRoutes: true,
+    // Phase 14B: enable instrumentation.ts (startup env validation hook).
+    instrumentationHook: true
   }
 };
 

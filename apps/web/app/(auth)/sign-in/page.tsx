@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { Button, Input } from '@hsi/ui';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { getBrowserSupabase } from '@/lib/supabase/client';
+import { translateAuthError, isCloudflareChallenge } from '@/lib/auth/auth-errors';
 
 function SignInForm() {
   const router = useRouter();
@@ -36,7 +37,21 @@ function SignInForm() {
         password,
       });
       if (signInError) {
-        setError(signInError.message);
+        // Translate GoTrue/network errors into a readable message (PURE — no
+        // server-only imports). Surfaces "Invalid email or password.", "Email
+        // not confirmed.", "Cannot reach Supabase Auth endpoint.", a Cloudflare
+        // challenge notice, etc. instead of a bare "Failed to fetch".
+        if (isCloudflareChallenge(signInError)) {
+          // Best-effort client log so the challenge is visible in the console.
+          // eslint-disable-next-line no-console
+          console.warn('[sign-in] Cloudflare challenge detected on /auth route.');
+        }
+        const translated = translateAuthError(signInError, { route: '/auth' });
+        setError(
+          translated.hint
+            ? `${translated.message} ${translated.hint}`
+            : translated.message,
+        );
         setLoading(false);
         return;
       }
@@ -47,7 +62,16 @@ function SignInForm() {
       router.push(dest as never);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign in failed.');
+      // A thrown error (e.g. a network failure or a Cloudflare challenge page —
+      // translateAuthError detects the challenge HTML internally) also goes
+      // through the pure translator so the user never sees a raw "Failed to
+      // fetch" / "[object Object]".
+      const translated = translateAuthError(err, { route: '/auth' });
+      setError(
+        translated.hint
+          ? `${translated.message} ${translated.hint}`
+          : translated.message,
+      );
       setLoading(false);
     }
   };
