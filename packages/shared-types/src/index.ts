@@ -2642,3 +2642,161 @@ export interface SecurityDashboardData {
     criticalEvents24h: number;
   };
 }
+
+// =============================================================================
+// Outcome Tracking & Learning — Phase 15
+//
+// Serializable mirrors of the Phase 15 persistence (migration 0019): the
+// recommendation OUTCOME of a Phase-13 decision run, its per-metric
+// MEASUREMENTS, the per-intervention CONFIDENCE-LEARNING calibration, the
+// decision-intelligence ALERT feed, the GOVERNANCE-REVIEW workflow, and per-user
+// FEEDBACK — plus the view-models that back the outcome dashboard, the outcome
+// detail view, the governance queue, and the dashboard highlights.
+// =============================================================================
+
+/** Verdict on a recommendation outcome. Mirrors hsin_recommendation_outcomes.status. */
+export type OutcomeStatus =
+  | 'successful'
+  | 'partially_successful'
+  | 'neutral'
+  | 'unsuccessful'
+  | 'inconclusive';
+
+/** The classification of a decision-intelligence alert. Mirrors hsin_decision_alerts.alert_type. */
+export type OutcomeAlertType =
+  | 'recommendation_failed'
+  | 'confidence_drift'
+  | 'narrative_spike'
+  | 'forecast_miss'
+  | 'resurgence'
+  | 'security_anomaly';
+
+/** The triage lifecycle state of a decision alert. Mirrors hsin_decision_alerts.status. */
+export type DecisionAlertStatus = 'open' | 'acknowledged' | 'resolved' | 'escalated';
+
+/** The verdict of a governance review over an outcome. Mirrors hsin_governance_reviews.decision. */
+export type GovernanceDecision = 'pending' | 'approved' | 'rejected' | 'escalated' | 'validated';
+
+/** The observed outcome of a Phase-13 decision run. Mirrors the `hsin_recommendation_outcomes` table. */
+export interface HsinRecommendationOutcomeRecord {
+  id: string;
+  decision_run_id?: string;
+  recommendation_id?: string;
+  status?: OutcomeStatus;
+  expected_outcome?: Record<string, unknown>;
+  observed_outcome?: Record<string, unknown>;
+  /** 0..1 confidence before the observation. */
+  confidence_before?: number;
+  /** 0..1 confidence after the observation. */
+  confidence_after?: number;
+  /** 0..100 success score. */
+  success_score?: number;
+  explanation?: Record<string, unknown>;
+  limitations?: Record<string, unknown>;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A per-metric expected-vs-observed measurement behind an outcome verdict. Mirrors the `hsin_outcome_measurements` table. */
+export interface HsinOutcomeMeasurementRecord {
+  id: string;
+  outcome_id: string;
+  metric?: string;
+  expected_value?: number;
+  observed_value?: number;
+  delta?: number;
+  within_expectation?: boolean;
+  created_at: string;
+}
+
+/** Calibrated confidence per intervention type learned from outcome history. Mirrors the `hsin_confidence_learning` table. */
+export interface HsinConfidenceLearningRecord {
+  id: string;
+  intervention_type: string;
+  sample_count?: number;
+  success_count?: number;
+  avg_success_score?: number;
+  /** 0..1 calibrated confidence. */
+  calibrated_confidence?: number;
+  adjustment?: number;
+  rationale?: string;
+  updated_at?: string;
+  created_at: string;
+}
+
+/** A decision-intelligence alert. Mirrors the `hsin_decision_alerts` table. */
+export interface HsinDecisionAlertRecord {
+  id: string;
+  decision_run_id?: string;
+  alert_type?: OutcomeAlertType;
+  /** Mirrors the hsin_decision_alerts.severity CHECK constraint (Phase 15 uses upper-case severities). */
+  severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  message?: string;
+  explanation?: string;
+  status?: DecisionAlertStatus;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A validation/governance review over an outcome. Mirrors the `hsin_governance_reviews` table. */
+export interface HsinGovernanceReviewRecord {
+  id: string;
+  outcome_id?: string;
+  decision_run_id?: string;
+  reviewer_id?: string;
+  decision?: GovernanceDecision;
+  notes?: string;
+  status?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Per-user 1..5 rating + free-text feedback on a recommendation outcome. Mirrors the `hsin_recommendation_feedback` table. */
+export interface HsinRecommendationFeedbackRecord {
+  id: string;
+  outcome_id?: string;
+  user_id?: string;
+  /** 1..5 rating. */
+  rating?: number;
+  feedback?: string;
+  created_at: string;
+}
+
+/** The decision-performance dashboard: success/accuracy/ROI headline metrics, outcome distribution, and learning/intervention rollups. */
+export interface DecisionPerformanceData {
+  successRate: number;
+  confidenceAccuracy: number;
+  forecastAccuracy: number;
+  decisionRoi: number;
+  outcomeDistribution: { status: OutcomeStatus; count: number }[];
+  learningTrends: { interventionType: string; calibratedConfidence: number; sampleCount: number }[];
+  topInterventions: { interventionType: string; avgSuccessScore: number; sampleCount: number }[];
+  worstInterventions: { interventionType: string; avgSuccessScore: number; sampleCount: number }[];
+  recentOutcomes: HsinRecommendationOutcomeRecord[];
+}
+
+/** A single outcome with its measurements, governance reviews, audit trail, and source decision run. */
+export interface OutcomeView {
+  outcome: HsinRecommendationOutcomeRecord;
+  measurements: HsinOutcomeMeasurementRecord[];
+  governance: HsinGovernanceReviewRecord[];
+  auditTrail: { step: string; detail: string; at?: string }[];
+  decisionRun?: HsinDecisionRunRecord;
+}
+
+/** The governance queue: outcomes awaiting validation, the reviews over them, and the open alert feed. */
+export interface GovernanceQueueData {
+  pendingOutcomes: HsinRecommendationOutcomeRecord[];
+  reviews: HsinGovernanceReviewRecord[];
+  alerts: HsinDecisionAlertRecord[];
+}
+
+/** Headline outcome callouts surfaced on the decision-intelligence / outcome dashboard. */
+export interface OutcomeDashboardHighlights {
+  successRate?: number;
+  openAlerts?: number;
+  pendingReviews?: number;
+  learningEntries?: number;
+}

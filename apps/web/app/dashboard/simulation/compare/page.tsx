@@ -35,6 +35,13 @@ import {
 } from '@/components/signals/states';
 import { ScenarioBattleConsole } from '@/components/decision/ScenarioBattleConsole';
 import { ScenarioBattleResultView } from '@/components/decision/ScenarioBattleResultView';
+// ADDITIVE (Phase 15): a best-effort "did past recommendations work?" widget.
+import { getDecisionOutcomeWidgetAction } from '@/lib/outcome/actions';
+import {
+  demoDecisionOutcomeWidget,
+  type DecisionOutcomeWidgetData,
+} from '@/lib/outcome/view';
+import { DecisionOutcomeWidget } from '@/components/outcome/DecisionOutcomeWidget';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -63,6 +70,29 @@ export default async function ScenarioComparePage() {
   const narratives = isDemo ? demoNarratives() : view?.narratives ?? [];
   const comparisons = view?.comparisons ?? [];
   const nameOf = new Map(narratives.map((n) => [n.id, n.name]));
+
+  // ADDITIVE (Phase 15): a best-effort outcome widget — whether past
+  // recommendations for the most-recent compared run actually worked. Any failure
+  // here must never break the compare page; on any error we hide the widget.
+  const widgetRunId = comparisons.find((c) => c.run)?.run?.id;
+  let outcomeWidget: DecisionOutcomeWidgetData | null = null;
+  let outcomeWidgetDemo = false;
+  if (isDemo) {
+    outcomeWidget = demoDecisionOutcomeWidget(widgetRunId);
+    outcomeWidgetDemo = true;
+  } else if (widgetRunId) {
+    try {
+      const wRes = await getDecisionOutcomeWidgetAction(widgetRunId);
+      if (wRes.ok) {
+        outcomeWidget = wRes.data;
+      } else if (wRes.code === 'NOT_CONFIGURED') {
+        outcomeWidget = demoDecisionOutcomeWidget(widgetRunId);
+        outcomeWidgetDemo = true;
+      }
+    } catch {
+      outcomeWidget = null;
+    }
+  }
 
   return (
     <>
@@ -122,6 +152,11 @@ export default async function ScenarioComparePage() {
               demo={isDemo}
               demoBattle={isDemo ? demoScenarioBattle() : undefined}
             />
+
+            {/* ADDITIVE (Phase 15): did past recommendations actually work? */}
+            {outcomeWidget ? (
+              <DecisionOutcomeWidget data={outcomeWidget} demo={outcomeWidgetDemo} />
+            ) : null}
 
             <section className="space-y-3">
               <h3 className="flex items-center gap-2 text-h6 font-semibold text-text-primary">

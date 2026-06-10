@@ -32,6 +32,8 @@ import { causalWorkerJob } from './causal-worker';
 import { counterfactualWorkerJob } from './counterfactual-worker';
 // HSI Phase 13 — decision-intelligence pipeline.
 import { decisionWorkerJob } from './decision-worker';
+// HSI Phase 15 — outcome-tracking pipeline.
+import { outcomeAlertWorkerJob } from './outcome-alert-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -109,6 +111,17 @@ export * from './counterfactual-worker';
 // constants) are distinct (e.g. its DecisionWorld vs the counterfactual worker's
 // CounterfactualWorld / causal's CausalWorld / temporal's TemporalWorld).
 export * from './decision-worker';
+// HSI Phase 15 exports. outcome-alert-worker IMPORTS the engine types under
+// aliased names (OcLearningEntry / OcAlert / OcAlertInput / OcAlertType /
+// OcEvaluation / OcNarrativeSnapshot) and re-exports NONE of them, so the
+// unaliased @hsi/outcome-intelligence types (ConfidenceLearningEntry / OutcomeAlert
+// / OutcomeEvaluation / NarrativeSnapshot, …) never collide with the decision/
+// counterfactual/causal/temporal jobs' own `export *` symbols above (notably the
+// re-exported NarrativeSnapshot which several engines define). Its public names
+// (OutcomeWorld, OutcomeOutputs, OutcomePersistResult, the loader/persister types,
+// makeOutcomeAlertWorkerJob, outcomeAlertWorkerJob) are distinct (e.g. its
+// OutcomeWorld vs the decision worker's DecisionWorld).
+export * from './outcome-alert-worker';
 
 /** All registered jobs, in pipeline order. */
 export const jobs: Job[] = [
@@ -157,6 +170,12 @@ export const jobs: Job[] = [
   // outputs (sensitivity → recommend → rank → decision run + audit → war-game →
   // cross impacts). Every recommendation is a decision AID; NEVER auto-publishes.
   decisionWorkerJob,
+  // HSI Phase 15 — outcome-tracking pipeline (daily 07:00, after decision at
+  // 06:00). Offline-safe: DB-backed when the service-role env is configured, else
+  // a deterministic fixtures run (outcomeDemo) that just logs the computed outputs
+  // (learn calibrated confidence → detect advisory alerts). Alerts are ADVISORY
+  // only; NEVER auto-acts and NEVER auto-publishes.
+  outcomeAlertWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

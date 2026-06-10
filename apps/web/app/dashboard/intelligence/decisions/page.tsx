@@ -55,6 +55,13 @@ import { DecisionAuditTrail } from '@/components/decision/DecisionAuditTrail';
 import { ScenarioBattleResultView } from '@/components/decision/ScenarioBattleResultView';
 import { ConfidenceBandBadge } from '@/components/decision/badges';
 import { bandFromConfidence } from '@/lib/decision/view';
+// ADDITIVE (Phase 15): a best-effort "did past recommendations work?" widget.
+import { getDecisionOutcomeWidgetAction } from '@/lib/outcome/actions';
+import {
+  demoDecisionOutcomeWidget,
+  type DecisionOutcomeWidgetData,
+} from '@/lib/outcome/view';
+import { DecisionOutcomeWidget } from '@/components/outcome/DecisionOutcomeWidget';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -123,6 +130,30 @@ export default async function DecisionsPage({
 
   const runNarrativeName = runView?.narrative?.name ?? runView?.run.narrative_id;
 
+  // ADDITIVE (Phase 15): a best-effort outcome widget showing whether past
+  // recommendations for these narratives actually worked. Any failure here (e.g.
+  // the Phase-15 action not yet present) must never break the decisions page — on
+  // any error we simply hide the widget.
+  const widgetRunId = runId ?? recommendations[0]?.id;
+  let outcomeWidget: DecisionOutcomeWidgetData | null = null;
+  let outcomeWidgetDemo = false;
+  if (isDemo) {
+    outcomeWidget = demoDecisionOutcomeWidget(widgetRunId);
+    outcomeWidgetDemo = true;
+  } else if (widgetRunId) {
+    try {
+      const wRes = await getDecisionOutcomeWidgetAction(widgetRunId);
+      if (wRes.ok) {
+        outcomeWidget = wRes.data;
+      } else if (wRes.code === 'NOT_CONFIGURED') {
+        outcomeWidget = demoDecisionOutcomeWidget(widgetRunId);
+        outcomeWidgetDemo = true;
+      }
+    } catch {
+      outcomeWidget = null;
+    }
+  }
+
   return (
     <>
       <TopNav
@@ -189,6 +220,11 @@ export default async function DecisionsPage({
                 demo={isDemo}
               />
             </Card>
+
+            {/* ADDITIVE (Phase 15): did past recommendations actually work? */}
+            {outcomeWidget ? (
+              <DecisionOutcomeWidget data={outcomeWidget} demo={outcomeWidgetDemo} />
+            ) : null}
 
             {/* Selected decision run (rankings + comparisons + audit). */}
             {runView ? (

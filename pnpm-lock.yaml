@@ -71,6 +71,9 @@ importers:
       '@hsi/evidence-engine':
         specifier: workspace:*
         version: link:../../packages/evidence-engine
+      '@hsi/outcome-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/outcome-intelligence
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../../packages/research-agents
@@ -171,6 +174,9 @@ importers:
       '@hsi/evidence-engine':
         specifier: workspace:*
         version: link:../../packages/evidence-engine
+      '@hsi/outcome-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/outcome-intelligence
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../../packages/research-agents
@@ -311,6 +317,19 @@ importers:
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../research-agents
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/outcome-intelligence:
+    dependencies:
+      '@hsi/counterfactual-engine':
+        specifier: workspace:*
+        version: link:../counterfactual-engine
+      '@hsi/decision-intelligence':
+        specifier: workspace:*
+        version: link:../decision-intelligence
     devDependencies:
       typescript:
         specifier: ^5.6.0

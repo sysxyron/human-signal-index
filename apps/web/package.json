@@ -15,6 +15,7 @@
     "@hsi/database": "workspace:*",
     "@hsi/decision-intelligence": "workspace:*",
     "@hsi/evidence-engine": "workspace:*",
+    "@hsi/outcome-intelligence": "workspace:*",
     "@hsi/research-agents": "workspace:*",
     "@hsi/scheduler": "workspace:*",
     "@hsi/shared-types": "workspace:*",

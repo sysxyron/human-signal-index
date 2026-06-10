@@ -47,6 +47,10 @@ import type { DecisionHighlights } from '@hsi/shared-types';
 import { getDecisionHighlightsAction } from '@/lib/decision/actions';
 import { demoDecisionHighlights } from '@/lib/decision/view';
 import { DecisionHighlightCards } from '@/components/decision/DecisionHighlightCards';
+import type { OutcomeDashboardHighlights } from '@hsi/shared-types';
+import { getOutcomeHighlightsAction } from '@/lib/outcome/actions';
+import { demoOutcomeHighlights } from '@/lib/outcome/view';
+import { OutcomeHighlightCards } from '@/components/outcome/OutcomeHighlightCards';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import {
   canOperate,
@@ -194,6 +198,23 @@ export default async function OperationsPage({
     decisionHighlights = null;
   }
 
+  // ADDITIVE (Phase 15): a defensive outcome-&-governance highlights strip. A
+  // failure here (e.g. action not yet present) must never break the operations
+  // page — on any error we simply hide the strip.
+  let outcomeHighlights: OutcomeDashboardHighlights | null = null;
+  let outcomeDemoLabeled = false;
+  try {
+    const ohRes = await getOutcomeHighlightsAction();
+    if (ohRes.ok) {
+      outcomeHighlights = ohRes.data;
+    } else if (ohRes.code === 'NOT_CONFIGURED') {
+      outcomeHighlights = demoOutcomeHighlights();
+      outcomeDemoLabeled = true;
+    }
+  } catch {
+    outcomeHighlights = null;
+  }
+
   // Resolve the overview: live, demo (NOT_CONFIGURED), or a real error.
   let overview: OperationsOverview | null = null;
   let isDemo = false;
@@ -311,6 +332,14 @@ export default async function OperationsPage({
           <DecisionHighlightCards
             highlights={decisionHighlights}
             demo={decisionDemoLabeled}
+          />
+        ) : null}
+
+        {/* ADDITIVE (Phase 15): outcome-&-governance highlights strip. */}
+        {outcomeHighlights ? (
+          <OutcomeHighlightCards
+            highlights={outcomeHighlights}
+            demo={outcomeDemoLabeled}
           />
         ) : null}
 

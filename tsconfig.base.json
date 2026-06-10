@@ -33,7 +33,8 @@
       "@hsi/temporal-intelligence": ["packages/temporal-intelligence/src"],
       "@hsi/causal-intelligence": ["packages/causal-intelligence/src"],
       "@hsi/counterfactual-engine": ["packages/counterfactual-engine/src"],
-      "@hsi/decision-intelligence": ["packages/decision-intelligence/src"]
+      "@hsi/decision-intelligence": ["packages/decision-intelligence/src"],
+      "@hsi/outcome-intelligence": ["packages/outcome-intelligence/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]
