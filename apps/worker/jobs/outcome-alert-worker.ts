@@ -63,9 +63,68 @@ import {
   type OutcomeEvaluation as OcEvaluation,
   type NarrativeSnapshot as OcNarrativeSnapshot,
 } from '@hsi/outcome-intelligence';
+import {
+  calibrate as cbCalibrate,
+  computeBrierScore as cbComputeBrierScore,
+  computeTrustScore as cbComputeTrustScore,
+  detectConfidenceDrift as cbDetectConfidenceDrift,
+  driftSeverity as cbDriftSeverity,
+  DEMO_PREDICTIONS as CB_DEMO_PREDICTIONS,
+  BRIER_FAIR as CB_BRIER_FAIR,
+  type Prediction as CbPrediction,
+  type ReliabilityCurve as CbReliabilityCurve,
+  type ConfidenceDriftResult as CbConfidenceDriftResult,
+  type BrierResult as CbBrierResult,
+  type TrustInputs as CbTrustInputs,
+  type TrustScore as CbTrustScore,
+} from '@hsi/calibration-engine';
 import { createServiceRoleClient } from '@hsi/database';
 import { logger } from '../src/logger';
 import type { Job, JobContext, JobResult } from './types';
+
+// =============================================================================
+// Phase 16 — CALIBRATION / TRUST alert layer (EXTENDS Phase-15).
+//
+// The four NEW alert types added to hsin_decision_alerts by migration 0020.
+// These are DISTINCT from the Phase-15 OutcomeAlertType union (which the engine
+// owns); they are computed here from the @hsi/calibration-engine outputs and
+// appended to the SAME advisory alert stream (persisted, status 'open', never
+// auto-acted).
+// =============================================================================
+
+/** The four Phase-16 alert types (migration 0020). */
+export type CalibrationAlertType =
+  | 'calibration_drift'
+  | 'confidence_instability'
+  | 'forecast_miscalibration'
+  | 'trust_collapse';
+
+/**
+ * A Phase-16 calibration/trust advisory alert. Structurally compatible with the
+ * Phase-15 OcAlert (same severity/message/explanation/metadata) so the persister
+ * can write both via one insert path. NEVER auto-acts — pure data for a reviewer.
+ */
+export interface CalibrationAlert {
+  alertType: CalibrationAlertType;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  message: string;
+  explanation: string;
+  decisionRunId?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+/** Thresholds for the Phase-16 calibration/trust alert gates (documented). */
+export const CALIBRATION_ALERT_THRESHOLDS = {
+  /** ECE swing (|currentEce − priorEce|) at/above which confidence is unstable. */
+  instabilityEce: 0.15,
+  /** Drift magnitude at/above which confidence is unstable (no prior needed). */
+  instabilityMagnitude: 0.5,
+  /** Forecast Brier at/above which the forecast kind is miscalibrated (poor). */
+  forecastBrierPoor: CB_BRIER_FAIR,
+  /** Trust score (0..100) below which a tracked entity is flagged collapsing. */
+  trustCollapse: 40,
+} as const;
 
 /** The recent observed evidence the engine learns + alerts from for one run. */
 export interface OutcomeWorld {
@@ -79,6 +138,21 @@ export interface OutcomeWorld {
   forecasts: { predicted: string; actual: string }[];
   /** Recent security signals (security_anomaly passthrough). */
   securitySignals: { type: string; severity: string }[];
+  /**
+   * Phase-16: stated-confidence predictions paired with observed outcomes, built
+   * from the loaded outcome/forecast history. Offline → DEMO_PREDICTIONS.
+   */
+  predictions: CbPrediction[];
+  /**
+   * Phase-16: the PRIOR reliability curve snapshot (e.g. the last persisted
+   * calibration curve) to compare drift against — undefined when none exists.
+   */
+  priorCurve?: CbReliabilityCurve;
+  /**
+   * Phase-16: trust inputs for a few tracked entities (sources/narratives/etc.)
+   * whose collapsing trust should be flagged. Empty → no trust_collapse checks.
+   */
+  trustInputs: CbTrustInputs[];
 }
 
 /** The full set of computed outputs handed to the persister. */
@@ -87,12 +161,16 @@ export interface OutcomeOutputs {
   alerts: OcAlert[];
   /** The re-learned confidence rows to upsert. */
   learning: OcLearningEntry[];
+  /** Phase-16 calibration/trust advisory alerts (NEVER auto-acted). */
+  calibrationAlerts: CalibrationAlert[];
 }
 
 /** Best-effort report of which output sets were persisted (for the summary). */
 export interface OutcomePersistResult {
   alerts: number;
   learningEntries: number;
+  /** Phase-16 calibration/trust alerts written to hsin_decision_alerts. */
+  calibrationAlerts: number;
   audited: boolean;
 }
 
@@ -108,6 +186,7 @@ export type PersistOutcomeOutputs = (
 const EMPTY_PERSIST: OutcomePersistResult = {
   alerts: 0,
   learningEntries: 0,
+  calibrationAlerts: 0,
   audited: false,
 };
 
@@ -117,6 +196,8 @@ const EMPTY_WORLD: OutcomeWorld = {
   snapshots: [],
   forecasts: [],
   securitySignals: [],
+  predictions: [],
+  trustInputs: [],
 };
 
 export function makeOutcomeAlertWorkerJob(
@@ -126,7 +207,7 @@ export function makeOutcomeAlertWorkerJob(
   return {
     name: 'outcomeAlert',
     description:
-      'Daily outcome pipeline: learn calibrated confidence from observed outcomes → detect advisory alerts (failures/drift/spikes/forecast misses/resurgence/security) (never auto-acts, never auto-publishes).',
+      'Daily outcome pipeline: learn calibrated confidence from observed outcomes → detect advisory alerts (failures/drift/spikes/forecast misses/resurgence/security) + Phase-16 calibration/trust alerts (calibration_drift/confidence_instability/forecast_miscalibration/trust_collapse) (never auto-acts, never auto-publishes).',
     schedule: '0 7 * * *',
     async run(ctx: JobContext): Promise<JobResult> {
       // Deterministic clock is injected into the pure engine. We NEVER call
@@ -150,6 +231,10 @@ export function makeOutcomeAlertWorkerJob(
         snapshotCount: world.snapshots.length,
         forecastCount: world.forecasts.length,
         securitySignalCount: world.securitySignals.length,
+        // Phase-16 inputs.
+        predictionCount: world.predictions.length,
+        trustInputCount: world.trustInputs.length,
+        hasPriorCurve: world.priorCurve !== undefined,
         mode: offline ? 'offline-fixtures-or-noop' : 'db',
         runAt: now,
         // BINDING: the outcome worker only measures/learns/alerts — never acts.
@@ -158,8 +243,18 @@ export function makeOutcomeAlertWorkerJob(
       };
       logger.info('job.outcomeAlert.start', { declaredInputs });
 
-      const outputs: OutcomeOutputs = { alerts: [], learning: [] };
+      const outputs: OutcomeOutputs = {
+        alerts: [],
+        learning: [],
+        calibrationAlerts: [],
+      };
       const stageErrors: Record<string, string> = {};
+      // Phase-16 calibration metrics surfaced into the ICM OUTPUT summary.
+      let calibrationMetrics: {
+        ece: number;
+        brier: number;
+        driftKind: CbConfidenceDriftResult['kind'];
+      } | null = null;
 
       // ---- Stage 1: LEARN (fold this batch onto the prior learning rows) -----
       try {
@@ -196,7 +291,30 @@ export function makeOutcomeAlertWorkerJob(
         logger.warn('job.outcomeAlert.alertsFailed', { error: stageErrors.alerts });
       }
 
-      // ---- Stage 3: PERSIST (best-effort; failure logs + continues) ----------
+      // ---- Stage 3: CALIBRATION (Phase-16; fault-isolated; never throws) -----
+      // Calibrate the loaded predictions, detect confidence drift vs the prior
+      // snapshot curve, Brier-score the forecast kind, and trust-score a few
+      // tracked entities → map to the four NEW advisory alert types. Pure engine
+      // calls; `now` is injected. Advisory only — NEVER auto-acts.
+      try {
+        const cal = computeCalibrationAlerts(world, now);
+        outputs.calibrationAlerts = cal.alerts;
+        calibrationMetrics = cal.metrics;
+        logger.info('job.outcomeAlert.calibration', {
+          calibrationAlerts: cal.alerts.length,
+          byType: countCalibrationAlertsByType(cal.alerts),
+          metrics: cal.metrics,
+          // BINDING: drift only RECOMMENDS recalibration; nothing is applied.
+          autoAct: false,
+        });
+      } catch (e) {
+        stageErrors.calibration = e instanceof Error ? e.message : String(e);
+        logger.warn('job.outcomeAlert.calibrationFailed', {
+          error: stageErrors.calibration,
+        });
+      }
+
+      // ---- Stage 4: PERSIST (best-effort; failure logs + continues) ----------
       let persisted: OutcomePersistResult = { ...EMPTY_PERSIST };
       try {
         persisted = await persist(outputs, ctx);
@@ -211,6 +329,12 @@ export function makeOutcomeAlertWorkerJob(
           alerts: outputs.alerts.length,
           alertsByType: countAlertsByType(outputs.alerts),
           learningEntries: outputs.learning.length,
+          // Phase-16 calibration/trust outputs.
+          calibrationAlerts: outputs.calibrationAlerts.length,
+          calibrationAlertsByType: countCalibrationAlertsByType(
+            outputs.calibrationAlerts,
+          ),
+          calibration: calibrationMetrics,
         },
         persisted,
         stageErrors,
@@ -242,6 +366,208 @@ function countAlertsByType(alerts: OcAlert[]): Record<OcAlertType, number> {
   };
   for (const a of alerts) out[a.alertType] += 1;
   return out;
+}
+
+/** Deterministic count of Phase-16 calibration alerts grouped by type. */
+function countCalibrationAlertsByType(
+  alerts: CalibrationAlert[],
+): Record<CalibrationAlertType, number> {
+  const out: Record<CalibrationAlertType, number> = {
+    calibration_drift: 0,
+    confidence_instability: 0,
+    forecast_miscalibration: 0,
+    trust_collapse: 0,
+  };
+  for (const a of alerts) out[a.alertType] += 1;
+  return out;
+}
+
+// =============================================================================
+// Phase 16 — pure calibration/trust alert mapping. Given the loaded world and an
+// injected `now`, run the @hsi/calibration-engine chain and map the results to
+// the four NEW advisory alert types. Deterministic; every alert carries an
+// explanation; NEVER auto-acts (drift only recommends recalibration).
+// =============================================================================
+
+/**
+ * Compute the Phase-16 calibration/trust alerts + the headline metrics.
+ *
+ * Mappings:
+ *   * calibration_drift       — drift kind is degradation/overconfidence/
+ *                               underconfidence beyond threshold (severity from
+ *                               driftSeverity).
+ *   * confidence_instability  — drift magnitude is high OR the ECE swing vs the
+ *                               prior curve is sharp.
+ *   * forecast_miscalibration — the forecast-kind Brier/ECE is poor.
+ *   * trust_collapse          — a computed trust score for a tracked entity
+ *                               drops below the low threshold.
+ */
+function computeCalibrationAlerts(
+  world: OutcomeWorld,
+  now: string,
+): {
+  alerts: CalibrationAlert[];
+  metrics: {
+    ece: number;
+    brier: number;
+    driftKind: CbConfidenceDriftResult['kind'];
+  };
+} {
+  const alerts: CalibrationAlert[] = [];
+  const predictions = world.predictions;
+
+  // Current reliability curve over all predictions (now injected).
+  const current: CbReliabilityCurve = cbCalibrate(predictions, { now });
+
+  // Confidence drift vs the prior snapshot curve (undefined → current-only).
+  const drift: CbConfidenceDriftResult = cbDetectConfidenceDrift(
+    current,
+    world.priorCurve,
+    { now },
+  );
+  const severity = cbDriftSeverity(drift);
+
+  // Overall Brier across every prediction (headline metric).
+  const brierOverall: CbBrierResult = cbComputeBrierScore(
+    predictions.map((p) => ({ confidence: p.confidence, success: p.success })),
+  );
+
+  // Forecast-kind Brier (forecast_miscalibration gate).
+  const forecastPreds = predictions.filter((p) => p.kind === 'forecast');
+  const brierForecast: CbBrierResult = cbComputeBrierScore(
+    forecastPreds.map((p) => ({ confidence: p.confidence, success: p.success })),
+  );
+
+  // ---- (1) calibration_drift -------------------------------------------------
+  // Fires when confidence has drifted past threshold in a way that recommends a
+  // recalibration: degradation (ECE worse) / over- / under-confidence.
+  if (
+    drift.kind === 'degradation' ||
+    drift.kind === 'overconfidence' ||
+    drift.kind === 'underconfidence'
+  ) {
+    alerts.push({
+      alertType: 'calibration_drift',
+      severity,
+      message: `Confidence calibration drift detected (${drift.kind}, magnitude ${drift.magnitude}).`,
+      explanation: `${drift.explanation} ${drift.recommendation}`,
+      metadata: {
+        driftKind: drift.kind,
+        magnitude: drift.magnitude,
+        currentEce: drift.currentEce,
+        priorEce: drift.priorEce,
+        sampleCount: current.sampleCount,
+        // BINDING: advisory recalibration recommendation only.
+        autoAct: false,
+      },
+      createdAt: now,
+    });
+  }
+
+  // ---- (2) confidence_instability -------------------------------------------
+  // Fires when the drift magnitude is high OR the ECE swing vs the prior curve
+  // is sharp — confidence is volatile, not merely biased.
+  const eceSwing =
+    drift.priorEce !== undefined
+      ? Math.abs(drift.currentEce - drift.priorEce)
+      : 0;
+  const unstable =
+    drift.magnitude >= CALIBRATION_ALERT_THRESHOLDS.instabilityMagnitude ||
+    eceSwing >= CALIBRATION_ALERT_THRESHOLDS.instabilityEce;
+  if (unstable && drift.kind !== 'stable' && drift.kind !== 'improvement') {
+    const instSeverity: CalibrationAlert['severity'] =
+      drift.magnitude >= 0.5 || eceSwing >= 0.25 ? 'CRITICAL' : 'HIGH';
+    alerts.push({
+      alertType: 'confidence_instability',
+      severity: instSeverity,
+      message: `Confidence is unstable (magnitude ${drift.magnitude}, ECE swing ${round4(eceSwing)}).`,
+      explanation:
+        `Calibration is swinging sharply: drift magnitude ${drift.magnitude} ` +
+        `and Expected Calibration Error moved by ${round4(eceSwing)} versus the ` +
+        `prior curve (current ECE ${drift.currentEce}). Recommend recalibration ` +
+        `from recent outcomes before relying on stated confidence. Advisory only.`,
+      metadata: {
+        driftKind: drift.kind,
+        magnitude: drift.magnitude,
+        currentEce: drift.currentEce,
+        priorEce: drift.priorEce,
+        eceSwing: round4(eceSwing),
+        autoAct: false,
+      },
+      createdAt: now,
+    });
+  }
+
+  // ---- (3) forecast_miscalibration ------------------------------------------
+  // Fires when the forecast-kind Brier is poor (>= fair threshold) with enough
+  // samples for a verdict. Never fires on insufficient_data.
+  if (
+    brierForecast.calibrationQuality !== 'insufficient_data' &&
+    brierForecast.score >= CALIBRATION_ALERT_THRESHOLDS.forecastBrierPoor
+  ) {
+    const fcSeverity: CalibrationAlert['severity'] =
+      brierForecast.calibrationQuality === 'poor' ? 'HIGH' : 'MEDIUM';
+    alerts.push({
+      alertType: 'forecast_miscalibration',
+      severity: fcSeverity,
+      message: `Forecast confidence is miscalibrated (Brier ${brierForecast.score}, ${brierForecast.calibrationQuality}).`,
+      explanation:
+        `${brierForecast.interpretation} Stated forecast confidence does not ` +
+        `match observed outcomes across ${brierForecast.sampleCount} forecast ` +
+        `prediction(s). Recommend recalibrating forecast confidence. Advisory only.`,
+      metadata: {
+        brierScore: brierForecast.score,
+        calibrationQuality: brierForecast.calibrationQuality,
+        sampleCount: brierForecast.sampleCount,
+        autoAct: false,
+      },
+      createdAt: now,
+    });
+  }
+
+  // ---- (4) trust_collapse ----------------------------------------------------
+  // Fires when a computed trust score for a tracked entity falls below the low
+  // threshold. Each entity is scored independently (deterministic, now injected).
+  for (const inputs of world.trustInputs) {
+    const trust: CbTrustScore = cbComputeTrustScore(inputs, { now });
+    if (trust.trustScore < CALIBRATION_ALERT_THRESHOLDS.trustCollapse) {
+      const collapseSeverity: CalibrationAlert['severity'] =
+        trust.trustScore < 25 ? 'CRITICAL' : 'HIGH';
+      alerts.push({
+        alertType: 'trust_collapse',
+        severity: collapseSeverity,
+        message: `Trust collapse for ${trust.entityType} ${trust.entityId} (trust ${trust.trustScore}/100, ${trust.band}).`,
+        explanation:
+          `Trust score ${trust.trustScore}/100 (band ${trust.band}, confidence ` +
+          `${trust.confidence}) is below the ${CALIBRATION_ALERT_THRESHOLDS.trustCollapse} ` +
+          `collapse threshold. ${trust.explanation.join(' ')} ${trust.limitations.join(' ')}`,
+        metadata: {
+          entityType: trust.entityType,
+          entityId: trust.entityId,
+          trustScore: trust.trustScore,
+          band: trust.band,
+          confidence: trust.confidence,
+          evidenceCount: trust.evidenceCount,
+          autoAct: false,
+        },
+        createdAt: now,
+      });
+    }
+  }
+
+  return {
+    alerts,
+    metrics: {
+      ece: current.expectedCalibrationError,
+      brier: brierOverall.score,
+      driftKind: drift.kind,
+    },
+  };
+}
+
+/** Round to 4dp (mirrors the engine's internal rounding for ICM parity). */
+function round4(n: number): number {
+  return Math.round(n * 10000) / 10000;
 }
 
 // =============================================================================
@@ -396,7 +722,8 @@ function toEvaluation(r: OutcomeRow): OcEvaluation {
 export const defaultLoadOutcomeWorld: LoadOutcomeWorld = async () => {
   const client = tryOutcomeClient();
   if (!client) {
-    // OFFLINE: deterministic fixtures via the engine's own offline demo chain.
+    // OFFLINE: deterministic fixtures via the engine's own offline demo chain
+    // plus the calibration-engine's DEMO_PREDICTIONS / demo trust inputs.
     const demo = outcomeDemo();
     return {
       evaluations: demo.evaluations,
@@ -404,6 +731,11 @@ export const defaultLoadOutcomeWorld: LoadOutcomeWorld = async () => {
       snapshots: demoSnapshots(demo),
       forecasts: demoForecasts(demo),
       securitySignals: demoSecurity(demo),
+      // Phase-16 offline fixtures.
+      predictions: CB_DEMO_PREDICTIONS,
+      // No prior snapshot curve offline → drift classifies on the current curve.
+      priorCurve: undefined,
+      trustInputs: demoTrustInputs(),
     };
   }
   try {
@@ -484,6 +816,26 @@ export const defaultLoadOutcomeWorld: LoadOutcomeWorld = async () => {
       if (actual !== undefined) forecasts.push({ predicted, actual });
     }
 
+    // Phase-16: build stated-confidence predictions from the outcome rows
+    // (recommendation-kind) — each row's confidence vs its success score.
+    const predictions: CbPrediction[] = outcomeRows.map((r) =>
+      toPrediction(r),
+    );
+
+    // Phase-16: trust inputs derived from the learned confidence rows — one per
+    // intervention type. historicalAccuracy = successCount/sampleCount, and the
+    // calibratedConfidence stands in for the calibration signal.
+    const trustInputs: CbTrustInputs[] = priorLearning
+      .filter((l) => l.sampleCount > 0)
+      .map((l) => ({
+        entityType: 'intervention' as const,
+        entityId: l.interventionType,
+        historicalAccuracy:
+          l.sampleCount > 0 ? l.successCount / l.sampleCount : undefined,
+        calibrationScore: l.calibratedConfidence,
+        sampleCount: l.sampleCount,
+      }));
+
     return {
       evaluations,
       priorLearning,
@@ -492,6 +844,11 @@ export const defaultLoadOutcomeWorld: LoadOutcomeWorld = async () => {
       // No security signal source is in scope for this worker; left empty so the
       // security_anomaly passthrough is a clean no-op unless a host wires one up.
       securitySignals: [],
+      // Phase-16: predictions + trust inputs. No prior snapshot curve is
+      // persisted in scope, so drift classifies on the current curve alone.
+      predictions,
+      priorCurve: undefined,
+      trustInputs,
     };
   } catch (e) {
     logger.warn('outcome.dbLoad.threw', {
@@ -500,6 +857,58 @@ export const defaultLoadOutcomeWorld: LoadOutcomeWorld = async () => {
     return { ...EMPTY_WORLD };
   }
 };
+
+/**
+ * Map a persisted outcome row into a calibration Prediction. The stated
+ * confidence is the recommendation's confidence_before; the observed success is
+ * the success_score (the engine normalises a /100 score). Kind is
+ * 'recommendation' (these rows track recommendation outcomes).
+ */
+function toPrediction(r: OutcomeRow): CbPrediction {
+  return {
+    id: r.recommendation_id ?? r.id,
+    kind: 'recommendation',
+    confidence: clamp01(num(r.confidence_before)),
+    success: num(r.success_score),
+    at: r.created_at ?? '',
+    entityId: r.recommendation_id ?? r.id,
+  };
+}
+
+/** Clamp a number into 0..1 (mirrors the engine's normalisation). */
+function clamp01(n: number): number {
+  if (Number.isNaN(n)) return 0;
+  return Math.min(1, Math.max(0, n));
+}
+
+/**
+ * Offline trust inputs — a couple of tracked entities, including one that
+ * deliberately collapses below the trust threshold so the trust_collapse path is
+ * exercised in a fixtures run (the decision fixture: thin sample + low signals).
+ */
+function demoTrustInputs(): CbTrustInputs[] {
+  return [
+    {
+      entityType: 'source',
+      entityId: 'src-reuters',
+      historicalAccuracy: 0.88,
+      evidenceQuality: 0.82,
+      calibrationScore: 0.85,
+      reviewOutcomes: { approved: 42, rejected: 4 },
+      governanceOutcomes: { validated: 30, escalated: 2, rejected: 1 },
+      sampleCount: 46,
+    },
+    {
+      entityType: 'decision',
+      entityId: 'dec-launch-go',
+      historicalAccuracy: 0.4,
+      evidenceQuality: 0.45,
+      calibrationScore: 0.5,
+      reviewOutcomes: { approved: 1, rejected: 2 },
+      sampleCount: 3,
+    },
+  ];
+}
 
 /** Classify a snapshot transition into a coarse trajectory state. */
 function trajectoryState(prev: SnapshotRow, cur: SnapshotRow): string {
@@ -612,6 +1021,34 @@ export const defaultPersistOutcomeOutputs: PersistOutcomeOutputs = async (
     }
   }
 
+  // (1b) Phase-16 calibration/trust advisory alerts — append-only insert into
+  // the SAME hsin_decision_alerts table (the four NEW alert_type values from
+  // migration 0020). status 'open'; the worker NEVER acks/resolves/escalates.
+  if (outputs.calibrationAlerts.length > 0) {
+    try {
+      const rows = outputs.calibrationAlerts.map((a) => ({
+        decision_run_id:
+          a.decisionRunId && UUID_RE.test(a.decisionRunId) ? a.decisionRunId : null,
+        alert_type: a.alertType,
+        severity: a.severity,
+        message: a.message,
+        explanation: a.explanation,
+        status: 'open',
+        metadata: a.metadata ?? {},
+      }));
+      const { error } = await client.from('hsin_decision_alerts').insert(rows);
+      if (!error) result.calibrationAlerts = rows.length;
+      else
+        logger.warn('outcome.persist.calibrationAlerts.failed', {
+          error: String(error),
+        });
+    } catch (e) {
+      logger.warn('outcome.persist.calibrationAlerts.threw', {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
   // (2) Confidence learning — upsert on (intervention_type) (idempotent).
   if (outputs.learning.length > 0) {
     try {
@@ -646,6 +1083,7 @@ export const defaultPersistOutcomeOutputs: PersistOutcomeOutputs = async (
       action: 'outcome.alert.pipeline',
       metadata: {
         alerts: result.alerts,
+        calibrationAlerts: result.calibrationAlerts,
         learningEntries: result.learningEntries,
         at,
         // BINDING: advisory only — the worker never publishes and never acts.

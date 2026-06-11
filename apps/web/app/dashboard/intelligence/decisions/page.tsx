@@ -62,6 +62,10 @@ import {
   type DecisionOutcomeWidgetData,
 } from '@/lib/outcome/view';
 import { DecisionOutcomeWidget } from '@/components/outcome/DecisionOutcomeWidget';
+// ADDITIVE (Phase 16): a best-effort decision-trust badge.
+import { getTrustAction } from '@/lib/calibration/actions';
+import { demoDecisionTrustView } from '@/lib/calibration/view';
+import { TrustBadge } from '@/components/calibration/TrustBadge';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -154,6 +158,48 @@ export default async function DecisionsPage({
     }
   }
 
+  // ADDITIVE (Phase 16): a best-effort decision-trust badge for the selected /
+  // first decision run. Any failure here (e.g. the Phase-16 action not yet
+  // present) must never break the decisions page — on any error we hide the badge.
+  const trustDecisionId = runId ?? recommendations[0]?.id;
+  let decisionTrust: {
+    entityId: string;
+    trustScore: number;
+    band?: string | null;
+    overridden: boolean;
+  } | null = null;
+  if (isDemo && trustDecisionId) {
+    const v = demoDecisionTrustView(trustDecisionId);
+    decisionTrust = {
+      entityId: v.entityId,
+      trustScore: v.trustScore,
+      band: v.band,
+      overridden: v.overridden,
+    };
+  } else if (trustDecisionId) {
+    try {
+      const tRes = await getTrustAction('decision', trustDecisionId);
+      if (tRes.ok) {
+        decisionTrust = {
+          entityId: tRes.data.entityId,
+          trustScore: tRes.data.trustScore,
+          band: tRes.data.band,
+          overridden: tRes.data.overridden,
+        };
+      } else if (tRes.code === 'NOT_CONFIGURED') {
+        const v = demoDecisionTrustView(trustDecisionId);
+        decisionTrust = {
+          entityId: v.entityId,
+          trustScore: v.trustScore,
+          band: v.band,
+          overridden: v.overridden,
+        };
+      }
+    } catch {
+      decisionTrust = null;
+    }
+  }
+
   return (
     <>
       <TopNav
@@ -173,6 +219,16 @@ export default async function DecisionsPage({
               <ConfidenceBandBadge
                 band={bandFromConfidence(data.avgConfidence)}
                 confidence={data.avgConfidence}
+              />
+            ) : null}
+            {/* ADDITIVE (Phase 16): decision-trust badge (advisory). */}
+            {decisionTrust ? (
+              <TrustBadge
+                entityType="decision"
+                entityId={decisionTrust.entityId}
+                trustScore={decisionTrust.trustScore}
+                band={decisionTrust.band}
+                overridden={decisionTrust.overridden}
               />
             ) : null}
           </div>

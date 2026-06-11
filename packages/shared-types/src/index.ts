@@ -2662,14 +2662,23 @@ export type OutcomeStatus =
   | 'unsuccessful'
   | 'inconclusive';
 
-/** The classification of a decision-intelligence alert. Mirrors hsin_decision_alerts.alert_type. */
+/**
+ * The classification of a decision-intelligence alert. Mirrors hsin_decision_alerts.alert_type.
+ * Extended in Phase 16 (migration 0020) with the four calibration/trust alert types
+ * ('calibration_drift' | 'trust_collapse' | 'confidence_instability' | 'forecast_miscalibration').
+ */
 export type OutcomeAlertType =
   | 'recommendation_failed'
   | 'confidence_drift'
   | 'narrative_spike'
   | 'forecast_miss'
   | 'resurgence'
-  | 'security_anomaly';
+  | 'security_anomaly'
+  // --- Phase 16: Calibration & Trust alert types (additive). ---
+  | 'calibration_drift'
+  | 'trust_collapse'
+  | 'confidence_instability'
+  | 'forecast_miscalibration';
 
 /** The triage lifecycle state of a decision alert. Mirrors hsin_decision_alerts.status. */
 export type DecisionAlertStatus = 'open' | 'acknowledged' | 'resolved' | 'escalated';
@@ -2799,4 +2808,249 @@ export interface OutcomeDashboardHighlights {
   openAlerts?: number;
   pendingReviews?: number;
   learningEntries?: number;
+}
+
+// =============================================================================
+// Calibration & Trust — Phase 16
+//
+// Serializable mirrors of the Phase 16 persistence (migration 0020): the
+// CALIBRATION layer (point-in-time calibration snapshots, the per-bin
+// reliability-diagram rows behind them, standalone Brier scores, and detected
+// confidence drift) and the TRUST layer (per-source / per-narrative / per-decision
+// / per-forecast trust scores + bands with explanations, limitations, and manual
+// overrides) — plus the view-models that back the calibration dashboard, a single
+// calibration view, the trust dashboard, a single trust view, and the dashboard
+// highlights. The OutcomeAlertType union (Phase 15, above) is EXTENDED in place
+// with the four Phase-16 alert types.
+//
+// NAMING: the underlying tables use the `hsin_` prefix (consistent with Phases
+// 7-15); their TS record names carry the `Hsin` prefix to mirror that. Timestamps
+// are ISO strings; uuid columns are strings. jsonb payloads are typed as
+// `Record<string, unknown>` (or `string[]` where the engine emits a list) so
+// shared-types stays decoupled from the engine internals.
+// =============================================================================
+
+/** Classification of a detected confidence drift. Mirrors hsin_confidence_drift.drift_kind. */
+export type ConfidenceDriftKind =
+  | 'overconfidence'
+  | 'underconfidence'
+  | 'degradation'
+  | 'improvement'
+  | 'stable';
+
+/** Labelled quality bucket for a Brier score / calibration snapshot. Mirrors hsin_brier_scores.calibration_quality. */
+export type CalibrationQuality =
+  | 'excellent'
+  | 'good'
+  | 'fair'
+  | 'poor'
+  | 'insufficient_data';
+
+/** Trust band for a trust score. Mirrors the `band` CHECK on the Phase-16 trust tables. */
+export type TrustBand = 'low' | 'medium' | 'high';
+
+/** The kind of entity a trust score applies to (used by the trust view-models). */
+export type TrustEntityType =
+  | 'source'
+  | 'narrative'
+  | 'forecast'
+  | 'intervention'
+  | 'recommendation'
+  | 'decision';
+
+/** A point-in-time calibration of predicted confidence vs observed success. Mirrors the `hsin_calibration_snapshots` table. */
+export interface HsinCalibrationSnapshotRecord {
+  id: string;
+  scope?: string;
+  kind?: string;
+  sample_count?: number;
+  /** Expected Calibration Error (ECE). */
+  expected_calibration_error?: number;
+  /** Maximum Calibration Error (MCE). */
+  max_calibration_error?: number;
+  overconfidence_index?: number;
+  brier_score?: number;
+  /** Reliability-diagram bins (jsonb). */
+  curve?: Record<string, unknown>;
+  generated_at?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+/** A per-bin reliability-diagram row behind a calibration snapshot. Mirrors the `hsin_reliability_curves` table. */
+export interface HsinReliabilityCurveRecord {
+  id: string;
+  calibration_snapshot_id?: string;
+  bin_lower?: number;
+  bin_upper?: number;
+  count?: number;
+  /** Mean predicted confidence in the bin. */
+  mean_confidence?: number;
+  /** Observed success rate in the bin. */
+  observed_success?: number;
+  calibration_error?: number;
+  created_at: string;
+}
+
+/** A standalone Brier score per scope/kind. Mirrors the `hsin_brier_scores` table. */
+export interface HsinBrierScoreRecord {
+  id: string;
+  scope?: string;
+  kind?: string;
+  score?: number;
+  sample_count?: number;
+  calibration_quality?: CalibrationQuality;
+  interpretation?: string;
+  /** Reliability/resolution/uncertainty decomposition (jsonb). */
+  decomposition?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A detected drift between a prior and current ECE. Mirrors the `hsin_confidence_drift` table. */
+export interface HsinConfidenceDriftRecord {
+  id: string;
+  scope?: string;
+  drift_kind?: ConfidenceDriftKind;
+  magnitude?: number;
+  current_ece?: number;
+  prior_ece?: number;
+  recommendation?: string;
+  explanation?: string;
+  detected_at?: string;
+  created_at: string;
+}
+
+/** Trust for a monitored source. Mirrors the `hsin_source_trust` table. */
+export interface HsinSourceTrustRecord {
+  id: string;
+  source_id?: string;
+  /** 0..100 trust score. */
+  trust_score?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  evidence_count?: number;
+  calibration_score?: number;
+  band?: TrustBand;
+  explanation?: Record<string, unknown>;
+  limitations?: Record<string, unknown>;
+  overridden?: boolean;
+  override_reason?: string;
+  overridden_by?: string;
+  last_updated?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Trust for a tracked narrative. Mirrors the `hsin_narrative_trust` table. */
+export interface HsinNarrativeTrustRecord {
+  id: string;
+  narrative_id?: string;
+  /** 0..100 trust score. */
+  trust_score?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  evidence_count?: number;
+  calibration_score?: number;
+  band?: TrustBand;
+  explanation?: Record<string, unknown>;
+  limitations?: Record<string, unknown>;
+  overridden?: boolean;
+  override_reason?: string;
+  overridden_by?: string;
+  last_updated?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Trust for a Phase-13 decision run. Mirrors the `hsin_decision_trust` table. */
+export interface HsinDecisionTrustRecord {
+  id: string;
+  decision_run_id?: string;
+  /** 0..100 trust score. */
+  trust_score?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  evidence_count?: number;
+  calibration_score?: number;
+  band?: TrustBand;
+  explanation?: Record<string, unknown>;
+  limitations?: Record<string, unknown>;
+  overridden?: boolean;
+  override_reason?: string;
+  overridden_by?: string;
+  last_updated?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Trust for a narrative forecast. Mirrors the `hsin_forecast_trust` table. */
+export interface HsinForecastTrustRecord {
+  id: string;
+  narrative_id?: string;
+  forecast_kind?: string;
+  /** 0..100 trust score. */
+  trust_score?: number;
+  /** 0..1 confidence. */
+  confidence?: number;
+  evidence_count?: number;
+  calibration_score?: number;
+  band?: TrustBand;
+  explanation?: Record<string, unknown>;
+  limitations?: Record<string, unknown>;
+  overridden?: boolean;
+  override_reason?: string;
+  overridden_by?: string;
+  last_updated?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** The calibration dashboard: the latest snapshot, its curves, Brier scores, drift events, and the ECE/Brier trend over time. */
+export interface CalibrationDashboardData {
+  snapshot?: HsinCalibrationSnapshotRecord;
+  curves: HsinReliabilityCurveRecord[];
+  brier: HsinBrierScoreRecord[];
+  drift: HsinConfidenceDriftRecord[];
+  trend: { generatedAt: string; ece: number; brier: number }[];
+}
+
+/** A single calibration view: one snapshot with its reliability curves and (optionally) its Brier score + drift. */
+export interface CalibrationView {
+  snapshot: HsinCalibrationSnapshotRecord;
+  curves: HsinReliabilityCurveRecord[];
+  brier?: HsinBrierScoreRecord;
+  drift?: HsinConfidenceDriftRecord;
+}
+
+/** The trust dashboard: trust rows across sources, narratives, forecasts, and decisions. */
+export interface TrustDashboardData {
+  sources: HsinSourceTrustRecord[];
+  narratives: HsinNarrativeTrustRecord[];
+  forecasts: HsinForecastTrustRecord[];
+  decisions: HsinDecisionTrustRecord[];
+}
+
+/** A single trust view for one entity: its current score/band, history, explanation, limitations, and override state. */
+export interface TrustView {
+  entityType: TrustEntityType;
+  entityId: string;
+  /** 0..100 trust score. */
+  trustScore: number;
+  band: TrustBand;
+  history: { trustScore: number; at: string }[];
+  explanation: string[];
+  limitations: string[];
+  overridden: boolean;
+  overrideReason?: string;
+}
+
+/** Headline calibration/trust callouts surfaced on the dashboard. */
+export interface CalibrationHighlights {
+  /** Latest Expected Calibration Error. */
+  ece?: number;
+  /** Latest Brier score. */
+  brier?: number;
+  driftKind?: ConfidenceDriftKind;
+  /** Average trust score across tracked entities. */
+  avgTrust?: number;
 }

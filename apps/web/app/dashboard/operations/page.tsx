@@ -51,6 +51,10 @@ import type { OutcomeDashboardHighlights } from '@hsi/shared-types';
 import { getOutcomeHighlightsAction } from '@/lib/outcome/actions';
 import { demoOutcomeHighlights } from '@/lib/outcome/view';
 import { OutcomeHighlightCards } from '@/components/outcome/OutcomeHighlightCards';
+import type { CalibrationHighlights } from '@hsi/shared-types';
+import { getCalibrationHighlightsAction } from '@/lib/calibration/actions';
+import { demoCalibrationHighlights } from '@/lib/calibration/view';
+import { CalibrationHighlightCards } from '@/components/calibration/CalibrationHighlightCards';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import {
   canOperate,
@@ -215,6 +219,23 @@ export default async function OperationsPage({
     outcomeHighlights = null;
   }
 
+  // ADDITIVE (Phase 16): a defensive calibration-&-trust highlights strip. A
+  // failure here (e.g. action not yet present) must never break the operations
+  // page — on any error we simply hide the strip.
+  let calibrationHighlights: CalibrationHighlights | null = null;
+  let calibrationDemoLabeled = false;
+  try {
+    const cbRes = await getCalibrationHighlightsAction();
+    if (cbRes.ok) {
+      calibrationHighlights = cbRes.data;
+    } else if (cbRes.code === 'NOT_CONFIGURED') {
+      calibrationHighlights = demoCalibrationHighlights();
+      calibrationDemoLabeled = true;
+    }
+  } catch {
+    calibrationHighlights = null;
+  }
+
   // Resolve the overview: live, demo (NOT_CONFIGURED), or a real error.
   let overview: OperationsOverview | null = null;
   let isDemo = false;
@@ -340,6 +361,14 @@ export default async function OperationsPage({
           <OutcomeHighlightCards
             highlights={outcomeHighlights}
             demo={outcomeDemoLabeled}
+          />
+        ) : null}
+
+        {/* ADDITIVE (Phase 16): calibration-&-trust highlights strip. */}
+        {calibrationHighlights ? (
+          <CalibrationHighlightCards
+            highlights={calibrationHighlights}
+            demo={calibrationDemoLabeled}
           />
         ) : null}
 

@@ -217,6 +217,31 @@ const ALERT_TYPE_DECOR: Record<OutcomeAlertType, Decorated> = {
     tone: 'red',
     description: 'A security signal (e.g. coordinated behaviour) was flagged.',
   },
+  // --- Phase 16: Calibration & Trust alert types (additive). ---
+  calibration_drift: {
+    label: 'Calibration drift',
+    color: TONE_COLORS.orange,
+    tone: 'orange',
+    description: 'Confidence has drifted out of calibration with observed outcomes.',
+  },
+  trust_collapse: {
+    label: 'Trust collapse',
+    color: TONE_COLORS.red,
+    tone: 'red',
+    description: 'An entity’s trust score fell sharply against its history.',
+  },
+  confidence_instability: {
+    label: 'Confidence instability',
+    color: TONE_COLORS.purple,
+    tone: 'purple',
+    description: 'Stated confidence is swinging unpredictably across predictions.',
+  },
+  forecast_miscalibration: {
+    label: 'Forecast miscalibration',
+    color: TONE_COLORS.cyan,
+    tone: 'cyan',
+    description: 'Forecast confidence systematically diverges from observed states.',
+  },
 };
 
 export function alertTypeDecor(type?: OutcomeAlertType | string | null): Decorated {

@@ -16,8 +16,9 @@
 // intelligence outcomeDemo() fixtures.
 // =============================================================================
 
+import Link from 'next/link';
 import { TopNav, Card } from '@hsi/ui';
-import { TrendingUp, Info, Target, Crosshair, Coins } from 'lucide-react';
+import { TrendingUp, Info, Target, Crosshair, Coins, Gauge, ArrowRight } from 'lucide-react';
 import type { DecisionPerformanceData } from '@hsi/shared-types';
 import {
   getOutcomesDashboardAction,
@@ -153,6 +154,25 @@ export default async function OutcomesPage() {
             verdict is an AID for a human reviewer, never a certainty.
           </p>
         </Card>
+
+        {/* ADDITIVE (Phase 16): link to the calibration dashboard. */}
+        <Link href={'/dashboard/calibration' as never} className="block">
+          <Card className="flex items-center gap-3 border-electric/30 bg-electric/[0.04] transition hover:border-electric/60" padded>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-electric/15 text-electric">
+              <Gauge className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-body-sm font-semibold text-text-primary">
+                See how calibrated these confidences are
+              </p>
+              <p className="text-caption text-text-muted">
+                The calibration dashboard grounds &ldquo;what does X% confidence mean?&rdquo;
+                in observed outcomes — reliability diagram, Brier score, and drift.
+              </p>
+            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 text-electric" />
+          </Card>
+        </Link>
 
         {errored ? (
           <ErrorState

@@ -517,6 +517,97 @@ function buildCalibration(
 }
 
 /**
+ * Phase 16 (Calibration & Trust) — LEARNING INTEGRATION.
+ *
+ * Build a calibrateConfidence-COMPATIBLE Calibration from the LATEST overall
+ * calibration snapshot (migration 0020, hsin_calibration_snapshots) so a decision
+ * run's confidence is grounded in EMPIRICALLY OBSERVED success per confidence band
+ * rather than the raw stated confidence. The snapshot's `curve` jsonb is the engine
+ * ReliabilityCurve (bins with meanConfidence vs observedSuccess); `calibrate(raw)`
+ * maps a raw confidence to the observed success of the bin that CONTAINS it (pull
+ * toward reality), and overconfidenceIndex carries the snapshot's signed index.
+ *
+ * Returns undefined when no snapshot / no populated bins exist (caller keeps its
+ * prior calibration). Best-effort + additive; NEVER throws.
+ */
+async function loadLatestCalibrationOverride(
+  client: SupabaseClient,
+): Promise<Calibration | undefined> {
+  const { data: snapRows } = await client
+    .from('hsin_calibration_snapshots')
+    .select('curve, overconfidence_index, generated_at, created_at')
+    .order('generated_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const snapshot = ((snapRows ?? []) as Array<{
+    curve?: JsonRecord | null;
+    overconfidence_index?: number | null;
+  }>)[0];
+  if (!snapshot?.curve) return undefined;
+
+  const rawBins = (snapshot.curve as JsonRecord).bins;
+  if (!Array.isArray(rawBins) || rawBins.length === 0) return undefined;
+
+  // The reliability bins, sorted by their lower edge.
+  const curveBins = rawBins
+    .map((b) => b as JsonRecord)
+    .map((b) => ({
+      lower: typeof b.lower === 'number' ? b.lower : 0,
+      upper: typeof b.upper === 'number' ? b.upper : 1,
+      count: typeof b.count === 'number' ? b.count : 0,
+      meanConfidence: typeof b.meanConfidence === 'number' ? b.meanConfidence : 0,
+      observedSuccess:
+        typeof b.observedSuccess === 'number' ? b.observedSuccess : 0,
+    }))
+    .sort((a, b) => a.lower - b.lower);
+  if (!curveBins.some((b) => b.count > 0)) return undefined;
+
+  const overconfidenceIndex = Math.max(
+    0,
+    typeof snapshot.overconfidence_index === 'number'
+      ? snapshot.overconfidence_index
+      : 0,
+  );
+
+  // Engine Calibration.bands are advisory metadata; map low/medium/high to the
+  // observed success of the bin that contains their representative confidence.
+  const observedAt = (raw: number): number => {
+    const r = clamp01(raw);
+    const populated = curveBins.filter((b) => b.count > 0);
+    // The bin whose [lower, upper) contains r (last bin inclusive of 1).
+    const hit =
+      populated.find((b) => r >= b.lower && r < b.upper) ??
+      populated.find((b) => r >= b.lower) ??
+      populated[populated.length - 1];
+    return hit ? clamp01(hit.observedSuccess) : r;
+  };
+
+  const bands: Calibration['bands'] = (['low', 'medium', 'high'] as const).map(
+    (band) => {
+      const stated = band === 'low' ? 0.3 : band === 'medium' ? 0.5 : 0.8;
+      const empiricalAccuracy = observedAt(stated);
+      const adjustment = stated > 0 ? clamp01(empiricalAccuracy / stated) : 1;
+      return { band, statedConfidence: stated, empiricalAccuracy, adjustment };
+    },
+  );
+
+  return {
+    bands,
+    overconfidenceIndex: Math.round(overconfidenceIndex * 1e4) / 1e4,
+    calibrate(raw: number): {
+      calibrated: number;
+      band: Calibration['bands'][number]['band'];
+    } {
+      const r = clamp01(raw);
+      const band = r >= 0.66 ? 'high' : r >= 0.4 ? 'medium' : 'low';
+      // Calibrated confidence = the observed historical success at this band.
+      const calibrated = Math.round(observedAt(r) * 1e4) / 1e4;
+      return { calibrated, band };
+    },
+  };
+}
+
+/**
  * Load the full DecisionInput for one narrative from the Phase-10/11/12 tables.
  * Snapshots (ordered) + evolution + causal events + latest forecast + inbound /
  * outbound influence + optional calibration from hsin_forecast_accuracy. NEVER
@@ -599,6 +690,17 @@ async function loadDecisionInput(
   } catch {
     // hsin_forecast_accuracy is owned by Phase 12; absence is non-fatal.
     calibration = undefined;
+  }
+
+  // Phase 16 (Calibration & Trust): augment with the latest empirical calibration
+  // curve so FUTURE recommendation confidence is grounded in observed success, not
+  // raw stated confidence. Additive + backward compatible — absent snapshot leaves
+  // behavior unchanged. Wrapped so it NEVER breaks a decision run.
+  try {
+    const curveCalibration = await loadLatestCalibrationOverride(client);
+    if (curveCalibration) calibration = curveCalibration;
+  } catch {
+    // Phase-16 tables absence / any failure is non-fatal — keep prior calibration.
   }
 
   return {
