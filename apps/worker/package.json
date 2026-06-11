@@ -24,6 +24,8 @@
     "@hsi/decision-intelligence": "workspace:*",
     "@hsi/outcome-intelligence": "workspace:*",
     "@hsi/calibration-engine": "workspace:*",
+    "@hsi/trust-history": "workspace:*",
+    "@hsi/recalibration-engine": "workspace:*",
     "@hsi/scheduler": "workspace:*",
     "@supabase/supabase-js": "^2.0.0",
     "dotenv": "^16.3.0",

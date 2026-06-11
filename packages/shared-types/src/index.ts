@@ -3054,3 +3054,317 @@ export interface CalibrationHighlights {
   /** Average trust score across tracked entities. */
   avgTrust?: number;
 }
+
+// =============================================================================
+// Public Trust, Recalibration & Intelligence Governance — Phase 17
+//
+// Serializable mirrors of the Phase 17 persistence (migration 0021): the
+// TRUST-HISTORY layer (append-only trust snapshots + detected drift), the
+// RECALIBRATION-GOVERNANCE layer (proposals + their review decisions + the
+// applied override trail), and the TRUST-PUBLICATION layer (trust attached to
+// published intelligence) — plus the view-models that back the trust history,
+// public trust, proposals, proposal detail, and drift dashboards. The
+// OutcomeAlertType union (Phase 15, above) is EXTENDED in place with the four
+// Phase-17 alert types.
+//
+// Where Phase 16 MEASURES trust, Phase 17 tracks how trust EVOLVES, detects
+// drift, recommends recalibration (proposal only), routes it through governance,
+// and surfaces trust transparently — every score explainable, auditable,
+// reproducible, governed, and historically traceable.
+// =============================================================================
+
+/** How an entity's trust is trending over its history. Mirrors the trust-history engine. */
+export type TrustTrend = 'improving' | 'stable' | 'degrading' | 'volatile';
+
+/** The kind of trust drift detected. Mirrors hsin_trust_drift.drift_kind. */
+export type TrustDriftKind =
+  | 'collapse'
+  | 'degradation'
+  | 'instability'
+  | 'overconfidence'
+  | 'underconfidence'
+  | 'stable';
+
+/** Advisory severity for a drift event / proposal. */
+export type TrustSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+/** What prompted a recalibration proposal. Mirrors hsin_recalibration_proposals.trigger. */
+export type RecalibrationTrigger =
+  | 'trust_drift'
+  | 'trust_collapse'
+  | 'calibration_error'
+  | 'overconfidence'
+  | 'underconfidence'
+  | 'source_overstated'
+  | 'manual';
+
+/** The lifecycle status of a recalibration proposal. */
+export type ProposalStatus = 'pending' | 'approved' | 'rejected';
+
+/** The direction a recalibration moves confidence. */
+export type RecalibrationDirection = 'downward' | 'upward' | 'none';
+
+/** The kind of intelligence report a trust publication is attached to. */
+export type TrustReportType =
+  | 'research'
+  | 'evidence'
+  | 'decision'
+  | 'forecast'
+  | 'simulation';
+
+/** One APPEND-ONLY trust snapshot. Mirrors the `hsin_trust_history` table. */
+export interface HsinTrustHistoryRecord {
+  id: string;
+  entity_type?: TrustEntityType;
+  entity_id?: string;
+  /** 0..100 trust score at the snapshot moment. */
+  trust_score?: number;
+  /** 0..1 confidence behind the score. */
+  confidence?: number;
+  calibration_score?: number;
+  evidence_count?: number;
+  band?: TrustBand;
+  snapshot_at?: string;
+  /** Optional raw signal snapshot (jsonb). */
+  source_snapshot?: Record<string, unknown>;
+  created_by?: string;
+  created_at: string;
+}
+
+/** A detected trust-drift event. Mirrors the `hsin_trust_drift` table. */
+export interface HsinTrustDriftRecord {
+  id: string;
+  entity_type?: TrustEntityType;
+  entity_id?: string;
+  drift_kind?: TrustDriftKind;
+  severity?: TrustSeverity;
+  magnitude?: number;
+  current_trust?: number;
+  baseline_trust?: number;
+  reason?: string;
+  /** The numbers behind the detection (jsonb string[]). */
+  evidence?: Record<string, unknown> | string[];
+  recommendation?: string;
+  detected_at?: string;
+  created_at: string;
+}
+
+/** A recommended confidence recalibration. Mirrors the `hsin_recalibration_proposals` table. */
+export interface HsinRecalibrationProposalRecord {
+  id: string;
+  entity_type?: TrustEntityType;
+  entity_id?: string;
+  trigger?: RecalibrationTrigger;
+  /** 0..1 current stated confidence. */
+  current_confidence?: number;
+  /** 0..1 recommended confidence. */
+  recommended_confidence?: number;
+  current_trust?: number;
+  recommended_trust?: number;
+  direction?: RecalibrationDirection;
+  magnitude?: number;
+  severity?: TrustSeverity;
+  reason?: string;
+  /** Supporting evidence (jsonb string[]). */
+  supporting_evidence?: Record<string, unknown> | string[];
+  status?: ProposalStatus;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A governance decision over a proposal. Mirrors the `hsin_recalibration_reviews` table. */
+export interface HsinRecalibrationReviewRecord {
+  id: string;
+  proposal_id?: string;
+  reviewer_id?: string;
+  decision?: 'approved' | 'rejected';
+  reason?: string;
+  valid?: boolean;
+  checks?: Record<string, unknown>;
+  previous_state?: Record<string, unknown>;
+  new_state?: Record<string, unknown>;
+  reversible?: boolean;
+  audit_trail?: Record<string, unknown> | string[];
+  created_at: string;
+}
+
+/** An applied trust change. Mirrors the `hsin_trust_overrides` table. */
+export interface HsinTrustOverrideRecord {
+  id: string;
+  entity_type?: TrustEntityType;
+  entity_id?: string;
+  previous_score?: number;
+  new_score?: number;
+  previous_band?: TrustBand;
+  new_band?: TrustBand;
+  reason?: string;
+  proposal_id?: string;
+  reversible?: boolean;
+  overridden_by?: string;
+  created_at: string;
+}
+
+/** Trust attached to a published report. Mirrors the `hsin_trust_publications` table. */
+export interface HsinTrustPublicationRecord {
+  id: string;
+  entity_type?: TrustEntityType;
+  entity_id?: string;
+  report_type?: TrustReportType;
+  /** 0..1 stated confidence. */
+  confidence?: number;
+  /** 0..1 calibrated reliability. */
+  calibrated_reliability?: number;
+  /** 0..100 trust score. */
+  trust_score?: number;
+  /** Trust provenance (jsonb). */
+  provenance?: Record<string, unknown>;
+  published_by?: string;
+  published_at?: string;
+  created_at: string;
+}
+
+/** One enumerated factor behind a trust score (serializable provenance). */
+export interface TrustProvenanceFactorView {
+  name: string;
+  value: number;
+  weight: number;
+  contribution: number;
+  present: boolean;
+  detail: string;
+}
+
+/** A serializable trust EXPLANATION (provenance). Mirrors the engine TrustExplanation. */
+export interface TrustProvenanceView {
+  entityType: TrustEntityType;
+  entityId: string;
+  score: number;
+  band: TrustBand;
+  factors: TrustProvenanceFactorView[];
+  weights: Record<string, number>;
+  limitations: string[];
+  history: { trustScore: number; at: string }[];
+  trend?: {
+    trend: TrustTrend;
+    delta: number;
+    slope: number;
+    mean: number;
+    volatility: number;
+    sampleCount: number;
+    explanation: string;
+  };
+  summary: string;
+  generatedAt: string;
+}
+
+/** A single entity's trust-history view: its snapshots, trend, and latest drift. */
+export interface TrustHistoryView {
+  entityType: TrustEntityType;
+  entityId: string;
+  snapshots: HsinTrustHistoryRecord[];
+  trend?: {
+    trend: TrustTrend;
+    delta: number;
+    slope: number;
+    mean: number;
+    volatility: number;
+    sampleCount: number;
+    first: number;
+    last: number;
+    explanation: string;
+    limitations: string[];
+  };
+  drift?: HsinTrustDriftRecord;
+  provenance?: TrustProvenanceView;
+}
+
+/** One row of the trust-history dashboard: an entity + its latest score, trend, and sparkline. */
+export interface TrustHistoryRow {
+  entityType: TrustEntityType;
+  entityId: string;
+  latestScore: number;
+  band: TrustBand;
+  trend: TrustTrend;
+  delta: number;
+  snapshotCount: number;
+  sparkline: { trustScore: number; at: string }[];
+  lastUpdated?: string;
+}
+
+/** The trust-history dashboard: per-entity rows + the drift timeline. */
+export interface TrustHistoryDashboardData {
+  rows: TrustHistoryRow[];
+  drift: HsinTrustDriftRecord[];
+  /** Counts of each trend across all rows. */
+  trendCounts: Record<TrustTrend, number>;
+}
+
+/** One entry on the PUBLIC trust surface (transparent, no black-box scores). */
+export interface PublicTrustEntry {
+  entityType: TrustEntityType;
+  entityId: string;
+  /** 0..100 trust score. */
+  trustScore: number;
+  band: TrustBand;
+  /** 0..1 reliability (calibration-derived). */
+  reliability: number;
+  /** 0..1 calibration quality. */
+  calibrationQuality: number;
+  /** 0..1 outcome accuracy. */
+  outcomeAccuracy: number;
+  /** 0..1 evidence quality. */
+  evidenceQuality: number;
+  /** Count of governance actions in this entity's history. */
+  governanceHistoryCount: number;
+  trend?: TrustTrend;
+  provenance?: TrustProvenanceView;
+}
+
+/** The public trust surface: every entity, transparently. */
+export interface PublicTrustData {
+  entries: PublicTrustEntry[];
+}
+
+/** The recalibration proposal queue. */
+export interface RecalibrationQueueData {
+  proposals: HsinRecalibrationProposalRecord[];
+  pendingCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+}
+
+/** A single recalibration proposal with its review summary + decision history. */
+export interface RecalibrationProposalView {
+  proposal: HsinRecalibrationProposalRecord;
+  /** Non-mutating review summary (validity + checks + guidance). */
+  review: {
+    valid: boolean;
+    direction: RecalibrationDirection;
+    confidenceDelta: number;
+    severity: TrustSeverity;
+    checks: { label: string; ok: boolean; detail: string }[];
+    recommendation: string;
+    summary: string;
+  };
+  /** The append-only governance decisions over this proposal. */
+  reviews: HsinRecalibrationReviewRecord[];
+}
+
+/** The trust-drift dashboard: drift events + breakdowns. */
+export interface TrustDriftDashboardData {
+  events: HsinTrustDriftRecord[];
+  bySeverity: Record<TrustSeverity, number>;
+  byKind: Record<TrustDriftKind, number>;
+}
+
+/** Headline Phase-17 trust-governance callouts. */
+export interface TrustGovernanceHighlights {
+  /** Entities whose trust is degrading or collapsing. */
+  degradingCount?: number;
+  /** Open (pending) recalibration proposals. */
+  pendingProposals?: number;
+  /** Drift events in the most recent scan. */
+  driftEvents?: number;
+  /** Average trust score across tracked entities. */
+  avgTrust?: number;
+}

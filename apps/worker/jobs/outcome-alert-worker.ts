@@ -79,6 +79,7 @@ import {
   type TrustScore as CbTrustScore,
 } from '@hsi/calibration-engine';
 import { createServiceRoleClient } from '@hsi/database';
+import { runTrustMonitoringStage, type TrustMonitorResult } from './trust-monitor';
 import { logger } from '../src/logger';
 import type { Job, JobContext, JobResult } from './types';
 
@@ -255,6 +256,8 @@ export function makeOutcomeAlertWorkerJob(
         brier: number;
         driftKind: CbConfidenceDriftResult['kind'];
       } | null = null;
+      // Phase-17 trust-monitoring result surfaced into the ICM OUTPUT summary.
+      let trustMonitor: TrustMonitorResult | null = null;
 
       // ---- Stage 1: LEARN (fold this batch onto the prior learning rows) -----
       try {
@@ -324,6 +327,25 @@ export function makeOutcomeAlertWorkerJob(
         });
       }
 
+      // ---- Stage 5: TRUST MONITORING (Phase-17; fault-isolated; never throws) -
+      // Record append-only trust history, detect drift, raise recalibration
+      // PROPOSALS (proposal only — never applied), and the four NEW advisory alert
+      // types. Self-contained + offline-safe; `now` is injected. NEVER auto-acts.
+      try {
+        trustMonitor = await runTrustMonitoringStage(now);
+        logger.info('job.outcomeAlert.trustMonitor', {
+          ...trustMonitor,
+          // BINDING: never changes trust, never decides a proposal, never resolves.
+          autoApplied: false,
+          autoResolved: false,
+        });
+      } catch (e) {
+        stageErrors.trustMonitor = e instanceof Error ? e.message : String(e);
+        logger.warn('job.outcomeAlert.trustMonitorFailed', {
+          error: stageErrors.trustMonitor,
+        });
+      }
+
       const summary = {
         computed: {
           alerts: outputs.alerts.length,
@@ -335,6 +357,8 @@ export function makeOutcomeAlertWorkerJob(
             outputs.calibrationAlerts,
           ),
           calibration: calibrationMetrics,
+          // Phase-17 trust-monitoring outputs.
+          trustMonitor,
         },
         persisted,
         stageErrors,

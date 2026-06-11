@@ -77,6 +77,9 @@ importers:
       '@hsi/outcome-intelligence':
         specifier: workspace:*
         version: link:../../packages/outcome-intelligence
+      '@hsi/recalibration-engine':
+        specifier: workspace:*
+        version: link:../../packages/recalibration-engine
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../../packages/research-agents
@@ -98,6 +101,9 @@ importers:
       '@hsi/timeline-engine':
         specifier: workspace:*
         version: link:../../packages/timeline-engine
+      '@hsi/trust-history':
+        specifier: workspace:*
+        version: link:../../packages/trust-history
       '@hsi/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -183,6 +189,9 @@ importers:
       '@hsi/outcome-intelligence':
         specifier: workspace:*
         version: link:../../packages/outcome-intelligence
+      '@hsi/recalibration-engine':
+        specifier: workspace:*
+        version: link:../../packages/recalibration-engine
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../../packages/research-agents
@@ -204,6 +213,9 @@ importers:
       '@hsi/traceability':
         specifier: workspace:*
         version: link:../../packages/traceability
+      '@hsi/trust-history':
+        specifier: workspace:*
+        version: link:../../packages/trust-history
       '@supabase/supabase-js':
         specifier: ^2.0.0
         version: 2.107.0
@@ -354,6 +366,19 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/recalibration-engine:
+    dependencies:
+      '@hsi/calibration-engine':
+        specifier: workspace:*
+        version: link:../calibration-engine
+      '@hsi/trust-history':
+        specifier: workspace:*
+        version: link:../trust-history
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/research-agents:
     dependencies:
       '@hsi/simulation-engine':
@@ -430,6 +455,16 @@ importers:
         version: 5.9.3
 
   packages/traceability: {}
+
+  packages/trust-history:
+    dependencies:
+      '@hsi/calibration-engine':
+        specifier: workspace:*
+        version: link:../calibration-engine
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
   packages/ui:
     dependencies:

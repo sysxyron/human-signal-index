@@ -1,0 +1,14 @@
+{
+  "name": "@hsi/recalibration-engine",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@hsi/calibration-engine": "workspace:*",
+    "@hsi/trust-history": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

@@ -55,6 +55,10 @@ import type { CalibrationHighlights } from '@hsi/shared-types';
 import { getCalibrationHighlightsAction } from '@/lib/calibration/actions';
 import { demoCalibrationHighlights } from '@/lib/calibration/view';
 import { CalibrationHighlightCards } from '@/components/calibration/CalibrationHighlightCards';
+import type { TrustGovernanceHighlights } from '@hsi/shared-types';
+import { getTrustGovernanceHighlightsAction } from '@/lib/trust/actions';
+import { demoTrustGovernanceHighlights } from '@/lib/trust/view';
+import { TrustGovernanceHighlightCards } from '@/components/trust/TrustGovernanceHighlightCards';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import {
   canOperate,
@@ -236,6 +240,22 @@ export default async function OperationsPage({
     calibrationHighlights = null;
   }
 
+  // ADDITIVE (Phase 17): a defensive trust-&-governance highlights strip. A
+  // failure here must never break the operations page — on any error we hide it.
+  let trustGovernanceHighlights: TrustGovernanceHighlights | null = null;
+  let trustGovernanceDemoLabeled = false;
+  try {
+    const tgRes = await getTrustGovernanceHighlightsAction();
+    if (tgRes.ok) {
+      trustGovernanceHighlights = tgRes.data;
+    } else if (tgRes.code === 'NOT_CONFIGURED') {
+      trustGovernanceHighlights = demoTrustGovernanceHighlights();
+      trustGovernanceDemoLabeled = true;
+    }
+  } catch {
+    trustGovernanceHighlights = null;
+  }
+
   // Resolve the overview: live, demo (NOT_CONFIGURED), or a real error.
   let overview: OperationsOverview | null = null;
   let isDemo = false;
@@ -369,6 +389,14 @@ export default async function OperationsPage({
           <CalibrationHighlightCards
             highlights={calibrationHighlights}
             demo={calibrationDemoLabeled}
+          />
+        ) : null}
+
+        {/* ADDITIVE (Phase 17): trust-&-governance highlights strip. */}
+        {trustGovernanceHighlights ? (
+          <TrustGovernanceHighlightCards
+            highlights={trustGovernanceHighlights}
+            demo={trustGovernanceDemoLabeled}
           />
         ) : null}
 
