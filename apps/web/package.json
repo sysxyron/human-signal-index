@@ -12,6 +12,8 @@
     "@hsi/calibration-engine": "workspace:*",
     "@hsi/trust-history": "workspace:*",
     "@hsi/recalibration-engine": "workspace:*",
+    "@hsi/intelligence-queue": "workspace:*",
+    "@hsi/research-orchestrator": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

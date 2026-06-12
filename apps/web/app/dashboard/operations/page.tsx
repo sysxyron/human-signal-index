@@ -59,6 +59,10 @@ import type { TrustGovernanceHighlights } from '@hsi/shared-types';
 import { getTrustGovernanceHighlightsAction } from '@/lib/trust/actions';
 import { demoTrustGovernanceHighlights } from '@/lib/trust/view';
 import { TrustGovernanceHighlightCards } from '@/components/trust/TrustGovernanceHighlightCards';
+import type { OperationsHighlights } from '@hsi/shared-types';
+import { getOperationsHighlightsAction } from '@/lib/orchestration/actions';
+import { demoOperationsHighlights } from '@/lib/orchestration/view';
+import { OperationsHighlightCards } from '@/components/intelligence/OperationsHighlightCards';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import {
   canOperate,
@@ -256,6 +260,22 @@ export default async function OperationsPage({
     trustGovernanceHighlights = null;
   }
 
+  // ADDITIVE (Phase 18): a defensive operations-center highlights strip. A
+  // failure here must never break the operations page — on any error we hide it.
+  let operationsHighlights: OperationsHighlights | null = null;
+  let operationsDemoLabeled = false;
+  try {
+    const opRes = await getOperationsHighlightsAction();
+    if (opRes.ok) {
+      operationsHighlights = opRes.data;
+    } else if (opRes.code === 'NOT_CONFIGURED') {
+      operationsHighlights = demoOperationsHighlights();
+      operationsDemoLabeled = true;
+    }
+  } catch {
+    operationsHighlights = null;
+  }
+
   // Resolve the overview: live, demo (NOT_CONFIGURED), or a real error.
   let overview: OperationsOverview | null = null;
   let isDemo = false;
@@ -397,6 +417,14 @@ export default async function OperationsPage({
           <TrustGovernanceHighlightCards
             highlights={trustGovernanceHighlights}
             demo={trustGovernanceDemoLabeled}
+          />
+        ) : null}
+
+        {/* ADDITIVE (Phase 18): operations-center highlights strip. */}
+        {operationsHighlights ? (
+          <OperationsHighlightCards
+            highlights={operationsHighlights}
+            demo={operationsDemoLabeled}
           />
         ) : null}
 
