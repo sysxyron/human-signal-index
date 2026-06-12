@@ -59,6 +59,12 @@ importers:
       '@hsi/causal-intelligence':
         specifier: workspace:*
         version: link:../../packages/causal-intelligence
+      '@hsi/collective-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/collective-intelligence
+      '@hsi/consensus-engine':
+        specifier: workspace:*
+        version: link:../../packages/consensus-engine
       '@hsi/counterfactual-engine':
         specifier: workspace:*
         version: link:../../packages/counterfactual-engine
@@ -183,9 +189,15 @@ importers:
       '@hsi/classifiers':
         specifier: workspace:*
         version: link:../../packages/classifiers
+      '@hsi/collective-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/collective-intelligence
       '@hsi/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@hsi/consensus-engine':
+        specifier: workspace:*
+        version: link:../../packages/consensus-engine
       '@hsi/counterfactual-engine':
         specifier: workspace:*
         version: link:../../packages/counterfactual-engine
@@ -297,11 +309,27 @@ importers:
 
   packages/classifiers: {}
 
+  packages/collective-intelligence:
+    dependencies:
+      '@hsi/consensus-engine':
+        specifier: workspace:*
+        version: link:../consensus-engine
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/config:
     dependencies:
       zod:
         specifier: ^3.23.2
         version: 3.25.76
+
+  packages/consensus-engine:
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
   packages/counterfactual-engine:
     dependencies:

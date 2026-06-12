@@ -3890,3 +3890,241 @@ export interface PublishingHighlights {
   retractions?: number;
   subscribers?: number;
 }
+
+// =============================================================================
+// Collective Intelligence Network, Peer Review & Consensus Engine — Phase 20
+//
+// Serializable mirrors of the Phase 20 persistence (migration 0024): the
+// COLLABORATION layer (investigations + findings + challenges + alternative
+// narratives + endorsements + evidence claims/reviews), the CONSENSUS layer
+// (append-only snapshots + governance reviews), and the CONTRIBUTOR reputation
+// layer — plus the view-models for the investigations, consensus, contributors,
+// and debates dashboards. Weighted consensus is a CANDIDATE, never truth; every
+// acceptance is a human governance decision.
+// =============================================================================
+
+/** Investigation lifecycle state. Mirrors hsin_investigations.state. */
+export type InvestigationState =
+  | 'DRAFT' | 'ACTIVE' | 'UNDER_REVIEW' | 'CONSENSUS_FORMING' | 'PUBLISHED' | 'ARCHIVED';
+
+/** Challenge status. */
+export type ChallengeStatus = 'open' | 'upheld' | 'rejected';
+
+/** Governance decision over a forming consensus. */
+export type ConsensusDecision = 'approved' | 'rejected' | 'escalated' | 'archived';
+
+/** An investigation. Mirrors hsin_investigations. */
+export interface HsinInvestigationRecord {
+  id: string;
+  slug?: string;
+  title?: string;
+  question?: string;
+  state?: InvestigationState;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A finding. Mirrors hsin_findings. */
+export interface HsinFindingRecord {
+  id: string;
+  investigation_id?: string;
+  contributor_id?: string;
+  position?: string;
+  summary?: string;
+  confidence?: number;
+  evidence_refs?: Record<string, unknown> | string[];
+  endorsements?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A challenge. Mirrors hsin_challenges. */
+export interface HsinChallengeRecord {
+  id: string;
+  investigation_id?: string;
+  target_finding_id?: string;
+  contributor_id?: string;
+  reason?: string;
+  status?: ChallengeStatus;
+  resolved_by?: string;
+  resolved_at?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An alternative narrative. Mirrors hsin_alternative_narratives. */
+export interface HsinAlternativeNarrativeRecord {
+  id: string;
+  investigation_id?: string;
+  contributor_id?: string;
+  title?: string;
+  summary?: string;
+  position?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An endorsement. Mirrors hsin_endorsements. */
+export interface HsinEndorsementRecord {
+  id: string;
+  finding_id?: string;
+  contributor_id?: string;
+  withdrawn?: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An evidence claim. Mirrors hsin_evidence_claims. */
+export interface HsinEvidenceClaimRecord {
+  id: string;
+  investigation_id?: string;
+  contributor_id?: string;
+  claim?: string;
+  source_ref?: string;
+  source_quality?: number;
+  support_count?: number;
+  challenge_count?: number;
+  reviews_approved?: number;
+  reviews_rejected?: number;
+  strength?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An evidence review. Mirrors hsin_evidence_reviews. */
+export interface HsinEvidenceReviewRecord {
+  id: string;
+  evidence_claim_id?: string;
+  reviewer_id?: string;
+  decision?: 'approved' | 'rejected';
+  reason?: string;
+  created_at: string;
+}
+
+/** A consensus snapshot. Mirrors hsin_consensus_snapshots. */
+export interface HsinConsensusSnapshotRecord {
+  id: string;
+  investigation_id?: string;
+  consensus_position?: string;
+  agreement_score?: number;
+  evidence_strength?: number;
+  confidence?: number;
+  positions?: Record<string, unknown> | unknown[];
+  dissent_positions?: Record<string, unknown> | unknown[];
+  confidence_distribution?: Record<string, unknown> | unknown[];
+  sample_count?: number;
+  contributor_count?: number;
+  explanation?: Record<string, unknown> | string[];
+  limitations?: Record<string, unknown> | string[];
+  generated_at?: string;
+  created_at: string;
+}
+
+/** A consensus governance review. Mirrors hsin_consensus_reviews. */
+export interface HsinConsensusReviewRecord {
+  id: string;
+  investigation_id?: string;
+  snapshot_id?: string;
+  reviewer_id?: string;
+  decision?: ConsensusDecision;
+  reason?: string;
+  consensus_position?: string;
+  agreement_score?: number;
+  resulting_state?: string;
+  created_at: string;
+}
+
+/** A contributor score. Mirrors hsin_contributor_scores. */
+export interface HsinContributorScoreRecord {
+  id: string;
+  contributor_id?: string;
+  accuracy?: number;
+  trust?: number;
+  review_quality?: number;
+  consensus_alignment?: number;
+  evidence_quality?: number;
+  overall?: number;
+  explanation?: Record<string, unknown> | string[];
+  limitations?: Record<string, unknown> | string[];
+  computed_at?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** One row of the investigations board. */
+export interface InvestigationBoardRow {
+  id: string;
+  slug: string;
+  title: string;
+  question: string;
+  state: InvestigationState;
+  findingCount: number;
+  challengeCount: number;
+  contributorCount: number;
+  contentiousness: number;
+  consensusPosition?: string;
+  agreementScore?: number;
+  updatedAt?: string;
+}
+
+/** The investigations dashboard. */
+export interface InvestigationsBoardData {
+  rows: InvestigationBoardRow[];
+  byState: Record<string, number>;
+}
+
+/** A single investigation detail view. */
+export interface InvestigationDetailData {
+  investigation: HsinInvestigationRecord;
+  findings: HsinFindingRecord[];
+  challenges: HsinChallengeRecord[];
+  alternatives: HsinAlternativeNarrativeRecord[];
+  evidenceClaims: HsinEvidenceClaimRecord[];
+  snapshot?: HsinConsensusSnapshotRecord;
+  metrics: {
+    findingCount: number;
+    challengeCount: number;
+    openChallengeCount: number;
+    alternativeCount: number;
+    endorsementCount: number;
+    contributorCount: number;
+    contentiousness: number;
+    activityScore: number;
+  };
+  progress: number;
+}
+
+/** The consensus dashboard (list). */
+export interface ConsensusBoardData {
+  snapshots: HsinConsensusSnapshotRecord[];
+  reviews: HsinConsensusReviewRecord[];
+}
+
+/** A single consensus detail view. */
+export interface ConsensusDetailData {
+  investigation: HsinInvestigationRecord;
+  snapshot?: HsinConsensusSnapshotRecord;
+  reviews: HsinConsensusReviewRecord[];
+}
+
+/** The contributors leaderboard. */
+export interface ContributorsBoardData {
+  scores: HsinContributorScoreRecord[];
+}
+
+/** The debates dashboard (evidence under contention). */
+export interface DebatesBoardData {
+  claims: HsinEvidenceClaimRecord[];
+  challenges: HsinChallengeRecord[];
+}
+
+/** Headline collective-intelligence callouts (operations strip). */
+export interface CollectiveHighlights {
+  activeInvestigations?: number;
+  consensusForming?: number;
+  majorDisputes?: number;
+  pendingGovernance?: number;
+  highTrustContributors?: number;
+  highImpactInvestigations?: number;
+}

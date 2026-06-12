@@ -32,6 +32,10 @@ import {
 } from '@/components/intelligence/panels';
 import { DemoBadge } from '@/components/signals/badges';
 import { ErrorState, OfflineDemoBanner, type DbErrorCode } from '@/components/signals/states';
+import type { CollectiveHighlights } from '@hsi/shared-types';
+import { getCollectiveHighlightsAction } from '@/lib/collective/actions';
+import { demoCollectiveHighlights } from '@/lib/collective/view';
+import { CollectiveHighlightCards } from '@/components/collective/CollectiveHighlightCards';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -56,6 +60,21 @@ export default async function OperationsPage() {
   } else errored = { message: res.error, code: res.code };
 
   const forbidden = !isDemo && res.ok && !mayView;
+
+  // ADDITIVE (Phase 20): a defensive collective-intelligence highlights strip.
+  let collectiveHighlights: CollectiveHighlights | null = null;
+  let collectiveDemoLabeled = false;
+  try {
+    const colRes = await getCollectiveHighlightsAction();
+    if (colRes.ok) {
+      collectiveHighlights = colRes.data;
+    } else if (colRes.code === 'NOT_CONFIGURED') {
+      collectiveHighlights = demoCollectiveHighlights();
+      collectiveDemoLabeled = true;
+    }
+  } catch {
+    collectiveHighlights = null;
+  }
 
   return (
     <>
@@ -103,6 +122,11 @@ export default async function OperationsPage() {
           <Card className="border-border" padded>
             <CreateRunControl action={createResearchRunAction} canCreate={mayCreate} demo={isDemo} />
           </Card>
+        ) : null}
+
+        {/* ADDITIVE (Phase 20): collective-intelligence highlights strip. */}
+        {collectiveHighlights ? (
+          <CollectiveHighlightCards highlights={collectiveHighlights} demo={collectiveDemoLabeled} />
         ) : null}
 
         {forbidden ? (

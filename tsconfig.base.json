@@ -41,7 +41,9 @@
       "@hsi/intelligence-queue": ["packages/intelligence-queue/src"],
       "@hsi/research-orchestrator": ["packages/research-orchestrator/src"],
       "@hsi/publishing-engine": ["packages/publishing-engine/src"],
-      "@hsi/distribution-engine": ["packages/distribution-engine/src"]
+      "@hsi/distribution-engine": ["packages/distribution-engine/src"],
+      "@hsi/consensus-engine": ["packages/consensus-engine/src"],
+      "@hsi/collective-intelligence": ["packages/collective-intelligence/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

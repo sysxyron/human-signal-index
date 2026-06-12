@@ -16,6 +16,8 @@
     "@hsi/research-orchestrator": "workspace:*",
     "@hsi/publishing-engine": "workspace:*",
     "@hsi/distribution-engine": "workspace:*",
+    "@hsi/consensus-engine": "workspace:*",
+    "@hsi/collective-intelligence": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

@@ -30,6 +30,8 @@
     "@hsi/research-orchestrator": "workspace:*",
     "@hsi/publishing-engine": "workspace:*",
     "@hsi/distribution-engine": "workspace:*",
+    "@hsi/consensus-engine": "workspace:*",
+    "@hsi/collective-intelligence": "workspace:*",
     "@hsi/scheduler": "workspace:*",
     "@supabase/supabase-js": "^2.0.0",
     "dotenv": "^16.3.0",
