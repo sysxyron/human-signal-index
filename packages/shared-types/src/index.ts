@@ -4361,3 +4361,187 @@ export interface ForecastingHighlights {
   forecastAccuracy?: number;
   confidenceDrift?: number;
 }
+
+// =============================================================================
+// Executive Command Center & Strategic Intelligence OS — Phase 22
+//
+// Serializable mirrors of the Phase 22 persistence (migration 0026): the COMMAND
+// layer that OPERATES Phases 1-21. Snapshots + priorities + briefs + reviews +
+// reports + decisions. This phase creates NO new intelligence — it ranks
+// attention and surfaces signals. Every record is ADVISORY; every decision is
+// HUMAN (reviewer + reason required, reversible, audit-logged). Nothing auto-acts.
+// =============================================================================
+
+/** Executive attention / priority bucket. Mirrors @hsi/executive-intelligence AttentionLevel. */
+export type ExecutiveAttentionLevel = 'routine' | 'notable' | 'elevated' | 'urgent';
+/** The kind of thing an executive priority points at. */
+export type ExecutivePriorityKind =
+  | 'risk' | 'opportunity' | 'investigation' | 'forecast'
+  | 'warning' | 'governance' | 'consensus' | 'trust';
+/** Executive severity for risks / governance items. */
+export type ExecutiveSeverityLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+/** Executive brief kind. */
+export type ExecutiveBriefKind = 'daily' | 'weekly' | 'critical' | 'governance' | 'forecast' | 'operations';
+/** Executive review lifecycle status. */
+export type ExecutiveReviewStatus = 'queued' | 'approved' | 'rejected' | 'archived';
+/** Executive decision type. */
+export type ExecutiveDecisionKind = 'approved' | 'rejected' | 'archived';
+
+/** A persisted executive snapshot. Mirrors hsin_executive_snapshots. */
+export interface HsinExecutiveSnapshotRecord {
+  id: string;
+  attention_index?: number;
+  attention_level?: ExecutiveAttentionLevel | string;
+  overall_health?: string;
+  executive_summary?: string;
+  /** Full ExecutiveSnapshot JSON. */
+  snapshot?: Record<string, unknown>;
+  priority_count?: number;
+  risk_count?: number;
+  opportunity_count?: number;
+  governance_count?: number;
+  limitations?: Record<string, unknown> | string[];
+  generated_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A persisted strategic priority. Mirrors hsin_executive_priorities. */
+export interface HsinExecutivePriorityRecord {
+  id: string;
+  snapshot_id?: string;
+  ref_id?: string;
+  kind?: ExecutivePriorityKind | string;
+  title?: string;
+  score?: number;
+  rank?: number;
+  urgency?: number;
+  impact?: number;
+  attention_level?: ExecutiveAttentionLevel | string;
+  recommendation?: string;
+  explanation?: Record<string, unknown> | string[];
+  limitations?: Record<string, unknown> | string[];
+  entity_ref?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A persisted executive brief. Mirrors hsin_executive_briefs. */
+export interface HsinExecutiveBriefRecord {
+  id: string;
+  kind?: ExecutiveBriefKind | string;
+  title?: string;
+  headline?: string;
+  /** Full BriefSection[] JSON. */
+  sections?: Record<string, unknown> | unknown[];
+  limitations?: Record<string, unknown> | string[];
+  generated_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A persisted executive review-queue item. Mirrors hsin_executive_reviews. */
+export interface HsinExecutiveReviewRecord {
+  id: string;
+  priority_id?: string;
+  title?: string;
+  kind?: ExecutivePriorityKind | string;
+  severity?: ExecutiveSeverityLevel | string;
+  status?: ExecutiveReviewStatus | string;
+  queued_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A persisted daily intelligence report. Mirrors hsin_executive_reports. */
+export interface HsinExecutiveReportRecord {
+  id: string;
+  snapshot_id?: string;
+  title?: string;
+  report_date?: string;
+  /** Full DailyIntelligenceReport JSON. */
+  report?: Record<string, unknown>;
+  top_risk_count?: number;
+  top_opportunity_count?: number;
+  generated_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A persisted human executive decision. Mirrors hsin_executive_decisions. */
+export interface HsinExecutiveDecisionRecord {
+  id: string;
+  review_id?: string;
+  priority_id?: string;
+  decision?: ExecutiveDecisionKind | string;
+  reviewer?: string;
+  reason?: string;
+  previous_status?: string;
+  reversible?: boolean;
+  audit_trail?: Record<string, unknown> | string[];
+  decided_at?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** The executive command-center dashboard view-model. */
+export interface ExecutiveCommandData {
+  snapshot: HsinExecutiveSnapshotRecord | null;
+  priorities: HsinExecutivePriorityRecord[];
+  attentionIndex: number;
+  attentionLevel: ExecutiveAttentionLevel | string;
+  executiveSummary: string;
+  riskCount: number;
+  opportunityCount: number;
+  governanceCount: number;
+  panels: {
+    forecasts: { active: number; failing: number; avgConfidence: number };
+    consensus: { forming: number; disputed: number };
+    operations: { health: string; activeRuns: number; escalations: number };
+  };
+}
+
+/** The priorities board view-model. */
+export interface ExecutivePrioritiesData {
+  priorities: HsinExecutivePriorityRecord[];
+  byKind: Record<string, number>;
+  byAttention: Record<string, number>;
+}
+
+/** The risks / opportunities board view-models. */
+export interface ExecutiveRisksData {
+  risks: { id: string; title: string; source: string; severity: ExecutiveSeverityLevel; score: number; recommendation: string }[];
+  bySeverity: Record<string, number>;
+}
+export interface ExecutiveOpportunitiesData {
+  opportunities: { id: string; title: string; source: string; score: number; recommendation: string }[];
+  bySource: Record<string, number>;
+}
+
+/** The briefings view-model. */
+export interface ExecutiveBriefingsData {
+  briefs: HsinExecutiveBriefRecord[];
+  latestDaily: HsinExecutiveBriefRecord | null;
+}
+
+/** The executive governance queue view-model. */
+export interface ExecutiveGovernanceData {
+  reviews: HsinExecutiveReviewRecord[];
+  decisions: HsinExecutiveDecisionRecord[];
+  byStatus: Record<string, number>;
+}
+
+/** Headline executive callouts (operations strip). */
+export interface ExecutiveHighlights {
+  attentionIndex?: number;
+  attentionLevel?: string;
+  topPriorities?: number;
+  openRisks?: number;
+  openOpportunities?: number;
+  governancePending?: number;
+  dailyBriefReady?: boolean;
+}

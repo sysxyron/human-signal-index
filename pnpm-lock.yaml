@@ -83,6 +83,9 @@ importers:
       '@hsi/evidence-engine':
         specifier: workspace:*
         version: link:../../packages/evidence-engine
+      '@hsi/executive-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/executive-intelligence
       '@hsi/forecast-engine':
         specifier: workspace:*
         version: link:../../packages/forecast-engine
@@ -219,6 +222,9 @@ importers:
       '@hsi/evidence-engine':
         specifier: workspace:*
         version: link:../../packages/evidence-engine
+      '@hsi/executive-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/executive-intelligence
       '@hsi/forecast-engine':
         specifier: workspace:*
         version: link:../../packages/forecast-engine
@@ -422,6 +428,12 @@ importers:
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../research-agents
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/executive-intelligence:
     devDependencies:
       typescript:
         specifier: ^5.6.0

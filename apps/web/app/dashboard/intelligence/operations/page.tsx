@@ -36,10 +36,13 @@ import type { CollectiveHighlights } from '@hsi/shared-types';
 import { getCollectiveHighlightsAction } from '@/lib/collective/actions';
 import { demoCollectiveHighlights } from '@/lib/collective/view';
 import { CollectiveHighlightCards } from '@/components/collective/CollectiveHighlightCards';
-import type { ForecastingHighlights } from '@hsi/shared-types';
+import type { ForecastingHighlights, ExecutiveHighlights } from '@hsi/shared-types';
 import { getForecastingHighlightsAction } from '@/lib/forecasting/actions';
 import { demoForecastingHighlights } from '@/lib/forecasting/view';
 import { ForecastingHighlightCards } from '@/components/forecasting/ForecastingHighlightCards';
+import { getExecutiveHighlightsAction } from '@/lib/executive/actions';
+import { demoExecutiveHighlights } from '@/lib/executive/view';
+import { ExecutiveHighlightCards } from '@/components/executive/ExecutiveHighlightCards';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -93,6 +96,21 @@ export default async function OperationsPage() {
     }
   } catch {
     forecastingHighlights = null;
+  }
+
+  // ADDITIVE (Phase 22): a defensive executive command-center highlights strip.
+  let executiveHighlights: ExecutiveHighlights | null = null;
+  let executiveDemoLabeled = false;
+  try {
+    const exRes = await getExecutiveHighlightsAction();
+    if (exRes.ok) {
+      executiveHighlights = exRes.data;
+    } else if (exRes.code === 'NOT_CONFIGURED') {
+      executiveHighlights = demoExecutiveHighlights();
+      executiveDemoLabeled = true;
+    }
+  } catch {
+    executiveHighlights = null;
   }
 
   return (
@@ -151,6 +169,11 @@ export default async function OperationsPage() {
         {/* ADDITIVE (Phase 21): forecasting highlights strip. */}
         {forecastingHighlights ? (
           <ForecastingHighlightCards highlights={forecastingHighlights} demo={forecastingDemoLabeled} />
+        ) : null}
+
+        {/* ADDITIVE (Phase 22): executive command-center highlights strip. */}
+        {executiveHighlights ? (
+          <ExecutiveHighlightCards highlights={executiveHighlights} demo={executiveDemoLabeled} />
         ) : null}
 
         {forbidden ? (

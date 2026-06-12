@@ -20,6 +20,7 @@
     "@hsi/collective-intelligence": "workspace:*",
     "@hsi/forecast-engine": "workspace:*",
     "@hsi/scenario-engine": "workspace:*",
+    "@hsi/executive-intelligence": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

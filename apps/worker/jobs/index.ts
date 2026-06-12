@@ -42,6 +42,8 @@ import { publishingWorkerJob } from './publishing-worker';
 import { consensusWorkerJob } from './consensus-worker';
 // HSI Phase 21 — forecasting / scenario / early-warning loop.
 import { forecastWorkerJob } from './forecast-worker';
+// HSI Phase 22 — executive command-center loop.
+import { executiveWorkerJob } from './executive-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -130,6 +132,12 @@ export * from './decision-worker';
 // makeOutcomeAlertWorkerJob, outcomeAlertWorkerJob) are distinct (e.g. its
 // OutcomeWorld vs the decision worker's DecisionWorld).
 export * from './outcome-alert-worker';
+// HSI Phase 22 exports. executive-worker IMPORTS the engine types under their
+// own names but re-exports NONE of the @hsi/executive-intelligence types, so the
+// engine's unaliased symbols never collide with prior jobs' `export *` above. Its
+// public names (ExecutiveWorkerResult, assembleUnifiedInputs, runExecutiveStage,
+// makeExecutiveWorkerJob, executiveWorkerJob) are distinct from every other job.
+export * from './executive-worker';
 
 /** All registered jobs, in pipeline order. */
 export const jobs: Job[] = [
@@ -205,6 +213,13 @@ export const jobs: Job[] = [
   // early warnings. Offline-safe (fixtures when service-role env is absent). NEVER
   // auto-predicts / auto-acts / auto-escalates / auto-publishes.
   forecastWorkerJob,
+  // HSI Phase 22 — the executive command-center loop (every 60 min, on the hour).
+  // Assembles the unified system state from every subsystem, ranks strategic
+  // priorities, scores risk + opportunity, computes executive attention, generates
+  // the briefs + daily report, and persists the snapshot. Offline-safe (fixtures
+  // when service-role env is absent). NEVER auto-publishes / auto-approves /
+  // auto-acts / auto-governs — every priority is advisory; every decision is human.
+  executiveWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));
