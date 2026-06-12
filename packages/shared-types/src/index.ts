@@ -3368,3 +3368,525 @@ export interface TrustGovernanceHighlights {
   /** Average trust score across tracked entities. */
   avgTrust?: number;
 }
+
+// =============================================================================
+// Autonomous Research Orchestration & Intelligence Operations Center — Phase 18
+//
+// Serializable mirrors of the Phase 18 persistence (migration 0022): research
+// runs + their append-only transition events + agent tasks, the durable priority
+// queue, proposed opportunities, escalations, agent assignments, and workflow
+// templates — plus the view-models that back the operations center, runs list,
+// run replay, health, opportunities, and escalations dashboards.
+//
+// The Intelligence Operations Center COORDINATES the Phase 1-17 engines. It is
+// NOT AGI: opportunities/escalations/overrides remain human-approved, auditable,
+// and reversible; nothing is auto-published or auto-acted.
+// =============================================================================
+
+/** A research-run lifecycle state. Mirrors the orchestrator state machine. */
+export type ResearchRunState =
+  | 'CREATED' | 'QUEUED' | 'DISCOVERING' | 'COLLECTING' | 'ANALYZING' | 'REASONING'
+  | 'EVIDENCING' | 'TEMPORAL' | 'CAUSAL' | 'COUNTERFACTUAL' | 'DECISION' | 'OUTCOME'
+  | 'CALIBRATION' | 'TRUST' | 'GOVERNANCE' | 'COMPLETE' | 'FAILED' | 'ESCALATED';
+
+/** Queue priority. */
+export type ResearchPriority = 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW';
+
+/** Queue item status. */
+export type ResearchQueueStatus =
+  | 'queued' | 'active' | 'completed' | 'failed' | 'cancelled' | 'retrying';
+
+/** The eight specialised research agents. */
+export type ResearchAgentType =
+  | 'research' | 'evidence' | 'temporal' | 'causal'
+  | 'counterfactual' | 'decision' | 'outcome' | 'trust';
+
+/** An agent task state. */
+export type ResearchTaskState = 'pending' | 'active' | 'completed' | 'failed' | 'blocked';
+
+/** Where a discovered opportunity came from. */
+export type OpportunitySource =
+  | 'signal' | 'evidence' | 'alert' | 'trust_drift' | 'outcome_failure' | 'narrative_spike';
+
+/** What triggered an escalation. */
+export type EscalationTrigger =
+  | 'repeated_failures' | 'trust_collapse' | 'calibration_drift'
+  | 'missing_evidence' | 'governance_backlog' | 'queue_blockage';
+
+/** Escalation / health severity. */
+export type EscalationSeverity = 'INFO' | 'WARNING' | 'HIGH' | 'CRITICAL';
+
+/** The ten monitored engines. */
+export type EngineName =
+  | 'research' | 'evidence' | 'temporal' | 'causal' | 'counterfactual'
+  | 'decision' | 'outcome' | 'calibration' | 'trust' | 'governance';
+
+/** Engine / agent health status. */
+export type EngineHealthStatus = 'HEALTHY' | 'DEGRADED' | 'DOWN';
+
+/** A research run. Mirrors the hsin_research_runs table. */
+export interface HsinResearchRunRecord {
+  id: string;
+  title?: string;
+  state?: ResearchRunState;
+  priority?: ResearchPriority;
+  workflow_key?: string;
+  opportunity_id?: string;
+  assigned_agents?: Record<string, unknown> | string[];
+  evidence_count?: number;
+  confidence?: number;
+  trust_score?: number;
+  outcome_status?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An append-only research-run transition event. Mirrors hsin_research_run_events. */
+export interface HsinResearchRunEventRecord {
+  id: string;
+  run_id?: string;
+  from_state?: string;
+  to_state?: string;
+  actor?: string;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+  at?: string;
+  created_at: string;
+}
+
+/** An agent task. Mirrors hsin_research_tasks. */
+export interface HsinResearchTaskRecord {
+  id: string;
+  run_id?: string;
+  task_key?: string;
+  agent_type?: ResearchAgentType;
+  stage?: string;
+  state?: ResearchTaskState;
+  attempts?: number;
+  max_attempts?: number;
+  runtime_ms?: number;
+  last_error?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A durable queue item. Mirrors hsin_research_queue. */
+export interface HsinResearchQueueRecord {
+  id: string;
+  run_id?: string;
+  priority?: ResearchPriority;
+  status?: ResearchQueueStatus;
+  attempts?: number;
+  max_attempts?: number;
+  available_at?: string;
+  enqueued_at?: string;
+  last_error?: string;
+  payload?: Record<string, unknown>;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A proposed research opportunity. Mirrors hsin_research_opportunities. */
+export interface HsinResearchOpportunityRecord {
+  id: string;
+  title?: string;
+  reason?: string;
+  confidence?: number;
+  priority?: ResearchPriority;
+  source?: OpportunitySource;
+  entity_id?: string;
+  status?: 'proposed' | 'accepted' | 'rejected';
+  reviewed_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A research escalation. Mirrors hsin_research_escalations. */
+export interface HsinResearchEscalationRecord {
+  id: string;
+  run_id?: string;
+  trigger?: EscalationTrigger;
+  severity?: EscalationSeverity;
+  reason?: string;
+  evidence?: Record<string, unknown> | string[];
+  recommendation?: string;
+  status?: 'open' | 'acknowledged' | 'resolved';
+  resolved_by?: string;
+  resolution?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An agent assignment. Mirrors hsin_agent_assignments. */
+export interface HsinAgentAssignmentRecord {
+  id: string;
+  run_id?: string;
+  task_id?: string;
+  agent_type?: ResearchAgentType;
+  stage?: string;
+  assigned_at?: string;
+  created_at: string;
+}
+
+/** A workflow template. Mirrors hsin_workflow_templates. */
+export interface HsinWorkflowTemplateRecord {
+  id: string;
+  template_key?: string;
+  name?: string;
+  description?: string;
+  stages?: Record<string, unknown> | string[];
+  required_agents?: Record<string, unknown> | string[];
+  required_evidence?: number;
+  governance_required?: boolean;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** One engine health snapshot (view-model). */
+export interface EngineHealthView {
+  engine: EngineName;
+  status: EngineHealthStatus;
+  lastRun?: string;
+  successRate: number;
+  failureRate: number;
+  queueDepth: number;
+  detail: string;
+}
+
+/** Per-agent performance rollup (view-model). */
+export interface AgentPerformanceView {
+  agentType: ResearchAgentType;
+  status: EngineHealthStatus;
+  active: number;
+  completed: number;
+  failed: number;
+  blocked: number;
+  avgRuntimeMs: number;
+  successRate: number;
+}
+
+/** The operations center dashboard: every widget in one payload. */
+export interface OperationsDashboardData {
+  runsByState: Record<string, number>;
+  activeRuns: HsinResearchRunRecord[];
+  queue: HsinResearchQueueRecord[];
+  queueDepth: number;
+  opportunities: HsinResearchOpportunityRecord[];
+  escalations: HsinResearchEscalationRecord[];
+  health: EngineHealthView[];
+  overallStatus: EngineHealthStatus;
+  agentPerformance: AgentPerformanceView[];
+  recentFailures: HsinResearchRunRecord[];
+  governanceBacklog: number;
+  avgTrust?: number;
+}
+
+/** The runs list dashboard. */
+export interface ResearchRunsData {
+  runs: HsinResearchRunRecord[];
+  byState: Record<string, number>;
+}
+
+/** A single research run replay: run + event timeline + tasks + assignments. */
+export interface ResearchRunReplayData {
+  run: HsinResearchRunRecord;
+  events: HsinResearchRunEventRecord[];
+  tasks: HsinResearchTaskRecord[];
+  assignments: HsinAgentAssignmentRecord[];
+  escalations: HsinResearchEscalationRecord[];
+  queue?: HsinResearchQueueRecord;
+  progress: number;
+}
+
+/** The health dashboard. */
+export interface PlatformHealthData {
+  health: EngineHealthView[];
+  overallStatus: EngineHealthStatus;
+  agentPerformance: AgentPerformanceView[];
+}
+
+/** The opportunities dashboard. */
+export interface OpportunitiesData {
+  opportunities: HsinResearchOpportunityRecord[];
+  proposedCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+}
+
+/** The escalations dashboard. */
+export interface EscalationsData {
+  escalations: HsinResearchEscalationRecord[];
+  bySeverity: Record<EscalationSeverity, number>;
+  openCount: number;
+}
+
+/** Headline operations callouts. */
+export interface OperationsHighlights {
+  activeRuns?: number;
+  queueDepth?: number;
+  openEscalations?: number;
+  proposedOpportunities?: number;
+  overallStatus?: EngineHealthStatus;
+}
+
+// =============================================================================
+// Public Intelligence Publishing, Subscriber Network & Distribution — Phase 19
+//
+// Serializable mirrors of the Phase 19 persistence (migration 0023): the
+// PUBLICATION layer (publications + append-only versions/reviews/retractions),
+// the SUBSCRIBER layer (subscribers + preferences), and the DISTRIBUTION layer
+// (digest runs + distribution events) + topic pages — plus the view-models that
+// back the public intelligence portal, a publication page, topic pages, search,
+// the subscribe flow, and the publishing dashboard.
+//
+// Publishing stays human-approved, governed, auditable, and reversible. Only
+// PUBLISHED/RETRACTED publications are world-readable; nothing auto-publishes.
+// =============================================================================
+
+/** The publication lifecycle state. Mirrors hsin_publications.state. */
+export type PublicationState =
+  | 'DRAFT' | 'UNDER_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'ARCHIVED' | 'RETRACTED';
+
+/** Subscriber tier. */
+export type SubscriberType = 'FREE' | 'RESEARCHER' | 'ANALYST' | 'ORGANIZATION';
+
+/** Digest cadence. */
+export type DigestFrequency = 'none' | 'daily' | 'weekly';
+
+/** Delivery channel. */
+export type DeliveryChannel = 'email' | 'rss' | 'json' | 'webhook';
+
+/** Why a publication was retracted. */
+export type RetractionReason =
+  | 'evidence_error' | 'trust_collapse' | 'governance_decision' | 'data_quality_issue' | 'methodology_issue';
+
+/** The kinds of change a digest surfaces. */
+export type DigestItemKind =
+  | 'new_report' | 'updated_report' | 'trust_change' | 'governance_action'
+  | 'research_opportunity' | 'escalation' | 'outcome_change';
+
+/** A publication. Mirrors hsin_publications. */
+export interface HsinPublicationRecord {
+  id: string;
+  slug?: string;
+  title?: string;
+  summary?: string;
+  state?: PublicationState;
+  run_id?: string;
+  trust_score?: number;
+  confidence?: number;
+  evidence_count?: number;
+  source_count?: number;
+  categories?: Record<string, unknown> | string[];
+  topics?: Record<string, unknown> | string[];
+  review_status?: string;
+  governance_status?: string;
+  body?: Record<string, unknown>;
+  published_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An append-only publication version/transition. Mirrors hsin_publication_versions. */
+export interface HsinPublicationVersionRecord {
+  id: string;
+  publication_id?: string;
+  version?: number;
+  from_state?: string;
+  to_state?: string;
+  actor?: string;
+  reason?: string;
+  snapshot?: Record<string, unknown>;
+  at?: string;
+  created_at: string;
+}
+
+/** A governance publish-review decision. Mirrors hsin_publication_reviews. */
+export interface HsinPublicationReviewRecord {
+  id: string;
+  publication_id?: string;
+  reviewer_id?: string;
+  decision?: 'approved' | 'rejected';
+  reason?: string;
+  gate?: Record<string, unknown>;
+  created_at: string;
+}
+
+/** A retraction record. Mirrors hsin_publication_retractions. */
+export interface HsinPublicationRetractionRecord {
+  id: string;
+  publication_id?: string;
+  reason?: RetractionReason;
+  detail?: string;
+  previous_state?: string;
+  retracted_by?: string;
+  created_at: string;
+}
+
+/** A subscriber. Mirrors hsin_subscribers. */
+export interface HsinSubscriberRecord {
+  id: string;
+  user_id?: string;
+  email?: string;
+  type?: SubscriberType;
+  active?: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** Subscription preferences. Mirrors hsin_subscription_preferences. */
+export interface HsinSubscriptionPreferenceRecord {
+  id: string;
+  subscriber_id?: string;
+  digest_frequency?: DigestFrequency;
+  topics?: Record<string, unknown> | string[];
+  notify_trust_changes?: boolean;
+  notify_retractions?: boolean;
+  channels?: Record<string, unknown> | string[];
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A digest run. Mirrors hsin_digest_runs. */
+export interface HsinDigestRunRecord {
+  id: string;
+  kind?: 'daily' | 'weekly' | 'topic';
+  topic?: string;
+  title?: string;
+  period_start?: string;
+  period_end?: string;
+  item_count?: number;
+  dropped_no_source?: number;
+  items?: Record<string, unknown>;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A distribution event. Mirrors hsin_distribution_events. */
+export interface HsinDistributionEventRecord {
+  id: string;
+  digest_run_id?: string;
+  subscriber_id?: string;
+  channel?: DeliveryChannel;
+  kind?: 'digest' | 'feed' | 'webhook';
+  ref?: string;
+  item_count?: number;
+  status?: 'planned' | 'sent' | 'failed';
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A public topic page. Mirrors hsin_topic_pages. */
+export interface HsinTopicPageRecord {
+  id: string;
+  slug?: string;
+  title?: string;
+  description?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** One section of a public report (mirrors the publishing-engine ReportSection). */
+export interface ReportSectionView {
+  key: string;
+  title: string;
+  body: string;
+  items?: string[];
+  sourced: boolean;
+}
+
+/** A public intelligence list item (portal card). */
+export interface PublicIntelligenceItem {
+  slug: string;
+  title: string;
+  summary: string;
+  state: PublicationState;
+  trustScore?: number;
+  confidence?: number;
+  evidenceCount: number;
+  sourceCount: number;
+  reviewStatus?: string;
+  governanceStatus?: string;
+  publishedAt?: string;
+  categories: string[];
+  topics: string[];
+}
+
+/** The public intelligence portal (/intelligence). */
+export interface PublicIntelligenceData {
+  items: PublicIntelligenceItem[];
+  total: number;
+}
+
+/** A single public publication page (/intelligence/[slug]). */
+export interface PublicationPageData {
+  publication: PublicIntelligenceItem;
+  report: ReportSectionView[];
+  sourceRefs: string[];
+  retraction?: HsinPublicationRetractionRecord;
+  trustHistory: { trustScore: number; at: string }[];
+  auditTrail: string[];
+}
+
+/** A public topic page (/topics/[slug]). */
+export interface TopicPageData {
+  slug: string;
+  title: string;
+  description?: string;
+  reports: PublicIntelligenceItem[];
+  reportCount: number;
+  avgTrust?: number;
+  evidenceTotal: number;
+}
+
+/** Public search results (/search). */
+export interface SearchResultsData {
+  query: string;
+  publications: PublicIntelligenceItem[];
+  topics: { slug: string; title: string }[];
+  total: number;
+}
+
+/** The publishing dashboard (/dashboard/publishing). */
+export interface PublishingDashboardData {
+  drafts: HsinPublicationRecord[];
+  reviewQueue: HsinPublicationRecord[];
+  publishingQueue: HsinPublicationRecord[];
+  published: HsinPublicationRecord[];
+  retractions: HsinPublicationRetractionRecord[];
+  digestRuns: HsinDigestRunRecord[];
+  subscriberCount: number;
+  byState: Record<string, number>;
+  analytics: {
+    totalPublished: number;
+    totalRetracted: number;
+    totalSubscribers: number;
+    totalDistributions: number;
+  };
+}
+
+/** The review queue view (/dashboard/publishing/review). */
+export interface PublishingReviewData {
+  reviewQueue: HsinPublicationRecord[];
+  approved: HsinPublicationRecord[];
+}
+
+/** A single subscriber's account view (/account/subscriptions). */
+export interface SubscriptionAccountData {
+  subscriber?: HsinSubscriberRecord;
+  preferences?: HsinSubscriptionPreferenceRecord;
+  recentDigests: HsinDigestRunRecord[];
+}
+
+/** Headline publishing callouts. */
+export interface PublishingHighlights {
+  published?: number;
+  inReview?: number;
+  drafts?: number;
+  retractions?: number;
+  subscribers?: number;
+}

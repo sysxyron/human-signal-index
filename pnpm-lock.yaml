@@ -71,18 +71,30 @@ importers:
       '@hsi/decision-intelligence':
         specifier: workspace:*
         version: link:../../packages/decision-intelligence
+      '@hsi/distribution-engine':
+        specifier: workspace:*
+        version: link:../../packages/distribution-engine
       '@hsi/evidence-engine':
         specifier: workspace:*
         version: link:../../packages/evidence-engine
+      '@hsi/intelligence-queue':
+        specifier: workspace:*
+        version: link:../../packages/intelligence-queue
       '@hsi/outcome-intelligence':
         specifier: workspace:*
         version: link:../../packages/outcome-intelligence
+      '@hsi/publishing-engine':
+        specifier: workspace:*
+        version: link:../../packages/publishing-engine
       '@hsi/recalibration-engine':
         specifier: workspace:*
         version: link:../../packages/recalibration-engine
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../../packages/research-agents
+      '@hsi/research-orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/research-orchestrator
       '@hsi/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
@@ -183,18 +195,30 @@ importers:
       '@hsi/decision-intelligence':
         specifier: workspace:*
         version: link:../../packages/decision-intelligence
+      '@hsi/distribution-engine':
+        specifier: workspace:*
+        version: link:../../packages/distribution-engine
       '@hsi/evidence-engine':
         specifier: workspace:*
         version: link:../../packages/evidence-engine
+      '@hsi/intelligence-queue':
+        specifier: workspace:*
+        version: link:../../packages/intelligence-queue
       '@hsi/outcome-intelligence':
         specifier: workspace:*
         version: link:../../packages/outcome-intelligence
+      '@hsi/publishing-engine':
+        specifier: workspace:*
+        version: link:../../packages/publishing-engine
       '@hsi/recalibration-engine':
         specifier: workspace:*
         version: link:../../packages/recalibration-engine
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../../packages/research-agents
+      '@hsi/research-orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/research-orchestrator
       '@hsi/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
@@ -343,11 +367,27 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/distribution-engine:
+    dependencies:
+      '@hsi/publishing-engine':
+        specifier: workspace:*
+        version: link:../publishing-engine
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/evidence-engine:
     dependencies:
       '@hsi/research-agents':
         specifier: workspace:*
         version: link:../research-agents
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/intelligence-queue:
     devDependencies:
       typescript:
         specifier: ^5.6.0
@@ -361,6 +401,16 @@ importers:
       '@hsi/decision-intelligence':
         specifier: workspace:*
         version: link:../decision-intelligence
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/publishing-engine:
+    dependencies:
+      '@hsi/trust-history':
+        specifier: workspace:*
+        version: link:../trust-history
     devDependencies:
       typescript:
         specifier: ^5.6.0
@@ -387,6 +437,16 @@ importers:
       '@hsi/world-models':
         specifier: workspace:*
         version: link:../world-models
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/research-orchestrator:
+    dependencies:
+      '@hsi/intelligence-queue':
+        specifier: workspace:*
+        version: link:../intelligence-queue
     devDependencies:
       typescript:
         specifier: ^5.6.0

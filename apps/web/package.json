@@ -14,6 +14,8 @@
     "@hsi/recalibration-engine": "workspace:*",
     "@hsi/intelligence-queue": "workspace:*",
     "@hsi/research-orchestrator": "workspace:*",
+    "@hsi/publishing-engine": "workspace:*",
+    "@hsi/distribution-engine": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

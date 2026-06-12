@@ -34,6 +34,10 @@ import { counterfactualWorkerJob } from './counterfactual-worker';
 import { decisionWorkerJob } from './decision-worker';
 // HSI Phase 15 — outcome-tracking pipeline.
 import { outcomeAlertWorkerJob } from './outcome-alert-worker';
+// HSI Phase 18 — research-orchestration loop (Intelligence Operations Center).
+import { researchOrchestratorJob } from './research-orchestrator';
+// HSI Phase 19 — publishing/distribution loop (public intelligence platform).
+import { publishingWorkerJob } from './publishing-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -176,6 +180,17 @@ export const jobs: Job[] = [
   // (learn calibrated confidence → detect advisory alerts). Alerts are ADVISORY
   // only; NEVER auto-acts and NEVER auto-publishes.
   outcomeAlertWorkerJob,
+  // HSI Phase 18 — the Intelligence Operations Center orchestration loop (every
+  // 15 min). Polls the research queue, assigns agents, advances workflows, handles
+  // failures, and escalates. Offline-safe (fixtures run when service-role env is
+  // absent). NEVER auto-decides, NEVER auto-publishes; trust/governance left for
+  // humans.
+  researchOrchestratorJob,
+  // HSI Phase 19 — the public-platform distribution loop (daily 08:00). Generates
+  // the subscriber digest, plans distribution, and builds feeds. Offline-safe
+  // (fixtures when service-role env is absent). NEVER publishes/approves/retracts;
+  // never distributes unpublished intelligence.
+  publishingWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

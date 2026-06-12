@@ -37,7 +37,11 @@
       "@hsi/outcome-intelligence": ["packages/outcome-intelligence/src"],
       "@hsi/calibration-engine": ["packages/calibration-engine/src"],
       "@hsi/trust-history": ["packages/trust-history/src"],
-      "@hsi/recalibration-engine": ["packages/recalibration-engine/src"]
+      "@hsi/recalibration-engine": ["packages/recalibration-engine/src"],
+      "@hsi/intelligence-queue": ["packages/intelligence-queue/src"],
+      "@hsi/research-orchestrator": ["packages/research-orchestrator/src"],
+      "@hsi/publishing-engine": ["packages/publishing-engine/src"],
+      "@hsi/distribution-engine": ["packages/distribution-engine/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]
