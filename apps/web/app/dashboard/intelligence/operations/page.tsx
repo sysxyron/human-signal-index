@@ -36,6 +36,10 @@ import type { CollectiveHighlights } from '@hsi/shared-types';
 import { getCollectiveHighlightsAction } from '@/lib/collective/actions';
 import { demoCollectiveHighlights } from '@/lib/collective/view';
 import { CollectiveHighlightCards } from '@/components/collective/CollectiveHighlightCards';
+import type { ForecastingHighlights } from '@hsi/shared-types';
+import { getForecastingHighlightsAction } from '@/lib/forecasting/actions';
+import { demoForecastingHighlights } from '@/lib/forecasting/view';
+import { ForecastingHighlightCards } from '@/components/forecasting/ForecastingHighlightCards';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -74,6 +78,21 @@ export default async function OperationsPage() {
     }
   } catch {
     collectiveHighlights = null;
+  }
+
+  // ADDITIVE (Phase 21): a defensive forecasting highlights strip.
+  let forecastingHighlights: ForecastingHighlights | null = null;
+  let forecastingDemoLabeled = false;
+  try {
+    const fcRes = await getForecastingHighlightsAction();
+    if (fcRes.ok) {
+      forecastingHighlights = fcRes.data;
+    } else if (fcRes.code === 'NOT_CONFIGURED') {
+      forecastingHighlights = demoForecastingHighlights();
+      forecastingDemoLabeled = true;
+    }
+  } catch {
+    forecastingHighlights = null;
   }
 
   return (
@@ -127,6 +146,11 @@ export default async function OperationsPage() {
         {/* ADDITIVE (Phase 20): collective-intelligence highlights strip. */}
         {collectiveHighlights ? (
           <CollectiveHighlightCards highlights={collectiveHighlights} demo={collectiveDemoLabeled} />
+        ) : null}
+
+        {/* ADDITIVE (Phase 21): forecasting highlights strip. */}
+        {forecastingHighlights ? (
+          <ForecastingHighlightCards highlights={forecastingHighlights} demo={forecastingDemoLabeled} />
         ) : null}
 
         {forbidden ? (

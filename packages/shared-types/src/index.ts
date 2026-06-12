@@ -4128,3 +4128,236 @@ export interface CollectiveHighlights {
   highTrustContributors?: number;
   highImpactInvestigations?: number;
 }
+
+// =============================================================================
+// Forecasting, Scenario Planning & Early Warning — Phase 21
+//
+// Serializable mirrors of the Phase 21 persistence (migration 0025): the FORECAST
+// layer (forecasts + versions + outcomes + accuracy + alerts), the SCENARIO layer
+// (scenarios + versions + comparisons + trees), and the EARLY-WARNING layer —
+// plus the view-models for the forecasts, scenarios, and warnings dashboards.
+// Every forecast is a HYPOTHESIS; alerts are advisory; nothing auto-acts.
+// =============================================================================
+
+/** Forecast lifecycle status. */
+export type ForecastStatus = 'active' | 'monitoring' | 'confirmed' | 'failed' | 'expired';
+/** Scenario lifecycle state. */
+export type ScenarioState = 'EMERGING' | 'ACTIVE' | 'MONITORING' | 'CONFIRMED' | 'INVALIDATED' | 'ARCHIVED';
+/** Early-warning level. */
+export type WarningLevel = 'INFO' | 'WATCH' | 'WARNING' | 'CRITICAL';
+/** Early-warning kind. */
+export type WarningKind =
+  | 'emerging_pattern' | 'signal_acceleration' | 'trust_collapse'
+  | 'narrative_shift' | 'consensus_instability' | 'forecast_risk';
+/** Forecast alert type. */
+export type ForecastAlertType = 'forecast_failure' | 'forecast_risk' | 'forecast_drift';
+
+/** A forecast. Mirrors hsin_forecasts. */
+export interface HsinForecastRecord {
+  id: string;
+  prediction?: string;
+  confidence?: number;
+  reliability?: number;
+  status?: ForecastStatus;
+  horizon?: string;
+  supporting_signals?: Record<string, unknown> | unknown[];
+  assumptions?: Record<string, unknown> | string[];
+  invalidation_criteria?: Record<string, unknown> | string[];
+  limitations?: Record<string, unknown> | string[];
+  version?: number;
+  expires_at?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An append-only forecast version. Mirrors hsin_forecast_versions. */
+export interface HsinForecastVersionRecord {
+  id: string;
+  forecast_id?: string;
+  version?: number;
+  prediction?: string;
+  confidence?: number;
+  reliability?: number;
+  status?: string;
+  actor?: string;
+  reason?: string;
+  snapshot?: Record<string, unknown>;
+  at?: string;
+  created_at: string;
+}
+
+/** A forecast outcome. Mirrors hsin_forecast_outcomes. */
+export interface HsinForecastOutcomeRecord {
+  id: string;
+  forecast_id?: string;
+  confidence?: number;
+  success?: number;
+  observation?: string;
+  observed_at?: string;
+  created_at: string;
+}
+
+/** A forecast accuracy rollup (Phase 21). Mirrors hsin_forecast_accuracy. */
+export interface HsinForecastReliabilityRecord {
+  id: string;
+  scope?: string;
+  success_rate?: number;
+  failure_rate?: number;
+  ece?: number;
+  brier_score?: number;
+  drift?: number;
+  sample_count?: number;
+  bins?: Record<string, unknown> | unknown[];
+  computed_at?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A forecast alert. Mirrors hsin_forecast_alerts. */
+export interface HsinForecastAlertRecord {
+  id: string;
+  forecast_id?: string;
+  alert_type?: ForecastAlertType;
+  severity?: WarningLevel;
+  reason?: string;
+  evidence?: Record<string, unknown> | string[];
+  status?: 'open' | 'acknowledged' | 'resolved';
+  resolved_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** A scenario. Mirrors hsin_scenarios. */
+export interface HsinScenarioRecord {
+  id: string;
+  slug?: string;
+  title?: string;
+  description?: string;
+  state?: ScenarioState;
+  likelihood?: number;
+  drivers?: Record<string, unknown> | unknown[];
+  forecast_ids?: Record<string, unknown> | string[];
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An append-only scenario version. Mirrors hsin_scenario_versions. */
+export interface HsinScenarioVersionRecord {
+  id: string;
+  scenario_id?: string;
+  from_state?: string;
+  to_state?: string;
+  actor?: string;
+  reason?: string;
+  likelihood?: number;
+  at?: string;
+  created_at: string;
+}
+
+/** A scenario comparison snapshot (Phase 21). Mirrors hsin_scenario_comparisons. */
+export interface HsinScenarioComparisonSnapshotRecord {
+  id: string;
+  leading?: string;
+  divergence?: number;
+  ranked?: Record<string, unknown> | unknown[];
+  summary?: string;
+  limitations?: Record<string, unknown> | string[];
+  compared_at?: string;
+  created_at: string;
+}
+
+/** A scenario tree. Mirrors hsin_scenario_trees. */
+export interface HsinScenarioTreeRecord {
+  id: string;
+  scenario_id?: string;
+  title?: string;
+  tree?: Record<string, unknown>;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** An early-warning alert. Mirrors hsin_early_warning_alerts. */
+export interface HsinEarlyWarningAlertRecord {
+  id: string;
+  kind?: WarningKind;
+  level?: WarningLevel;
+  title?: string;
+  signal?: string;
+  evidence?: Record<string, unknown> | string[];
+  recommendation?: string;
+  entity_id?: string;
+  status?: 'open' | 'acknowledged' | 'resolved';
+  resolved_by?: string;
+  detected_at?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** One row of the forecasts board. */
+export interface ForecastBoardRow {
+  id: string;
+  prediction: string;
+  confidence: number;
+  reliability: number;
+  status: ForecastStatus;
+  horizon?: string;
+  signalCount: number;
+  updatedAt?: string;
+}
+
+/** The forecasts dashboard. */
+export interface ForecastsBoardData {
+  rows: ForecastBoardRow[];
+  byStatus: Record<string, number>;
+  accuracy?: HsinForecastReliabilityRecord;
+}
+
+/** A single forecast detail (with explanation + outcomes + versions + alerts). */
+export interface ForecastDetailData {
+  forecast: HsinForecastRecord;
+  explanation: {
+    factors: { label: string; contribution: number; strength: number; direction: number }[];
+    assumptions: string[];
+    invalidationCriteria: string[];
+    limitations: string[];
+    summary: string;
+  };
+  outcomes: HsinForecastOutcomeRecord[];
+  versions: HsinForecastVersionRecord[];
+  alerts: HsinForecastAlertRecord[];
+}
+
+/** The scenarios dashboard. */
+export interface ScenariosBoardData {
+  scenarios: HsinScenarioRecord[];
+  byState: Record<string, number>;
+  comparison?: HsinScenarioComparisonSnapshotRecord;
+}
+
+/** A single scenario detail (with tree + versions). */
+export interface ScenarioDetailData {
+  scenario: HsinScenarioRecord;
+  tree?: HsinScenarioTreeRecord;
+  versions: HsinScenarioVersionRecord[];
+  ranked: { id: string; title: string; likelihood: number; rank: number; share: number }[];
+}
+
+/** The warnings dashboard. */
+export interface WarningsBoardData {
+  warnings: HsinEarlyWarningAlertRecord[];
+  forecastAlerts: HsinForecastAlertRecord[];
+  byLevel: Record<WarningLevel, number>;
+}
+
+/** Headline forecasting callouts (operations strip). */
+export interface ForecastingHighlights {
+  activeForecasts?: number;
+  forecastFailures?: number;
+  scenarioShifts?: number;
+  warningAlerts?: number;
+  forecastAccuracy?: number;
+  confidenceDrift?: number;
+}

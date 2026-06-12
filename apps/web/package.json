@@ -18,6 +18,8 @@
     "@hsi/distribution-engine": "workspace:*",
     "@hsi/consensus-engine": "workspace:*",
     "@hsi/collective-intelligence": "workspace:*",
+    "@hsi/forecast-engine": "workspace:*",
+    "@hsi/scenario-engine": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

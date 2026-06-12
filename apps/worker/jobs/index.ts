@@ -40,6 +40,8 @@ import { researchOrchestratorJob } from './research-orchestrator';
 import { publishingWorkerJob } from './publishing-worker';
 // HSI Phase 20 — collective-intelligence consensus loop.
 import { consensusWorkerJob } from './consensus-worker';
+// HSI Phase 21 — forecasting / scenario / early-warning loop.
+import { forecastWorkerJob } from './forecast-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -198,6 +200,11 @@ export const jobs: Job[] = [
   // them for human governance review. Offline-safe (fixtures when service-role env
   // is absent). NEVER auto-approves / auto-consensus / auto-publishes.
   consensusWorkerJob,
+  // HSI Phase 21 — the forecasting / scenario / early-warning loop (every 30 min).
+  // Recomputes forecast reliability, refreshes scenario likelihoods, and detects
+  // early warnings. Offline-safe (fixtures when service-role env is absent). NEVER
+  // auto-predicts / auto-acts / auto-escalates / auto-publishes.
+  forecastWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

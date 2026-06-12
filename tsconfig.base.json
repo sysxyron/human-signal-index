@@ -43,7 +43,9 @@
       "@hsi/publishing-engine": ["packages/publishing-engine/src"],
       "@hsi/distribution-engine": ["packages/distribution-engine/src"],
       "@hsi/consensus-engine": ["packages/consensus-engine/src"],
-      "@hsi/collective-intelligence": ["packages/collective-intelligence/src"]
+      "@hsi/collective-intelligence": ["packages/collective-intelligence/src"],
+      "@hsi/forecast-engine": ["packages/forecast-engine/src"],
+      "@hsi/scenario-engine": ["packages/scenario-engine/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]
