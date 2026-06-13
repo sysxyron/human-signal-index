@@ -1,18 +1,22 @@
 // =============================================================================
-// /api/debug/rbac — DEVELOPMENT-ONLY RBAC diagnostic (Phase 22A).
+// /api/debug/rbac — RBAC diagnostic (Phase 22A; hardened Phase 23).
 //
 // Returns the resolved SessionRole for the current request so you can confirm the
 // app sees the same role the database assigns. Reads the canonical chain
 // public.user_roles → roles (the same source as middleware + RLS).
 //
-// SECURITY: responds 404 in production (the endpoint effectively does not exist
-// there). Never returns tokens, cookies, or secrets — only the user's id, email,
-// role names, and the resolution source.
+// SECURITY (defense-in-depth):
+//   1. Responds 404 in PRODUCTION — the endpoint does not exist there.
+//   2. Even in non-production, requires the caller to be an ADMIN (404 otherwise,
+//      so it doesn't reveal its own existence to non-admins).
+//   3. Never returns tokens, cookies, or secrets — only id, email, role names,
+//      and the resolution source.
 // =============================================================================
 
 import { NextResponse } from 'next/server';
 import { getSessionRoleFrom } from '@/lib/auth/get-session-role';
 import { createClient } from '@/lib/supabase/server';
+import { hasRole } from '@/lib/security/rbac-audit';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,6 +28,10 @@ export async function GET() {
 
   try {
     const session = await getSessionRoleFrom(createClient());
+    // Admin-only: non-admins get a 404 (no existence disclosure, no role leakage).
+    if (!hasRole(session.highestRole ?? undefined, 'admin')) {
+      return new NextResponse('Not found', { status: 404 });
+    }
     return NextResponse.json({
       email: session.email,
       userId: session.userId,

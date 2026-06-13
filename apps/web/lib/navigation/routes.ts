@@ -101,6 +101,11 @@ export const ROUTES = {
   security: '/dashboard/security',
   securityMonitor: '/dashboard/security-monitor',
   settings: '/dashboard/settings',
+
+  // ---- Launch / Beta (Phase 23) ------------------------------------------
+  launch: '/dashboard/launch',
+  launchIssues: '/dashboard/launch/issues',
+  testerOnboarding: '/dashboard/tester-onboarding',
 } as const;
 
 export type RouteKey = keyof typeof ROUTES;

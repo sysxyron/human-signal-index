@@ -46,6 +46,9 @@ import {
 } from '@/components/security/RbacAuditPanel';
 import { RefreshHealthButton } from '@/components/security/RefreshHealthButton';
 import { SecurityReviewControls } from '@/components/security/SecurityReviewControls';
+import { MigrationStatusPanel } from '@/components/launch/MigrationStatusPanel';
+import { getMigrationAuditAction } from '@/lib/launch/actions';
+import { demoMigrationAudit } from '@/lib/launch/view';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -98,10 +101,13 @@ export default async function SecurityPage() {
     );
   }
 
-  const [dashRes, rbacRes] = await Promise.all([
+  const [dashRes, rbacRes, migRes] = await Promise.all([
     getSecurityDashboardAction(),
     getRbacAuditAction(),
+    getMigrationAuditAction(),
   ]);
+  const migrationAudit = migRes.ok ? migRes.data : demoMigrationAudit();
+  const migrationDemo = !migRes.ok;
 
   // Resolve the dashboard payload: live, demo (NOT_CONFIGURED), or a real error.
   let data: SecurityDashboardData | null = null;
@@ -172,6 +178,9 @@ export default async function SecurityPage() {
 
         {/* Startup environment validation (required/optional). */}
         {d.env ? <EnvStatusPanel env={d.env} /> : null}
+
+        {/* Phase 23 — database migration audit (0001→0026). */}
+        <MigrationStatusPanel audit={migrationAudit} demo={migrationDemo} />
 
         {/* Connection / health panel — one card per service. */}
         <section className="space-y-3">

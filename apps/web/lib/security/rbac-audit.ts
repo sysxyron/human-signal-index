@@ -87,6 +87,11 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/security', minRole: 'admin' },
   { pattern: '/dashboard/admin', minRole: 'admin' },
   { pattern: '/dashboard/settings', minRole: 'admin' },
+  // Launch Operations Center is admin-only…
+  { pattern: '/dashboard/launch', minRole: 'admin' },
+  // …but the beta issue reporter (a longer prefix → wins) is open to ANY signed-in
+  // tester so all roles can file reports.
+  { pattern: '/dashboard/launch/issues', minRole: 'viewer' },
 
   // --- curator (publication actions) ---
   { pattern: '/dashboard/publications', minRole: 'curator' },

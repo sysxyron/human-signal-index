@@ -43,6 +43,9 @@ import {
   Microscope,
   ShieldCheck,
   ClipboardCheck,
+  Rocket,
+  Bug,
+  GraduationCap,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -315,6 +318,14 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Counterfactuals', href: '/dashboard/worldforge/counterfactuals', icon: GitCompareArrows },
       { label: 'Provenance', href: '/dashboard/worldforge/provenance', icon: Route },
       { label: 'Universe Forge', href: '/dashboard/worldforge/universes', icon: FlaskConical },
+    ],
+  },
+  {
+    group: 'Launch & Beta',
+    items: [
+      { label: 'Launch Center', href: '/dashboard/launch', icon: Rocket },
+      { label: 'Beta Issues', href: '/dashboard/launch/issues', icon: Bug },
+      { label: 'Tester Onboarding', href: '/dashboard/tester-onboarding', icon: GraduationCap },
     ],
   },
   {
