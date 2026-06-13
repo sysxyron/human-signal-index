@@ -106,6 +106,14 @@ export const ROUTES = {
   launch: '/dashboard/launch',
   launchIssues: '/dashboard/launch/issues',
   testerOnboarding: '/dashboard/tester-onboarding',
+
+  // ---- Public trust & security programs (Phase 23B) ----------------------
+  trustCenter: '/trust',
+  vulnerabilityDisclosure: '/security/vulnerability-disclosure',
+  responsibleDisclosure: '/security/responsible-disclosure',
+  securityAwareness: '/security-awareness',
+  whistleblower: '/whistleblower',
+  reportConfidentially: '/report-confidentially',
 } as const;
 
 export type RouteKey = keyof typeof ROUTES;

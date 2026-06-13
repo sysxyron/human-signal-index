@@ -59,11 +59,11 @@ export function ErrorState({
     return (
       <Card className="space-y-2 border-warning/40 bg-warning/5" padded>
         <h3 className="flex items-center gap-2 text-h6 font-semibold text-warning">
-          <ShieldX className="h-4 w-4" /> Insufficient permissions
+          <ShieldX className="h-4 w-4" /> You don&apos;t have access to this area
         </h3>
         <p className="text-body-sm leading-relaxed text-text-secondary">
           {text ||
-            'Your role does not have access to this. Contact an administrator if you believe this is an error.'}
+            'Your account doesn’t currently have permission to open this. If you believe this is a mistake, contact an administrator to have your role updated.'}
         </p>
       </Card>
     );

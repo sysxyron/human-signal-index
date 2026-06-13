@@ -43,7 +43,7 @@ const features = [
     icon: Link2,
     title: 'Trace Everything',
     description:
-      'Link every insight back to raw passages, timestamps, and cryptographic provenance.',
+      'Link every finding back to the original passages and timestamps, with a record you can verify.',
     color: '#10B981',
   },
   {
@@ -57,14 +57,14 @@ const features = [
     icon: Gauge,
     title: 'Score & Prioritize Risk',
     description:
-      'Assign actionable, review-ready risk levels with transparent explanations.',
+      'Assign clear risk levels that reviewers can act on, each with a plain explanation.',
     color: '#F59E0B',
   },
   {
     icon: GraduationCap,
     title: 'Educate & Empower',
     description:
-      'Produce public-safe reports, explainers, and evidence-based counter-narratives.',
+      'Produce reports, explainers, and counter-narratives the public can read and check.',
     color: '#EF4444',
   },
 ];

@@ -171,9 +171,20 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
     {
       title: 'Trust',
       links: [
+        { label: 'Trust & Transparency', href: '/trust' },
         { label: 'Transparency', href: '/transparency' },
         { label: 'Ethics', href: '/ethics' },
         { label: 'Methodology', href: '/methodology' },
+      ],
+    },
+    {
+      title: 'Security & Reporting',
+      links: [
+        { label: 'Vulnerability Disclosure', href: '/security/vulnerability-disclosure' },
+        { label: 'Responsible Disclosure', href: '/security/responsible-disclosure' },
+        { label: 'Security Awareness', href: '/security-awareness' },
+        { label: 'Whistleblower Center', href: '/whistleblower' },
+        { label: 'Report Confidentially', href: '/report-confidentially' },
       ],
     },
   ];
@@ -182,7 +193,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-background-deep">
       <div className="mx-auto max-w-[1180px] px-6 py-14">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="space-y-4">
             <BrandMark />
             <p className="max-w-xs text-body-sm leading-relaxed text-text-secondary">
@@ -237,7 +248,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     items: [
       { label: 'Mission Control', href: '/dashboard', icon: LayoutDashboard },
       { label: 'Source Registry', href: '/dashboard/source-registry', icon: Database },
-      { label: 'Signal Intake', href: '/dashboard/signal-intake', icon: Inbox },
+      { label: 'Signal Submission', href: '/dashboard/signal-intake', icon: Inbox },
       { label: 'Evidence Vault', href: '/dashboard/evidence-vault', icon: Archive },
       { label: 'Operations Center', href: '/dashboard/operations', icon: Activity },
     ],
@@ -245,9 +256,9 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
   {
     group: 'Intelligence',
     items: [
-      { label: 'Rhetoric Classifier', href: '/dashboard/rhetoric-classifier', icon: ScanText },
-      { label: 'Risk Scoring', href: '/dashboard/risk-scoring', icon: Gauge },
-      { label: 'Traceability Engine', href: '/dashboard/traceability-engine', icon: Network },
+      { label: 'Rhetoric Analysis', href: '/dashboard/rhetoric-classifier', icon: ScanText },
+      { label: 'Risk Assessment', href: '/dashboard/risk-scoring', icon: Gauge },
+      { label: 'Evidence Trail', href: '/dashboard/traceability-engine', icon: Network },
       { label: 'Intelligence Ops', href: '/dashboard/intelligence/operations', icon: Workflow },
       { label: 'Decision Explorer', href: '/dashboard/decisions/explorer', icon: GitCompareArrows },
     ],
@@ -411,8 +422,10 @@ export function TopNav({
         <div className="relative hidden md:block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
           <input
+            type="search"
+            aria-label="Search signals and sources"
             placeholder="Search signals, sources…"
-            className="w-56 rounded-btn border border-border bg-surface/80 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition focus:border-electric"
+            className="w-56 rounded-btn border border-border bg-surface/80 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition focus:border-electric focus-visible:ring-2 focus-visible:ring-electric/70"
           />
         </div>
         <a
