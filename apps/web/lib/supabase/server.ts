@@ -13,6 +13,7 @@ import { cookies } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { supabaseAnonKey, supabaseUrl } from './env';
+import { loadHighestRole } from '../auth/get-session-role';
 
 interface CookieToSet {
   name: string;
@@ -64,9 +65,11 @@ export async function getUser(): Promise<User | null> {
 }
 
 /**
- * Convenience: the signed-in user's role from public.users (default 'viewer'),
- * or null when anonymous / unavailable. Mirrored from auth.users by the
- * 0006_auth_users_trigger migration (public.users.id == auth.uid()).
+ * Convenience: the signed-in user's HIGHEST app role, resolved from the canonical
+ * DB chain public.user_roles → roles (NOT the nonexistent public.users.role
+ * column). Returns null when anonymous / unavailable. Used by Server Components
+ * for UI gating (e.g. showing curator/admin controls); the same resolver backs the
+ * middleware route gate so the sidebar and middleware agree.
  */
 export async function getSessionRole(): Promise<string | null> {
   try {
@@ -75,12 +78,7 @@ export async function getSessionRole(): Promise<string | null> {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return null;
-    const { data } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    return (data?.role as string | undefined) ?? null;
+    return await loadHighestRole(supabase, user.id);
   } catch {
     return null;
   }

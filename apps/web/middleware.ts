@@ -38,6 +38,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 import { supabaseAnonKey, supabaseUrl } from '@/lib/supabase/env';
 import { hasRole, requiredRoleForRoute, type AppRole } from '@/lib/security/rbac-audit';
+import { loadHighestRole } from '@/lib/auth/get-session-role';
 
 const AUTH_PAGES = ['/sign-in', '/sign-up'];
 
@@ -49,8 +50,13 @@ interface CookieToSet {
 
 /**
  * Edge-safe role lookup for the current request. Reuses the request cookies via a
- * read-only @supabase/ssr client (NO next/headers). Returns the user's role from
- * public.users, or null on anonymous/unavailable/error. Never throws.
+ * read-only @supabase/ssr client (NO next/headers) and resolves the role from the
+ * CANONICAL source — public.user_roles → roles (via loadHighestRole) — the same
+ * chain the DB's RLS helpers use. Returns the highest role name, or null on
+ * anonymous/unavailable/error. Never throws.
+ *
+ * (Previously this read `public.users.role`, a column that does not exist, so it
+ * always fell back to 'viewer' and denied admins their own routes.)
  */
 async function lookupRole(request: NextRequest): Promise<string | null> {
   try {
@@ -70,12 +76,7 @@ async function lookupRole(request: NextRequest): Promise<string | null> {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return null;
-    const { data } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    return (data?.role as string | undefined) ?? 'viewer';
+    return await loadHighestRole(supabase, user.id);
   } catch {
     return null;
   }
@@ -165,6 +166,16 @@ export async function middleware(request: NextRequest) {
       const required = requiredRoleForRoute(pathname);
       if (required) {
         const role = await lookupRole(request);
+        // DEV diagnostics only — never logs tokens or secrets, only the resolved
+        // role decision. Silent in production.
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.debug(
+            `[rbac] ${pathname} requires '${required}'; resolved role '${role ?? 'none'}' → ${
+              hasRole(role ?? undefined, required) ? 'ALLOW' : 'DENY'
+            }`,
+          );
+        }
         if (!hasRole(role ?? undefined, required)) {
           // Best-effort telemetry (do not block the redirect on logging).
           void logDenialEdge(request, pathname, required, role);

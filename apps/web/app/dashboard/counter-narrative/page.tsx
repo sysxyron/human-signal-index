@@ -1,7 +1,6 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
 import {
   Card,
-  Button,
   MetricCard,
   Input,
   Textarea,
@@ -10,6 +9,7 @@ import {
   ReviewStatusBadge,
 } from '@hsi/ui';
 import { Megaphone, PenLine, Send, FileText } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
 
 const drafts = [
   { title: 'Clarifying the water-supply claim', category: 'Misinformation', tone: 'red' as const, status: 'In Review' as const },
@@ -48,8 +48,8 @@ export default function CounterNarrativePage() {
           </div>
           <Textarea label="Evidence-based response" rows={6} placeholder="Ground every statement in a traceable source…" id="cn-body" />
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm">Save draft</Button>
-            <Button variant="primary" size="sm"><Send className="h-4 w-4" /> Submit for review</Button>
+            <SafeActionButton variant="secondary" disabledReason="Counter-narrative drafting is a preview; saving is not wired to persistence in this build.">Save draft</SafeActionButton>
+            <SafeActionButton variant="primary" disabledReason="Counter-narrative drafting is a preview; submission is not wired to the review queue in this build."><Send className="h-4 w-4" /> Submit for review</SafeActionButton>
           </div>
         </Card>
 

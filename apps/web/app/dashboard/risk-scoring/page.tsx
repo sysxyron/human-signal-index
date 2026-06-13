@@ -1,7 +1,6 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
 import {
   Card,
-  Button,
   MetricCard,
   LineChart,
   Table,
@@ -11,6 +10,7 @@ import {
   type RiskLevel,
 } from '@hsi/ui';
 import { Gauge, TrendingUp, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
 
 const riskTrend = [
   { name: 'Risk index', color: '#EF4444', data: [28, 31, 30, 38, 42, 40, 48, 52] },
@@ -48,7 +48,7 @@ export default function RiskScoringPage() {
     <DashboardPage
       title="Risk Scoring"
       subtitle="Explainable, review-ready risk prioritization"
-      actions={<Button variant="primary" size="sm">Recalculate scores</Button>}
+      actions={<SafeActionButton variant="primary" disabledReason="Risk scores recompute automatically as new evidence and signals arrive.">Recalculate scores</SafeActionButton>}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Risk Index" value="34.8" accent="#EF4444" icon={Gauge} delta={{ value: '+3.1%', trend: 'up' }} deltaTone="negative" />

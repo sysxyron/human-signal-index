@@ -23,6 +23,7 @@
 // =============================================================================
 
 import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { loadHighestRole } from '@/lib/auth/get-session-role';
 import { formatErrorMessage, logError } from '@/lib/errors/format-error';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -107,9 +108,7 @@ const ROLE_LEVEL: Record<AppRole, number> = { viewer: 1, researcher: 2, reviewer
 async function sessionRole(client: SupabaseClient): Promise<AppRole | null> {
   const { data: { user } } = await client.auth.getUser();
   if (!user) return null;
-  const { data } = await client.from('users').select('role').eq('id', user.id).single();
-  const role = (data?.role as string | undefined) ?? 'viewer';
-  return (role in ROLE_LEVEL ? role : 'viewer') as AppRole;
+  return loadHighestRole(client, user.id);
 }
 async function requireRole(
   client: SupabaseClient,

@@ -1,20 +1,20 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
 import {
   Card,
-  Button,
   MetricCard,
   SourceTracePanel,
   TimelineCard,
   TraceabilityBadge,
 } from '@hsi/ui';
 import { Network, Link2, GitBranch, ShieldCheck } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
 
 export default function TraceabilityEnginePage() {
   return (
     <DashboardPage
       title="Traceability Engine"
       subtitle="Signal → Evidence → Analysis → Source provenance"
-      actions={<Button variant="primary" size="sm">Rebuild trace graph</Button>}
+      actions={<SafeActionButton variant="primary" disabledReason="The trace graph rebuilds automatically as sources and evidence are linked.">Rebuild trace graph</SafeActionButton>}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Traceability Score" value="96.3%" accent="#10B981" icon={ShieldCheck} delta={{ value: '+0.6%', trend: 'up' }} />

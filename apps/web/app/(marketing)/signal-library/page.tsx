@@ -85,7 +85,7 @@ export default function SignalLibraryPage() {
             <option>High</option>
             <option>Moderate</option>
           </Select>
-          <Button variant="primary">Filter</Button>
+          <Button variant="primary" disabled title="Live filtering is available in the dashboard Signals view.">Filter</Button>
         </Card>
       </Section>
 

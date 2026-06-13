@@ -48,7 +48,7 @@ export default function EducationHubPage() {
                 </div>
                 <h2 className="text-h6 font-semibold text-text-primary">{g.title}</h2>
                 <p className="text-body-sm text-text-secondary">{g.body}</p>
-                <Button variant="secondary" size="sm" className="mt-auto w-fit">
+                <Button variant="secondary" size="sm" className="mt-auto w-fit" disabled title="Full guides are being prepared and will be available soon.">
                   Open <ArrowUpRight className="h-4 w-4" />
                 </Button>
               </Card>

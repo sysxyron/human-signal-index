@@ -1,6 +1,7 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
-import { Card, Button, Input, Select } from '@hsi/ui';
+import { Card, Input, Select } from '@hsi/ui';
 import { User, Bell, Shield, SlidersHorizontal } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
 
 function Toggle({ label, on = false }: { label: string; on?: boolean }) {
   return (
@@ -34,7 +35,7 @@ export default function SettingsPage() {
             <option>Reviewer</option>
           </Select>
           <div className="flex justify-end">
-            <Button variant="primary" size="sm">Save changes</Button>
+            <SafeActionButton variant="primary" disabledReason="Settings persistence is not enabled in this environment.">Save changes</SafeActionButton>
           </div>
         </Card>
 
@@ -63,7 +64,7 @@ export default function SettingsPage() {
             <Toggle label="Session auto-lock (15m)" />
           </div>
           <div className="flex justify-end">
-            <Button variant="secondary" size="sm">Manage API keys</Button>
+            <SafeActionButton variant="secondary" disabledReason="API key management is available to admins in the Security Center.">Manage API keys</SafeActionButton>
           </div>
         </Card>
 

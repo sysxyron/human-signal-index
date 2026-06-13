@@ -73,9 +73,11 @@ export function EvidenceHeatmap({ intel, className = '' }: EvidenceHeatmapProps)
                   <div
                     className="h-full rounded-full"
                     style={{
-                      width: `${Math.max(4, intensity * 100)}%`,
+                      // Round so the serialized style is identical on server +
+                      // client (avoids 1-ULP float hydration mismatches).
+                      width: `${Math.round(Math.max(4, intensity * 100))}%`,
                       backgroundColor: style.color,
-                      opacity: 0.4 + intensity * 0.6,
+                      opacity: Number((0.4 + intensity * 0.6).toFixed(3)),
                     }}
                   />
                 </div>

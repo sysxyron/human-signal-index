@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import {
   TopNav,
   Card,
@@ -22,6 +22,9 @@ import {
   type RiskLevel,
 } from '@hsi/ui';
 import { Database, Activity, ShieldCheck, AlertTriangle, Plus } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
+import { ROUTES } from '@/lib/navigation/routes';
+import { AccessDeniedNotice } from '@/components/governance/AccessDeniedNotice';
 
 const kpis = [
   { label: 'Active Sources', value: '24,781', accent: '#3B82F6', icon: Database, spark: [12, 18, 15, 22, 28, 26, 34], delta: { value: '+4.2%', trend: 'up' as const } },
@@ -79,6 +82,9 @@ export default function MissionControlPage() {
     <>
       <TopNav title="Mission Control" subtitle="Real-time signal intelligence overview" />
       <main className="space-y-6 p-5 lg:p-6">
+        <Suspense fallback={null}>
+          <AccessDeniedNotice />
+        </Suspense>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-h4 font-semibold text-text-primary">Operational overview</h2>
@@ -86,11 +92,14 @@ export default function MissionControlPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setDrawerOpen(true)}>
+              Preview evidence
+            </Button>
+            <SafeActionButton variant="secondary" href={ROUTES.evidenceVault}>
               Open Evidence Vault
-            </Button>
-            <Button variant="primary" size="sm">
+            </SafeActionButton>
+            <SafeActionButton variant="primary" href={ROUTES.publishingNew}>
               <Plus className="h-4 w-4" /> New report
-            </Button>
+            </SafeActionButton>
           </div>
         </div>
 
@@ -198,9 +207,9 @@ export default function MissionControlPage() {
         onClose={() => setDrawerOpen(false)}
         items={evidence}
         footer={
-          <Button variant="primary" className="w-full">
+          <SafeActionButton variant="primary" className="w-full" disabledReason="Evidence export is available from a persisted evidence set in the Evidence Vault.">
             Export evidence bundle
-          </Button>
+          </SafeActionButton>
         }
       />
     </>

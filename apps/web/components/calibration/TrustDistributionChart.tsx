@@ -55,7 +55,9 @@ export function TrustDistributionChart({
                 <div
                   className="w-full rounded-t-sm transition-all"
                   style={{
-                    height: Math.max(2, h),
+                    // Integer px so the serialized style is identical server +
+                    // client (avoids 1-ULP float hydration mismatches).
+                    height: Math.round(Math.max(2, h)),
                     backgroundColor: color,
                     opacity: isHighlight ? 1 : 0.55,
                     outline: isHighlight ? `2px solid ${color}` : 'none',

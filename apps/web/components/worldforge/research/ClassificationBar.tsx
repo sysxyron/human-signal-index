@@ -28,7 +28,9 @@ export function ClassificationBar({
           TIER_ORDER.map((tier) => {
             const count = breakdown[tier] ?? 0;
             if (count === 0) return null;
-            const pct = (count / total) * 100;
+            // Round to 2 decimals so the serialized width is identical on
+            // server + client (avoids 1-ULP float hydration mismatches).
+            const pct = Number(((count / total) * 100).toFixed(2));
             const s = TIER_STYLES[tier];
             return (
               <div

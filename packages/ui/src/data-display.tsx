@@ -146,7 +146,11 @@ export function HeatmapCard({
                   className="h-5 rounded-[3px] transition hover:scale-110"
                   style={{
                     backgroundColor: color,
-                    opacity: 0.12 + v * 0.85,
+                    // Round to 3 decimals so the serialized style string is
+                    // byte-identical on server and client. The raw value can come
+                    // from Math.sin/etc. which differs by ~1 ULP across the Node
+                    // and browser math libs, triggering a hydration mismatch.
+                    opacity: Number((0.12 + v * 0.85).toFixed(3)),
                   }}
                   title={`${v.toFixed(2)}`}
                 />

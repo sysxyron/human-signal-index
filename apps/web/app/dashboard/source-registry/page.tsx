@@ -1,7 +1,6 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
 import {
   Card,
-  Button,
   MetricCard,
   Table,
   CategoryTag,
@@ -9,6 +8,8 @@ import {
   type TableColumn,
 } from '@hsi/ui';
 import { Database, Globe, Rss, ShieldCheck } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
+import { ROUTES } from '@/lib/navigation/routes';
 
 interface SourceRow {
   id: string;
@@ -43,7 +44,7 @@ export default function SourceRegistryPage() {
     <DashboardPage
       title="Source Registry"
       subtitle="Registered and monitored public sources"
-      actions={<Button variant="primary" size="sm">Register source</Button>}
+      actions={<SafeActionButton variant="primary" href={ROUTES.sources}>Manage sources</SafeActionButton>}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total Sources" value="24,781" accent="#3B82F6" icon={Database} delta={{ value: '+128', trend: 'up' }} />

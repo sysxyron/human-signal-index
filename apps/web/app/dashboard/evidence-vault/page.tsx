@@ -12,6 +12,7 @@ import {
   type TableColumn,
 } from '@hsi/ui';
 import { Archive, FileCheck2, Hash, Lock } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
 
 interface VaultRow {
   id: string;
@@ -71,7 +72,7 @@ export default function EvidenceVaultPage() {
         open={open}
         onClose={() => setOpen(false)}
         items={drawerItems}
-        footer={<Button variant="primary" className="w-full">Export evidence bundle</Button>}
+        footer={<SafeActionButton variant="primary" className="w-full" disabledReason="Evidence export requires a persisted, sealed evidence set in a configured environment.">Export evidence bundle</SafeActionButton>}
       />
     </DashboardPage>
   );

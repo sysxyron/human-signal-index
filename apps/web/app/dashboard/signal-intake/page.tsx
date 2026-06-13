@@ -1,7 +1,6 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
 import {
   Card,
-  Button,
   MetricCard,
   LineChart,
   SignalCard,
@@ -12,6 +11,8 @@ import {
   type ReviewStatus,
 } from '@hsi/ui';
 import { Inbox, Filter, Cpu, Clock } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
+import { ROUTES } from '@/lib/navigation/routes';
 
 const intakeTrend = [
   { name: 'Ingested', color: '#3B82F6', data: [220, 280, 260, 340, 380, 420, 500] },
@@ -48,8 +49,12 @@ export default function SignalIntakePage() {
       subtitle="Ingestion pipeline and triage queue"
       actions={
         <>
-          <Button variant="secondary" size="sm"><Filter className="h-4 w-4" /> Filters</Button>
-          <Button variant="primary" size="sm">Run triage</Button>
+          <SafeActionButton variant="secondary" href={ROUTES.signals}>
+            <Filter className="h-4 w-4" /> Browse signals
+          </SafeActionButton>
+          <SafeActionButton variant="primary" disabledReason="Triage runs automatically via the signal-intake worker as signals arrive.">
+            Run triage
+          </SafeActionButton>
         </>
       }
     >

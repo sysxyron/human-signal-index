@@ -73,10 +73,10 @@ export default function ResearchReportsPage() {
                 <span className="text-caption text-text-muted">{r.date}</span>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" size="sm" className="flex-1">
+                <Button variant="secondary" size="sm" className="flex-1" disabled title="The full report reader is being prepared and will be available soon.">
                   Read <ArrowUpRight className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" disabled title="Report downloads will be available soon." aria-label="Download report">
                   <Download className="h-4 w-4" />
                 </Button>
               </div>

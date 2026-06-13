@@ -1,7 +1,6 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
 import {
   Card,
-  Button,
   MetricCard,
   SignalCard,
   CategoryTag,
@@ -9,6 +8,8 @@ import {
   ReviewStatusBadge,
 } from '@hsi/ui';
 import { FileBarChart, Eye, Download, Share2 } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
+import { ROUTES } from '@/lib/navigation/routes';
 
 const reports = [
   { title: 'Q2 Narrative Landscape Review', category: 'Quarterly', tone: 'blue' as const, status: 'Approved' as const, trace: 97, views: '12.4K' },
@@ -21,7 +22,7 @@ export default function PublicReportsPage() {
     <DashboardPage
       title="Public Reports"
       subtitle="Published, evidence-backed findings for the public"
-      actions={<Button variant="primary" size="sm">Draft new report</Button>}
+      actions={<SafeActionButton variant="primary" href={ROUTES.publishingNew}>Draft new report</SafeActionButton>}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Published" value="214" accent="#3B82F6" icon={FileBarChart} delta={{ value: '+6', trend: 'up' }} />

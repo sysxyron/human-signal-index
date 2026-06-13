@@ -1,7 +1,6 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
 import {
   Card,
-  Button,
   MetricCard,
   DonutChart,
   HeatmapCard,
@@ -9,6 +8,7 @@ import {
   type CategoryTone,
 } from '@hsi/ui';
 import { ScanText, Cpu, Target, Layers } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
 
 const techniques: { label: string; tone: CategoryTone; pct: number }[] = [
   { label: 'In-group / Out-group', tone: 'purple', pct: 82 },
@@ -28,7 +28,7 @@ export default function RhetoricClassifierPage() {
     <DashboardPage
       title="Rhetoric Classifier"
       subtitle="Structured taxonomy of rhetoric, framing & influence"
-      actions={<Button variant="primary" size="sm">Re-run classifier</Button>}
+      actions={<SafeActionButton variant="primary" disabledReason="Classification runs automatically as signals are ingested by the classifier worker.">Re-run classifier</SafeActionButton>}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Classified / 24h" value="7,841" accent="#8B5CF6" icon={ScanText} delta={{ value: '+8%', trend: 'up' }} />

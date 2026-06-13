@@ -27,6 +27,22 @@ import {
   GitCompareArrows,
   Route,
   Orbit,
+  TrendingUp,
+  GitBranch,
+  Siren,
+  Users,
+  MessagesSquare,
+  Sparkles,
+  FileText,
+  Gavel,
+  Scale,
+  Command,
+  Send,
+  Target,
+  Beaker,
+  Microscope,
+  ShieldCheck,
+  ClipboardCheck,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -220,6 +236,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Source Registry', href: '/dashboard/source-registry', icon: Database },
       { label: 'Signal Intake', href: '/dashboard/signal-intake', icon: Inbox },
       { label: 'Evidence Vault', href: '/dashboard/evidence-vault', icon: Archive },
+      { label: 'Operations Center', href: '/dashboard/operations', icon: Activity },
     ],
   },
   {
@@ -228,21 +245,69 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Rhetoric Classifier', href: '/dashboard/rhetoric-classifier', icon: ScanText },
       { label: 'Risk Scoring', href: '/dashboard/risk-scoring', icon: Gauge },
       { label: 'Traceability Engine', href: '/dashboard/traceability-engine', icon: Network },
+      { label: 'Intelligence Ops', href: '/dashboard/intelligence/operations', icon: Workflow },
+      { label: 'Decision Explorer', href: '/dashboard/decisions/explorer', icon: GitCompareArrows },
     ],
   },
   {
     group: 'Workflow',
     items: [
-      { label: 'Review Queue', href: '/dashboard/review-queue', icon: ListChecks },
+      { label: 'Review Queue', href: '/dashboard/review', icon: ListChecks },
       { label: 'Alerts', href: '/dashboard/alerts', icon: Bell },
       { label: 'Counter-Narrative Studio', href: '/dashboard/counter-narrative', icon: Megaphone },
       { label: 'Public Reports', href: '/dashboard/public-reports', icon: FileBarChart },
     ],
   },
   {
+    group: 'Forecasting',
+    items: [
+      { label: 'Forecasts', href: '/dashboard/forecasts', icon: TrendingUp },
+      { label: 'Scenarios', href: '/dashboard/scenarios', icon: GitBranch },
+      { label: 'Early Warnings', href: '/dashboard/warnings', icon: Siren },
+    ],
+  },
+  {
+    group: 'Collective',
+    items: [
+      { label: 'Investigations', href: '/dashboard/investigations', icon: Microscope },
+      { label: 'Consensus', href: '/dashboard/consensus', icon: Users },
+      { label: 'Debates', href: '/dashboard/debates', icon: MessagesSquare },
+      { label: 'Contributors', href: '/dashboard/contributors', icon: Users },
+    ],
+  },
+  {
+    group: 'Trust & Outcomes',
+    items: [
+      { label: 'Outcomes', href: '/dashboard/outcomes', icon: Target },
+      { label: 'Governance', href: '/dashboard/governance', icon: Scale },
+      { label: 'Trust Center', href: '/dashboard/trust', icon: ShieldCheck },
+      { label: 'Calibration', href: '/dashboard/calibration', icon: Gauge },
+    ],
+  },
+  {
+    group: 'Publishing',
+    items: [
+      { label: 'Publications', href: '/dashboard/publishing', icon: FileText },
+      { label: 'Publishing Review', href: '/dashboard/publishing/review', icon: ClipboardCheck },
+      { label: 'Retractions', href: '/dashboard/publishing/retractions', icon: Send },
+    ],
+  },
+  {
+    group: 'Executive',
+    items: [
+      { label: 'Command Center', href: '/dashboard/executive', icon: Command },
+      { label: 'Priorities', href: '/dashboard/priorities', icon: ListChecks },
+      { label: 'Risks', href: '/dashboard/risks', icon: ShieldAlert },
+      { label: 'Opportunities', href: '/dashboard/opportunities', icon: Sparkles },
+      { label: 'Briefings', href: '/dashboard/briefings', icon: FileText },
+      { label: 'Exec Governance', href: '/dashboard/exec-governance', icon: Gavel },
+    ],
+  },
+  {
     group: 'WorldForge',
     items: [
       { label: 'Overview', href: '/dashboard/worldforge', icon: Globe2 },
+      { label: 'Simulation Lab', href: '/dashboard/simulation', icon: Beaker },
       { label: 'Simulations', href: '/dashboard/worldforge/simulations', icon: Orbit },
       { label: 'Scenario Sandbox', href: '/dashboard/worldforge/scenarios', icon: SlidersHorizontal },
       { label: 'Timelines', href: '/dashboard/worldforge/timelines', icon: CalendarClock },
@@ -256,6 +321,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'System',
     items: [
       { label: 'Security Monitor', href: '/dashboard/security-monitor', icon: ShieldAlert },
+      { label: 'Security Center', href: '/dashboard/security', icon: ShieldCheck },
       { label: 'Settings', href: '/dashboard/settings', icon: Settings },
     ],
   },
@@ -338,10 +404,14 @@ export function TopNav({
             className="w-56 rounded-btn border border-border bg-surface/80 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition focus:border-electric"
           />
         </div>
-        <button className="relative rounded-lg border border-border bg-surface/80 p-2 text-text-secondary transition hover:text-white">
+        <a
+          href="/dashboard/alerts"
+          aria-label="View alerts"
+          className="relative rounded-lg border border-border bg-surface/80 p-2 text-text-secondary transition hover:text-white"
+        >
           <Bell className="h-4 w-4" />
           <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-risk" />
-        </button>
+        </a>
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-caption font-bold text-white">
           AX
         </span>

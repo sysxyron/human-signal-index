@@ -1,13 +1,14 @@
 import { DashboardPage } from '../../../components/dashboard-shell';
 import {
   Card,
-  Button,
   MetricCard,
   SecurityEventCard,
   LineChart,
   TimelineCard,
 } from '@hsi/ui';
 import { ShieldAlert, Lock, Activity, Eye } from 'lucide-react';
+import { SafeActionButton } from '@/components/navigation/SafeActionButton';
+import { ROUTES } from '@/lib/navigation/routes';
 
 const events = [
   { severity: 'high' as const, title: 'Repeated admin login failures', source: 'auth-gateway · 203.0.113.42', status: 'Auto-throttled', time: '14 min ago' },
@@ -26,7 +27,7 @@ export default function SecurityMonitorPage() {
     <DashboardPage
       title="Security Monitor"
       subtitle="Platform integrity and access monitoring"
-      actions={<Button variant="primary" size="sm">View audit log</Button>}
+      actions={<SafeActionButton variant="primary" href={ROUTES.security}>View security center</SafeActionButton>}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Threats Blocked" value="1,284" accent="#EF4444" icon={ShieldAlert} delta={{ value: '+22', trend: 'up' }} deltaTone="negative" />
