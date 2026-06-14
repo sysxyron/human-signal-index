@@ -6,4 +6,5 @@ export * from './charts';
 export * from './data-display';
 export * from './trace';
 export * from './navigation';
+export * from './nav-roles';
 export * from './globe';

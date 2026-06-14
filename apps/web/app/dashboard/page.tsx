@@ -25,6 +25,7 @@ import { Database, Activity, ShieldCheck, AlertTriangle, Plus } from 'lucide-rea
 import { SafeActionButton } from '@/components/navigation/SafeActionButton';
 import { ROUTES } from '@/lib/navigation/routes';
 import { AccessDeniedNotice } from '@/components/governance/AccessDeniedNotice';
+import { RoleTaskCards } from '@/components/navigation/RoleTaskCards';
 
 const kpis = [
   { label: 'Active Sources', value: '24,781', accent: '#3B82F6', icon: Database, spark: [12, 18, 15, 22, 28, 26, 34], delta: { value: '+4.2%', trend: 'up' as const } },
@@ -85,6 +86,7 @@ export default function MissionControlPage() {
         <Suspense fallback={null}>
           <AccessDeniedNotice />
         </Suspense>
+        <RoleTaskCards />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-h4 font-semibold text-text-primary">Operational overview</h2>

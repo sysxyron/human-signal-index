@@ -103,7 +103,8 @@ export const ROUTES = {
   adminTesters: '/dashboard/admin/testers',
   adminAccessLogs: '/dashboard/admin/access-logs',
 
-  // ---- System -------------------------------------------------------------
+  // ---- Account / System ---------------------------------------------------
+  profile: '/dashboard/profile',
   security: '/dashboard/security',
   securityMonitor: '/dashboard/security-monitor',
   settings: '/dashboard/settings',

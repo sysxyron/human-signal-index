@@ -54,6 +54,7 @@ import {
 } from 'lucide-react';
 import { cn } from './utils';
 import { Button } from './primitives';
+import { filterNavGroups } from './nav-roles';
 
 /* -------------------------------------------------------------------------- */
 /* Brand mark                                                                   */
@@ -365,6 +366,12 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
+    group: 'Account',
+    items: [
+      { label: 'My Profile', href: '/dashboard/profile', icon: UserCog },
+    ],
+  },
+  {
     group: 'System',
     items: [
       { label: 'Security Monitor', href: '/dashboard/security-monitor', icon: ShieldAlert },
@@ -374,14 +381,20 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
   },
 ];
 
-export function DashboardSidebar({ activeHref }: { activeHref?: string }) {
+/**
+ * The dashboard sidebar. ROLE-AWARE (Phase 24D): when `role` is provided, only
+ * menus that role should see are rendered. This is UX only — RBAC + middleware
+ * still protect every route, so a hidden menu is never the security boundary.
+ */
+export function DashboardSidebar({ activeHref, role }: { activeHref?: string; role?: string | null }) {
+  const groups = filterNavGroups(dashboardNavGroups, role);
   return (
     <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-background-deep lg:sticky lg:top-0 lg:flex">
       <div className="flex h-[57px] items-center border-b border-border px-5">
         <BrandMark />
       </div>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-        {dashboardNavGroups.map((group) => (
+        {groups.map((group) => (
           <div key={group.group}>
             <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">
               {group.group}
