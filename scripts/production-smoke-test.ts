@@ -82,7 +82,7 @@ function checkMigrations() {
   } else if (extra.length > 0) {
     record('WARNING', 'Migrations', `Extra migration files not in EXPECTED set: ${extra.join(', ')} (update EXPECTED_MIGRATIONS).`);
   } else {
-    record('PASS', 'Migrations', `All ${EXPECTED_MIGRATIONS.length} expected migrations present (0001→0026).`);
+    record('PASS', 'Migrations', `All ${EXPECTED_MIGRATIONS.length} expected migrations present (0001→${EXPECTED_MIGRATIONS[EXPECTED_MIGRATIONS.length - 1].id}).`);
   }
 }
 

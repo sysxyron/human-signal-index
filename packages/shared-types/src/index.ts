@@ -4545,3 +4545,222 @@ export interface ExecutiveHighlights {
   governancePending?: number;
   dailyBriefReady?: boolean;
 }
+
+// =============================================================================
+// Human Operations & Case Management OS — Phase 24
+//
+// Serializable mirrors of the Phase 24 persistence (migration 0027): teams,
+// assignments, escalations, workloads, operational alerts, the operations audit
+// trail, and beta-tester issues — plus the view-models for the operations
+// dashboards. The pure logic lives in @hsi/operations-engine +
+// @hsi/performance-engine. Everything operational is ADVISORY: no autonomous
+// publication, approval, or governance action.
+// =============================================================================
+
+export type OpsTeamKey =
+  | 'research' | 'review' | 'curation' | 'governance'
+  | 'executive' | 'security' | 'publishing' | 'simulation';
+export type OpsLifecycleState =
+  | 'SUBMITTED' | 'TRIAGE' | 'RESEARCH' | 'EVIDENCE_COLLECTION'
+  | 'REVIEW' | 'PUBLICATION_REVIEW' | 'PUBLISHED' | 'ARCHIVED';
+export type OpsCaseRole = 'owner' | 'reviewer' | 'approver' | 'escalation_contact';
+export type OpsEscalationLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type OpsAlertKindName =
+  | 'investigation_overdue' | 'review_overdue' | 'publication_stalled'
+  | 'escalation_pending' | 'workload_imbalance' | 'human_review_required';
+export type TesterIssueStateName =
+  | 'SUBMITTED' | 'TRIAGED' | 'ASSIGNED' | 'RESOLVED' | 'VERIFIED' | 'CLOSED';
+
+export interface HsinTeamRecord {
+  id: string;
+  key?: OpsTeamKey | string;
+  name?: string;
+  description?: string;
+  created_at: string;
+  updated_at?: string;
+}
+export interface HsinTeamMemberRecord {
+  id: string;
+  team_id?: string;
+  user_id?: string;
+  team_role?: 'member' | 'lead' | string;
+  created_at: string;
+}
+export interface HsinAssignmentRecord {
+  id: string;
+  case_id?: string;
+  case_kind?: string;
+  role?: OpsCaseRole | string;
+  assignee?: string;
+  assigner?: string;
+  reason?: string;
+  notes?: string;
+  assigned_at?: string;
+  reassigned_at?: string;
+  active?: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+export interface HsinAssignmentHistoryRecord {
+  id: string;
+  case_id?: string;
+  role?: string;
+  action?: 'assigned' | 'reassigned' | 'unassigned' | string;
+  from_user?: string;
+  to_user?: string;
+  actor?: string;
+  reason?: string;
+  at?: string;
+  created_at: string;
+}
+export interface HsinWorkloadRecord {
+  id: string;
+  scope?: 'assignee' | 'team' | string;
+  scope_id?: string;
+  assigned?: number;
+  open_count?: number;
+  overdue?: number;
+  escalated?: number;
+  details?: Record<string, unknown>;
+  computed_at?: string;
+  created_at: string;
+  updated_at?: string;
+}
+export interface HsinEscalationRecord {
+  id: string;
+  case_id?: string;
+  level?: OpsEscalationLevel | string;
+  raised_by?: string;
+  reason?: string;
+  active?: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+export interface HsinOpsAlertRecord {
+  id: string;
+  kind?: OpsAlertKindName | string;
+  severity?: 'info' | 'warning' | 'critical' | string;
+  title?: string;
+  detail?: string;
+  case_id?: string;
+  team?: string;
+  status?: 'open' | 'acknowledged' | 'resolved' | string;
+  created_at: string;
+  updated_at?: string;
+}
+export interface HsinOpsAuditEventRecord {
+  id: string;
+  event_type?: string;
+  case_id?: string;
+  actor?: string;
+  summary?: string;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+  at?: string;
+  created_at: string;
+}
+export interface HsinTesterIssueRecord {
+  id: string;
+  reference?: string;
+  tester?: string;
+  title?: string;
+  route?: string;
+  severity?: 'critical' | 'high' | 'medium' | 'low' | string;
+  state?: TesterIssueStateName | string;
+  assignee?: string;
+  resolution?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+// ---- view-models ------------------------------------------------------------
+
+export interface OpsCaseView {
+  id: string;
+  title: string;
+  state: OpsLifecycleState | string;
+  team: OpsTeamKey | string;
+  assignee: string | null;
+  escalation: OpsEscalationLevel | string | null;
+  dueAt?: string | null;
+  overdue: boolean;
+  open: boolean;
+}
+
+export interface OpsWorkloadRowView {
+  assignee: string;
+  assigned: number;
+  open: number;
+  overdue: number;
+  escalated: number;
+}
+export interface OpsTeamWorkloadView {
+  team: OpsTeamKey | string;
+  members: number;
+  open: number;
+  overdue: number;
+  escalated: number;
+  loadPerMember: number;
+  status: 'healthy' | 'busy' | 'overloaded';
+}
+
+export interface WorkloadsData {
+  byAssignee: OpsWorkloadRowView[];
+  byTeam: OpsTeamWorkloadView[];
+  totals: { open: number; overdue: number; escalated: number; reviewBacklog: number; publicationBacklog: number };
+}
+
+export interface MyWorkData {
+  assignedToMe: OpsCaseView[];
+  awaitingReview: OpsCaseView[];
+  needsEvidence: OpsCaseView[];
+  needsApproval: OpsCaseView[];
+  escalated: OpsCaseView[];
+  completed: OpsCaseView[];
+}
+
+export interface TeamsData {
+  teams: { key: OpsTeamKey | string; name: string; members: number; open: number; overdue: number; status: string }[];
+}
+
+export interface OperationsAlertsData {
+  alerts: HsinOpsAlertRecord[];
+  bySeverity: Record<string, number>;
+}
+
+export interface ExecutiveOperationsData {
+  researchBacklog: number;
+  reviewBacklog: number;
+  publicationQueue: number;
+  criticalEscalations: number;
+  openInvestigations: number;
+  teamCapacity: OpsTeamWorkloadView[];
+  forecastedCapacity: { team: string; weeklyCapacity: number; netPerWeek: number; trend: string }[];
+  avgResolutionMs: number | null;
+  operationalHealth: 'healthy' | 'busy' | 'overloaded';
+}
+
+export interface ContributorOpsData {
+  active: number;
+  trusted: number;
+  contributors: { name: string; completed: number; reviewed: number; published: number }[];
+}
+
+export interface OperationsCenterData {
+  workloads: WorkloadsData;
+  alerts: HsinOpsAlertRecord[];
+  escalations: HsinEscalationRecord[];
+  teamHealth: OpsTeamWorkloadView[];
+  openCases: number;
+  overdueCases: number;
+  criticalEscalations: number;
+}
+
+export interface OperationsHighlights {
+  openCases?: number;
+  overdueCases?: number;
+  criticalEscalations?: number;
+  reviewBacklog?: number;
+  publicationBacklog?: number;
+  openAlerts?: number;
+}

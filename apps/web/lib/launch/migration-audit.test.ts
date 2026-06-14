@@ -5,10 +5,10 @@ import { EXPECTED_MIGRATIONS, auditMigrations } from './migration-audit';
 
 const ALL = EXPECTED_MIGRATIONS.map((m) => m.id);
 
-test('expected set is 0001..0026 contiguous', () => {
-  assert.equal(EXPECTED_MIGRATIONS.length, 26);
+test('expected set is contiguous from 0001', () => {
+  assert.equal(EXPECTED_MIGRATIONS.length, 27);
   assert.equal(ALL[0], '0001');
-  assert.equal(ALL[25], '0026');
+  assert.equal(ALL[ALL.length - 1], '0027');
   for (let i = 0; i < ALL.length; i++) {
     assert.equal(ALL[i], String(i + 1).padStart(4, '0'));
   }
@@ -18,9 +18,9 @@ test('all applied → ok, green, latest 0026', () => {
   const r = auditMigrations(ALL);
   assert.equal(r.ok, true);
   assert.equal(r.verifiable, true);
-  assert.equal(r.applied, 26);
+  assert.equal(r.applied, ALL.length);
   assert.equal(r.missing, 0);
-  assert.equal(r.latestApplied, '0026');
+  assert.equal(r.latestApplied, ALL[ALL.length - 1]);
   assert.ok(r.rows.every((row) => row.state === 'applied'));
 });
 
@@ -28,26 +28,28 @@ test('null applied → unverifiable, all unknown', () => {
   const r = auditMigrations(null);
   assert.equal(r.verifiable, false);
   assert.equal(r.ok, false);
-  assert.equal(r.unknown, 26);
+  assert.equal(r.unknown, ALL.length);
   assert.ok(r.rows.every((row) => row.state === 'unknown'));
 });
 
 test('missing tail migrations flagged missing', () => {
-  const r = auditMigrations(ALL.slice(0, 24)); // 0001..0024 applied
-  assert.equal(r.applied, 24);
+  const r = auditMigrations(ALL.slice(0, ALL.length - 2)); // last two not applied
+  assert.equal(r.applied, ALL.length - 2);
   assert.equal(r.missing, 2);
   assert.equal(r.ok, false);
-  assert.equal(r.latestApplied, '0024');
-  assert.equal(r.rows.find((x) => x.id === '0025')?.state, 'missing');
+  assert.equal(r.latestApplied, ALL[ALL.length - 3]);
+  assert.equal(r.rows.find((x) => x.id === ALL[ALL.length - 2])?.state, 'missing');
 });
 
 test('a gap marks later applied as out_of_order', () => {
-  // 0001..0024 + 0026 applied, 0025 missing → 0026 is out_of_order
-  const r = auditMigrations([...ALL.slice(0, 24), '0026']);
+  // all but the second-to-last applied, plus the last → last is out_of_order
+  const last = ALL[ALL.length - 1];
+  const gap = ALL[ALL.length - 2];
+  const r = auditMigrations([...ALL.slice(0, ALL.length - 2), last]);
   assert.equal(r.missing, 1);
   assert.equal(r.outOfOrder, 1);
-  assert.equal(r.rows.find((x) => x.id === '0025')?.state, 'missing');
-  assert.equal(r.rows.find((x) => x.id === '0026')?.state, 'out_of_order');
+  assert.equal(r.rows.find((x) => x.id === gap)?.state, 'missing');
+  assert.equal(r.rows.find((x) => x.id === last)?.state, 'out_of_order');
   assert.equal(r.ok, false);
 });
 
@@ -72,7 +74,7 @@ test('accepts timestamped version strings (extracts 4-digit id)', () => {
 
 test('empty applied → all missing', () => {
   const r = auditMigrations([]);
-  assert.equal(r.missing, 26);
+  assert.equal(r.missing, ALL.length);
   assert.equal(r.applied, 0);
   assert.equal(r.latestApplied, null);
 });

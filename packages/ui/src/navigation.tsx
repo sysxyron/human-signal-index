@@ -46,6 +46,8 @@ import {
   Rocket,
   Bug,
   GraduationCap,
+  ClipboardList,
+  UserCog,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -329,6 +331,18 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Counterfactuals', href: '/dashboard/worldforge/counterfactuals', icon: GitCompareArrows },
       { label: 'Provenance', href: '/dashboard/worldforge/provenance', icon: Route },
       { label: 'Universe Forge', href: '/dashboard/worldforge/universes', icon: FlaskConical },
+    ],
+  },
+  {
+    group: 'Human Operations',
+    items: [
+      { label: 'Operations Center', href: '/dashboard/operations-center', icon: Activity },
+      { label: 'My Work', href: '/dashboard/my-work', icon: ClipboardList },
+      { label: 'Workloads', href: '/dashboard/workloads', icon: Gauge },
+      { label: 'Teams', href: '/dashboard/teams', icon: Users },
+      { label: 'Operational Alerts', href: '/dashboard/operations-alerts', icon: Bell },
+      { label: 'Executive Operations', href: '/dashboard/executive-operations', icon: Command },
+      { label: 'Contributor Ops', href: '/dashboard/contributor-ops', icon: UserCog },
     ],
   },
   {

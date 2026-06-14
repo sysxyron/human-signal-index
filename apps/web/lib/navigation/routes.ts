@@ -107,6 +107,15 @@ export const ROUTES = {
   launchIssues: '/dashboard/launch/issues',
   testerOnboarding: '/dashboard/tester-onboarding',
 
+  // ---- Human Operations OS (Phase 24) ------------------------------------
+  operationsCenter: '/dashboard/operations-center',
+  workloads: '/dashboard/workloads',
+  myWork: '/dashboard/my-work',
+  teams: '/dashboard/teams',
+  contributorOps: '/dashboard/contributor-ops',
+  executiveOperations: '/dashboard/executive-operations',
+  operationsAlerts: '/dashboard/operations-alerts',
+
   // ---- Public trust & security programs (Phase 23B) ----------------------
   trustCenter: '/trust',
   vulnerabilityDisclosure: '/security/vulnerability-disclosure',

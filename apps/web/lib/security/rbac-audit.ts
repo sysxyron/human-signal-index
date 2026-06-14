@@ -111,6 +111,16 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/intelligence/impacts', minRole: 'researcher' },
   { pattern: '/dashboard/decisions', minRole: 'researcher' },
   { pattern: '/dashboard/simulation', minRole: 'researcher' },
+  // --- researcher (Phase 24 human-operations dashboards). Explicit entries for
+  // operations-center / operations-alerts override the broader
+  // '/dashboard/operations' (reviewer) prefix via longest-prefix-wins. ---
+  { pattern: '/dashboard/operations-center', minRole: 'researcher' },
+  { pattern: '/dashboard/operations-alerts', minRole: 'researcher' },
+  { pattern: '/dashboard/workloads', minRole: 'researcher' },
+  { pattern: '/dashboard/my-work', minRole: 'researcher' },
+  { pattern: '/dashboard/teams', minRole: 'researcher' },
+  { pattern: '/dashboard/contributor-ops', minRole: 'researcher' },
+  { pattern: '/dashboard/executive-operations', minRole: 'researcher' },
 ];
 
 /**

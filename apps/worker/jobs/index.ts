@@ -44,6 +44,8 @@ import { consensusWorkerJob } from './consensus-worker';
 import { forecastWorkerJob } from './forecast-worker';
 // HSI Phase 22 — executive command-center loop.
 import { executiveWorkerJob } from './executive-worker';
+// HSI Phase 24 — human operations loop.
+import { operationsWorkerJob } from './operations-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -138,6 +140,10 @@ export * from './outcome-alert-worker';
 // public names (ExecutiveWorkerResult, assembleUnifiedInputs, runExecutiveStage,
 // makeExecutiveWorkerJob, executiveWorkerJob) are distinct from every other job.
 export * from './executive-worker';
+// HSI Phase 24 exports. operations-worker imports the @hsi/operations-engine
+// types but re-exports none of them, so its symbols (OperationsWorkerResult,
+// runOperationsStage, makeOperationsWorkerJob, operationsWorkerJob) don't collide.
+export * from './operations-worker';
 
 /** All registered jobs, in pipeline order. */
 export const jobs: Job[] = [
@@ -220,6 +226,11 @@ export const jobs: Job[] = [
   // when service-role env is absent). NEVER auto-publishes / auto-approves /
   // auto-acts / auto-governs — every priority is advisory; every decision is human.
   executiveWorkerJob,
+  // HSI Phase 24 — the human-operations loop (every 30 min). Refreshes workload
+  // rollups + capacity, detects overdue work, and writes advisory operational
+  // alerts. Offline-safe (fixtures when service-role env is absent). NEVER
+  // auto-assigns / auto-escalates / auto-approves / auto-publishes.
+  operationsWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

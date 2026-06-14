@@ -46,7 +46,9 @@
       "@hsi/collective-intelligence": ["packages/collective-intelligence/src"],
       "@hsi/forecast-engine": ["packages/forecast-engine/src"],
       "@hsi/scenario-engine": ["packages/scenario-engine/src"],
-      "@hsi/executive-intelligence": ["packages/executive-intelligence/src"]
+      "@hsi/executive-intelligence": ["packages/executive-intelligence/src"],
+      "@hsi/operations-engine": ["packages/operations-engine/src"],
+      "@hsi/performance-engine": ["packages/performance-engine/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

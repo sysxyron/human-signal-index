@@ -92,9 +92,15 @@ importers:
       '@hsi/intelligence-queue':
         specifier: workspace:*
         version: link:../../packages/intelligence-queue
+      '@hsi/operations-engine':
+        specifier: workspace:*
+        version: link:../../packages/operations-engine
       '@hsi/outcome-intelligence':
         specifier: workspace:*
         version: link:../../packages/outcome-intelligence
+      '@hsi/performance-engine':
+        specifier: workspace:*
+        version: link:../../packages/performance-engine
       '@hsi/publishing-engine':
         specifier: workspace:*
         version: link:../../packages/publishing-engine
@@ -231,6 +237,9 @@ importers:
       '@hsi/intelligence-queue':
         specifier: workspace:*
         version: link:../../packages/intelligence-queue
+      '@hsi/operations-engine':
+        specifier: workspace:*
+        version: link:../../packages/operations-engine
       '@hsi/outcome-intelligence':
         specifier: workspace:*
         version: link:../../packages/outcome-intelligence
@@ -451,6 +460,12 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/operations-engine:
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/outcome-intelligence:
     dependencies:
       '@hsi/counterfactual-engine':
@@ -462,6 +477,12 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/performance-engine:
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
         version: 5.9.3
 
   packages/publishing-engine:

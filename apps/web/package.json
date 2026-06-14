@@ -21,6 +21,8 @@
     "@hsi/forecast-engine": "workspace:*",
     "@hsi/scenario-engine": "workspace:*",
     "@hsi/executive-intelligence": "workspace:*",
+    "@hsi/operations-engine": "workspace:*",
+    "@hsi/performance-engine": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

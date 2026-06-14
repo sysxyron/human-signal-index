@@ -111,7 +111,7 @@ export function computeReadiness(input: ReadinessInput): ReadinessReport {
       key: 'migrations', label: 'Database migrations', area: 'migration',
       status,
       detail: m.ok
-        ? 'All 26 migrations applied, in order.'
+        ? 'All migrations applied, in order.'
         : `${m.missing} missing, ${m.outOfOrder} out-of-order, ${m.failed} failed.`,
       blocker: status === 'RED',
     });
