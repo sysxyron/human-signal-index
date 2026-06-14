@@ -50,6 +50,8 @@ import {
   UserCog,
   ScrollText,
   UsersRound,
+  Award,
+  Trophy,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -259,6 +261,14 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
+    group: 'Contributor',
+    items: [
+      { label: 'Missions', href: '/dashboard/missions', icon: Target },
+      { label: 'Badges', href: '/dashboard/badges', icon: Award },
+      { label: 'Leaderboard', href: '/dashboard/leaderboard', icon: Trophy },
+    ],
+  },
+  {
     group: 'Intelligence',
     items: [
       { label: 'Rhetoric Analysis', href: '/dashboard/rhetoric-classifier', icon: ScanText },
@@ -272,6 +282,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Workflow',
     items: [
       { label: 'Review Queue', href: '/dashboard/review', icon: ListChecks },
+      { label: 'Governance Queue', href: '/dashboard/governance-queue', icon: Scale },
       { label: 'Alerts', href: '/dashboard/alerts', icon: Bell },
       { label: 'Counter-Narrative Studio', href: '/dashboard/counter-narrative', icon: Megaphone },
       { label: 'Public Reports', href: '/dashboard/public-reports', icon: FileBarChart },
@@ -361,6 +372,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     items: [
       { label: 'Users', href: '/dashboard/admin/users', icon: UserCog },
       { label: 'Teams', href: '/dashboard/admin/teams', icon: UsersRound },
+      { label: 'Applications', href: '/dashboard/admin/applications', icon: ClipboardCheck },
       { label: 'Testers', href: '/dashboard/admin/testers', icon: GraduationCap },
       { label: 'Access Logs', href: '/dashboard/admin/access-logs', icon: ScrollText },
     ],

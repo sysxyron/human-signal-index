@@ -105,6 +105,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/sources', minRole: 'reviewer' },
   { pattern: '/dashboard/source-registry', minRole: 'reviewer' },
   { pattern: '/dashboard/operations', minRole: 'reviewer' },
+  // Phase 25 — governance queue (escalated/sensitive investigations).
+  { pattern: '/dashboard/governance-queue', minRole: 'reviewer' },
 
   // --- researcher (decision / simulation / intelligence writes) ---
   { pattern: '/dashboard/intelligence/decisions', minRole: 'researcher' },
@@ -121,6 +123,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/teams', minRole: 'researcher' },
   { pattern: '/dashboard/contributor-ops', minRole: 'researcher' },
   { pattern: '/dashboard/executive-operations', minRole: 'researcher' },
+  // Phase 25 — investigation workflow detail (claim/work/review surface).
+  { pattern: '/dashboard/investigations/workflow', minRole: 'researcher' },
 ];
 
 /**

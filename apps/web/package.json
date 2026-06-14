@@ -23,6 +23,7 @@
     "@hsi/executive-intelligence": "workspace:*",
     "@hsi/operations-engine": "workspace:*",
     "@hsi/performance-engine": "workspace:*",
+    "@hsi/contributor-network": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

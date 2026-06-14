@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserCog, UsersRound, GraduationCap, ScrollText, type LucideProps } from 'lucide-react';
+import { UserCog, UsersRound, GraduationCap, ScrollText, ClipboardCheck, type LucideProps } from 'lucide-react';
 import { type ComponentType } from 'react';
 import { cn } from '@hsi/ui';
 
@@ -14,6 +14,7 @@ interface NavItem { label: string; href: string; icon: ComponentType<LucideProps
 const ITEMS: NavItem[] = [
   { label: 'Users', href: '/dashboard/admin/users', icon: UserCog },
   { label: 'Teams', href: '/dashboard/admin/teams', icon: UsersRound },
+  { label: 'Applications', href: '/dashboard/admin/applications', icon: ClipboardCheck },
   { label: 'Testers', href: '/dashboard/admin/testers', icon: GraduationCap },
   { label: 'Access Logs', href: '/dashboard/admin/access-logs', icon: ScrollText },
 ];

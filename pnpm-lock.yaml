@@ -65,6 +65,9 @@ importers:
       '@hsi/consensus-engine':
         specifier: workspace:*
         version: link:../../packages/consensus-engine
+      '@hsi/contributor-network':
+        specifier: workspace:*
+        version: link:../../packages/contributor-network
       '@hsi/counterfactual-engine':
         specifier: workspace:*
         version: link:../../packages/counterfactual-engine
@@ -213,6 +216,9 @@ importers:
       '@hsi/consensus-engine':
         specifier: workspace:*
         version: link:../../packages/consensus-engine
+      '@hsi/contributor-network':
+        specifier: workspace:*
+        version: link:../../packages/contributor-network
       '@hsi/counterfactual-engine':
         specifier: workspace:*
         version: link:../../packages/counterfactual-engine
@@ -356,6 +362,12 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/contributor-network:
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
         version: 5.9.3
 
   packages/counterfactual-engine:

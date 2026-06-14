@@ -46,6 +46,7 @@ import { forecastWorkerJob } from './forecast-worker';
 import { executiveWorkerJob } from './executive-worker';
 // HSI Phase 24 — human operations loop.
 import { operationsWorkerJob } from './operations-worker';
+import { contributorNetworkWorkerJob } from './contributor-network-worker';
 import type { Job } from './types';
 
 export * from './types';
@@ -79,6 +80,8 @@ export * from './triage-worker';
 // slaEscalationJob, makeSlaEscalationJob, dbLoad/dbPersist...) don't collide
 // with the triage-worker's exports above.
 export * from './sla-escalation-worker';
+// HSI Phase 25 — contributor-network worker (recognition recompute; no role promotion).
+export * from './contributor-network-worker';
 // HSI Phase 10 exports. temporal-worker IMPORTS the engine types under aliased
 // names (TemporalEvolutionRecord / TemporalGenealogyEdge / TemporalInfluenceEdge
 // / TemporalNarrativeForecast / TemporalNarrativeSnapshot / TemporalNarrativeInput
@@ -231,6 +234,11 @@ export const jobs: Job[] = [
   // alerts. Offline-safe (fixtures when service-role env is absent). NEVER
   // auto-assigns / auto-escalates / auto-approves / auto-publishes.
   operationsWorkerJob,
+  // HSI Phase 25 — the contributor-intelligence loop (hourly). Recomputes
+  // missions, badges, ranks, reputation, leaderboards, and team metrics.
+  // Offline-safe (demo computation when service-role env is absent). NEVER writes
+  // user_roles, NEVER promotes a role, NEVER auto-approves applications.
+  contributorNetworkWorkerJob,
 ];
 
 export const jobsByName: Record<string, Job> = Object.fromEntries(jobs.map((j) => [j.name, j]));

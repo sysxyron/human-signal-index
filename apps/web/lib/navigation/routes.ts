@@ -100,8 +100,16 @@ export const ROUTES = {
   // ---- Administration / IAM (Phase 24B) ----------------------------------
   adminUsers: '/dashboard/admin/users',
   adminTeams: '/dashboard/admin/teams',
+  adminApplications: '/dashboard/admin/applications',
   adminTesters: '/dashboard/admin/testers',
   adminAccessLogs: '/dashboard/admin/access-logs',
+
+  // ---- Contributor Intelligence Network (Phase 25) -----------------------
+  missions: '/dashboard/missions',
+  badges: '/dashboard/badges',
+  leaderboard: '/dashboard/leaderboard',
+  governanceQueue: '/dashboard/governance-queue',
+  onboardingPurpose: '/dashboard/onboarding/purpose',
 
   // ---- Account / System ---------------------------------------------------
   profile: '/dashboard/profile',

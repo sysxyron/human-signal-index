@@ -7,8 +7,11 @@
 
 import { TopNav, Card, ALL_NAV_HREFS, canSeeRoute, isRestrictedRoute } from '@hsi/ui';
 import Link from 'next/link';
-import { UserRound, ShieldCheck, Users, Info, ArrowRight, Table2 } from 'lucide-react';
+import { UserRound, ShieldCheck, Users, Info, ArrowRight, Table2, Trophy, Coins, Award, TrendingUp } from 'lucide-react';
 import { getMyProfileAction } from '@/lib/profile/actions';
+import { getContributionIdentityAction } from '@/lib/contributor/profile';
+import { OfflineDemoBanner } from '@/components/signals/states';
+import type { ReactNode } from 'react';
 import {
   ROLE_LABEL, ROLES, summaryForRole, tasksForRole, type Role,
 } from '@/lib/navigation/role-tasks';
@@ -37,6 +40,10 @@ export default async function ProfilePage() {
   const { email, role, status, team } = res.data;
   const roleLabel = role ? (ROLE_LABEL[role as Role] ?? role) : 'Viewer';
   const tasks = tasksForRole(role);
+
+  const idRes = await getContributionIdentityAction();
+  const identity = idRes.ok ? idRes.data : null;
+  const identityDemo = idRes.ok && idRes.demo;
 
   return (
     <>
@@ -68,6 +75,66 @@ export default async function ProfilePage() {
           <p className="text-caption leading-relaxed text-text-secondary">{summaryForRole(role)}</p>
           <p className="text-label text-text-muted">Your role is assigned by an administrator. Menus you don&apos;t see are hidden because your role doesn&apos;t use them — those areas are still access-protected, not broken.</p>
         </Card>
+
+        {/* Contribution identity (Phase 25 — Deliverable 11) */}
+        {identity ? (
+          <section className="space-y-3">
+            {identityDemo ? <OfflineDemoBanner message="Showing a labeled demo contribution profile. Live stats are computed by the contributor-network worker." /> : null}
+            <h3 className="flex items-center gap-2 text-h6 font-semibold text-text-primary"><Trophy className="h-4 w-4 text-electric" /> My contribution</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {([
+                ['Rank', identity.rankName, <Award key="a" className="h-4 w-4 text-electric" />],
+                ['XP', identity.xp.toLocaleString(), <Trophy key="t" className="h-4 w-4 text-electric" />],
+                ['Intel Credits', identity.intelCredits.toLocaleString(), <Coins key="c" className="h-4 w-4 text-warning" />],
+                ['Reputation', String(identity.overallReputation), <TrendingUp key="r" className="h-4 w-4 text-success" />],
+              ] as Array<[string, string, ReactNode]>).map(([label, value, icon]) => (
+                <Card key={label} className="space-y-1 border-border" padded>
+                  <div className="flex items-center gap-1.5 text-label uppercase tracking-wide text-text-muted">{icon} {label}</div>
+                  <div className="text-h5 font-bold text-text-primary">{value}</div>
+                </Card>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Stats */}
+              <Card className="space-y-2 border-border" padded>
+                <h4 className="text-caption font-semibold text-text-primary">Activity</h4>
+                <dl className="grid grid-cols-2 gap-2 text-caption">
+                  <div className="flex justify-between"><dt className="text-text-muted">Accepted signals</dt><dd className="tabular-nums text-text-primary">{identity.acceptedSignals}</dd></div>
+                  <div className="flex justify-between"><dt className="text-text-muted">Evidence packages</dt><dd className="tabular-nums text-text-primary">{identity.evidencePackages}</dd></div>
+                  <div className="flex justify-between"><dt className="text-text-muted">Reviews completed</dt><dd className="tabular-nums text-text-primary">{identity.reviewsCompleted}</dd></div>
+                  <div className="flex justify-between"><dt className="text-text-muted">Reports prepared</dt><dd className="tabular-nums text-text-primary">{identity.reportsPrepared}</dd></div>
+                </dl>
+              </Card>
+              {/* Next rank */}
+              <Card className="space-y-2 border-border" padded>
+                <h4 className="text-caption font-semibold text-text-primary">Next rank</h4>
+                {identity.nextRank ? (
+                  <div className="space-y-1 text-caption text-text-secondary">
+                    <p className="text-text-primary">{identity.nextRank.name}</p>
+                    <p>Needs <span className="font-medium text-text-primary">{identity.nextRank.xpToNext}</span> more XP and <span className="font-medium text-text-primary">{identity.nextRank.reputationToNext}</span> more reputation.</p>
+                    {identity.nextRank.needsAdminApproval ? <p className="text-warning">Requires administrator approval — rank never bypasses access control.</p> : <p className="text-success">Advances automatically when requirements are met.</p>}
+                  </div>
+                ) : <p className="text-caption text-text-muted">You&apos;ve reached the top of your track.</p>}
+              </Card>
+            </div>
+
+            {/* Badges */}
+            <Card className="space-y-2 border-border" padded>
+              <h4 className="flex items-center gap-1.5 text-caption font-semibold text-text-primary"><Award className="h-3.5 w-3.5 text-electric" /> Badges</h4>
+              {identity.badges.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {identity.badges.map((b) => <span key={b.id} className="rounded-full bg-electric/15 px-2.5 py-1 text-label font-medium text-electric">{b.name}</span>)}
+                </div>
+              ) : <p className="text-caption text-text-muted">No badges yet — earn them through accepted contributions.</p>}
+            </Card>
+
+            <div className="flex flex-wrap gap-2">
+              <Link href={"/dashboard/missions" as never} className="inline-flex items-center gap-1.5 rounded-card border border-border bg-surface/50 px-3 py-2 text-caption text-text-secondary hover:border-electric/50 hover:text-text-primary">View my missions <ArrowRight className="h-3.5 w-3.5" /></Link>
+              <Link href={"/dashboard/leaderboard" as never} className="inline-flex items-center gap-1.5 rounded-card border border-border bg-surface/50 px-3 py-2 text-caption text-text-secondary hover:border-electric/50 hover:text-text-primary">Leaderboard <ArrowRight className="h-3.5 w-3.5" /></Link>
+            </div>
+          </section>
+        ) : null}
 
         {/* Recommended next actions */}
         <section className="space-y-3">

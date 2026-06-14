@@ -10,9 +10,10 @@
 
 import Link from 'next/link';
 import { TopNav, Card } from '@hsi/ui';
-import { Users, Info } from 'lucide-react';
+import { Users, Info, Workflow, ArrowRight } from 'lucide-react';
 import type { InvestigationsBoardData } from '@hsi/shared-types';
 import { createInvestigationAction, getInvestigationsBoardAction } from '@/lib/collective/actions';
+import { listInvestigationWorkflowAction } from '@/lib/contributor/investigations';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import { canResearch, demoInvestigationsBoard, formatDate, formatPct } from '@/lib/collective/view';
 import { CollectiveNav } from '@/components/collective/CollectiveNav';
@@ -38,6 +39,11 @@ export default async function InvestigationsPage() {
   const forbidden = !isDemo && res.ok && !mayResearch;
   const rows = data?.rows ?? [];
 
+  // Phase 25 — investigation WORKFLOW buckets (researcher+). Advisory panel.
+  const wf = await listInvestigationWorkflowAction();
+  const buckets = wf.ok ? wf.data : null;
+  const wfDemo = wf.ok && wf.demo;
+
   return (
     <>
       <TopNav title="Investigations" subtitle="Collaborative intelligence — submit findings, challenge conclusions, form consensus" />
@@ -62,6 +68,39 @@ export default async function InvestigationsPage() {
         {mayResearch && !isDemo ? (
           <Card className="border-border" padded>
             <CreateInvestigationControl action={createInvestigationAction} canAct={mayResearch} demo={isDemo} />
+          </Card>
+        ) : null}
+
+        {/* Phase 25 — Investigation Workflow (lifecycle pipeline) */}
+        {buckets ? (
+          <Card className="space-y-3 border-electric/30 bg-electric/5" padded>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 text-h6 font-semibold text-text-primary"><Workflow className="h-4 w-4 text-electric" /> Investigation workflow{wfDemo ? <DemoBadge /> : null}</h3>
+              <Link href={"/dashboard/governance-queue" as never} className="inline-flex items-center gap-1 text-caption text-electric hover:underline">Governance queue <ArrowRight className="h-3.5 w-3.5" /></Link>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {([
+                ['Active', buckets.active.length], ['Assigned to me', buckets.assigned.length], ['Awaiting review', buckets.awaitingReview.length],
+                ['Escalated', buckets.escalated.length], ['Publication ready', buckets.publicationReady.length], ['Recently updated', buckets.recentlyUpdated.length],
+              ] as Array<[string, number]>).map(([label, n]) => (
+                <div key={label} className="rounded-card border border-border bg-surface/50 px-3 py-2">
+                  <div className="text-h5 font-bold tabular-nums text-text-primary">{n}</div>
+                  <div className="text-label text-text-muted">{label}</div>
+                </div>
+              ))}
+            </div>
+            {buckets.recentlyUpdated.length > 0 ? (
+              <ul className="space-y-1.5 border-t border-border pt-2">
+                {buckets.recentlyUpdated.slice(0, 4).map((i) => (
+                  <li key={i.id}>
+                    <Link href={`/dashboard/investigations/workflow/${i.id}` as never} className="flex items-center justify-between gap-2 text-caption text-text-secondary hover:text-text-primary">
+                      <span className="truncate">{i.title}</span>
+                      <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-label capitalize text-text-muted">{i.status.replace(/_/g, ' ')}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </Card>
         ) : null}
 

@@ -4849,3 +4849,89 @@ export interface InviteStats {
   pendingInvitations: number;
   suspendedUsers: number;
 }
+
+// =============================================================================
+// Contributor Intelligence Network (Phase 25) — DB row mirrors for migration
+// 0029. The pure progression LOGIC + richer view-models live in
+// @hsi/contributor-network; these are thin row shapes for the web DAL.
+// =============================================================================
+
+export type RoleApplicationStatus =
+  | 'pending' | 'approved' | 'rejected' | 'needs_more_info' | 'withdrawn';
+
+export interface RoleApplicationRow {
+  id: string;
+  userId: string;
+  requestedPath: string;
+  requestedRole: string | null;
+  experienceSummary: string | null;
+  reason: string | null;
+  organization: string | null;
+  status: RoleApplicationStatus;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNotes: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface UserBadgeRow {
+  id: string;
+  userId: string;
+  badgeId: string;
+  awardedAt: string;
+  earnedByMetric: string | null;
+}
+
+export interface UserMissionRow {
+  id: string;
+  userId: string;
+  templateId: string;
+  progress: Record<string, number>;
+  status: 'not_started' | 'in_progress' | 'completed' | 'expired' | 'claimed';
+  deadline: string | null;
+  claimedAt: string | null;
+}
+
+export type InvestigationWorkflowStatus =
+  | 'intake' | 'research' | 'evidence_collection' | 'review'
+  | 'escalated' | 'governance' | 'publication_ready' | 'published' | 'archived';
+
+export interface InvestigationRow {
+  id: string;
+  title: string;
+  summary: string | null;
+  status: InvestigationWorkflowStatus;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  ownerId: string | null;
+  teamId: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface InvestigationEventRow {
+  id: string;
+  investigationId: string;
+  actorId: string | null;
+  action: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+/** Contribution identity shown on /dashboard/profile (Phase 25 Deliverable 11). */
+export interface ContributionIdentity {
+  role: string | null;
+  rankName: string;
+  rankTrack: string;
+  xp: number;
+  intelCredits: number;
+  reputation: Record<string, number>;
+  overallReputation: number;
+  badges: Array<{ id: string; name: string }>;
+  acceptedSignals: number;
+  evidencePackages: number;
+  reviewsCompleted: number;
+  reportsPrepared: number;
+  nextRank: { name: string; xpToNext: number; reputationToNext: number; needsAdminApproval: boolean } | null;
+}
