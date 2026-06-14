@@ -22,6 +22,7 @@ import {
   Users,
   Landmark,
 } from 'lucide-react';
+import { appHref } from '@/lib/env/app-url';
 
 const heroMetrics = [
   { label: 'Active Sources', value: '24,781', accent: '#3B82F6', spark: [12, 18, 15, 22, 28, 26, 34] },
@@ -115,7 +116,7 @@ export default function HomePage() {
               civilization — with traceability, transparency, and context.
             </p>
             <div className="flex flex-wrap gap-3">
-              <a href="/dashboard">
+              <a href={appHref('/dashboard')}>
                 <Button variant="primary" size="lg">
                   Explore Live Signals <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -289,7 +290,7 @@ export default function HomePage() {
             submit a signal for review.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <a href="/dashboard">
+            <a href={appHref('/dashboard')}>
               <Button variant="primary" size="lg">
                 Explore Dashboard <ArrowRight className="h-4 w-4" />
               </Button>

@@ -89,7 +89,7 @@ export const publicNavLinks = [
   { label: 'Contact', href: '/contact' },
 ];
 
-export function PublicNav() {
+export function PublicNav({ dashboardHref = '/dashboard' }: { dashboardHref?: string } = {}) {
   const [open, setOpen] = useState(false);
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -107,7 +107,7 @@ export function PublicNav() {
           ))}
         </nav>
         <div className="hidden items-center gap-3 xl:flex">
-          <a href="/dashboard">
+          <a href={dashboardHref}>
             <Button variant="primary" size="sm">
               Explore Dashboard
             </Button>
@@ -134,7 +134,7 @@ export function PublicNav() {
                 {link.label}
               </a>
             ))}
-            <a href="/dashboard" className="mt-2">
+            <a href={dashboardHref} className="mt-2">
               <Button variant="primary" size="sm" className="w-full">
                 Explore Dashboard
               </Button>
@@ -191,7 +191,7 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
     },
   ];
 
-export function Footer() {
+export function Footer({ dashboardHref = '/dashboard' }: { dashboardHref?: string } = {}) {
   return (
     <footer className="border-t border-border bg-background-deep">
       <div className="mx-auto max-w-[1180px] px-6 py-14">
@@ -214,7 +214,7 @@ export function Footer() {
                 {col.links.map((link) => (
                   <li key={link.label + link.href}>
                     <a
-                      href={link.href}
+                      href={link.href === '/dashboard' ? dashboardHref : link.href}
                       className="text-body-sm text-text-secondary transition hover:text-text-primary"
                     >
                       {link.label}

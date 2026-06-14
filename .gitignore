@@ -12,3 +12,4 @@ coverage/
 **/dist/
 **/.turbo/
 .idea/
+.vercel
