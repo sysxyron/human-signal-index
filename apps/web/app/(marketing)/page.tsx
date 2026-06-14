@@ -23,6 +23,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import { appHref } from '@/lib/env/app-url';
+import { AuthHashForwarder } from '@/components/auth/AuthHashForwarder';
 
 const heroMetrics = [
   { label: 'Active Sources', value: '24,781', accent: '#3B82F6', spark: [12, 18, 15, 22, 28, 26, 34] },
@@ -100,6 +101,9 @@ const heatRows = Array.from({ length: 5 }, (_, r) =>
 export default function HomePage() {
   return (
     <main className="text-text-primary">
+      {/* Defensive: forward any Supabase auth hash that lands here to the
+          verified /auth/callback handler (preserves the hash exactly). */}
+      <AuthHashForwarder />
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 grid-bg opacity-60" />
