@@ -14,6 +14,7 @@ import {
 } from './guard';
 import { roleIdByName } from './roles';
 import { highestRole } from '@/lib/auth/get-session-role';
+import { appHref } from '@/lib/env/app-url';
 import type { AdminUsersData, AdminUserRow, InviteStats, UserStatus } from '@hsi/shared-types';
 
 type JsonRecord = Record<string, unknown>;
@@ -161,9 +162,10 @@ export async function inviteUser(input: { email: string; role: string; team?: st
     if (!svc) return serviceRequired();
     const { db } = gate.ctx;
 
-    const redirectTo = `${(process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')}/auth/callback`;
+    // Land the invitee on the app's auth callback (handles the invite hash flow).
+    const redirectTo = appHref('/auth/callback');
     const { data, error } = await svc.auth.admin.inviteUserByEmail(email, {
-      ...(redirectTo.startsWith('http') ? { redirectTo } : {}),
+      redirectTo,
       data: { invited_by: gate.ctx.user.email, invited_role: input.role, ...(input.message ? { invite_message: input.message } : {}) },
     });
     if (error || !data?.user?.id) return adminFail(error ?? new Error('Invitation returned no user.'));
