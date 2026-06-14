@@ -45,6 +45,7 @@ export const EXPECTED_MIGRATIONS: ExpectedMigration[] = [
   { id: '0025', name: 'forecasting_and_scenarios' },
   { id: '0026', name: 'executive_command_center' },
   { id: '0027', name: 'human_operations_os' },
+  { id: '0028', name: 'user_status_iam' },
 ];
 
 export type MigrationState = 'applied' | 'missing' | 'out_of_order' | 'failed' | 'unknown';

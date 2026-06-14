@@ -48,6 +48,8 @@ import {
   GraduationCap,
   ClipboardList,
   UserCog,
+  ScrollText,
+  UsersRound,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -351,6 +353,15 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Launch Center', href: '/dashboard/launch', icon: Rocket },
       { label: 'Beta Issues', href: '/dashboard/launch/issues', icon: Bug },
       { label: 'Tester Onboarding', href: '/dashboard/tester-onboarding', icon: GraduationCap },
+    ],
+  },
+  {
+    group: 'Administration',
+    items: [
+      { label: 'Users', href: '/dashboard/admin/users', icon: UserCog },
+      { label: 'Teams', href: '/dashboard/admin/teams', icon: UsersRound },
+      { label: 'Testers', href: '/dashboard/admin/testers', icon: GraduationCap },
+      { label: 'Access Logs', href: '/dashboard/admin/access-logs', icon: ScrollText },
     ],
   },
   {

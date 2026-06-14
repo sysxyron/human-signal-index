@@ -13,9 +13,11 @@ import { Rocket, Info, Bug, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import type { LaunchStatus } from '@/lib/launch/types';
 import { getLaunchStatusAction } from '@/lib/launch/actions';
+import { getInviteStatsAction } from '@/lib/admin/actions';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/security/view';
 import { demoLaunchStatus } from '@/lib/launch/view';
+import { demoInviteStats } from '@/lib/admin/view';
 import { DemoBadge } from '@/components/signals/badges';
 import { ErrorState, OfflineDemoBanner, type DbErrorCode } from '@/components/signals/states';
 import {
@@ -50,13 +52,14 @@ export default async function LaunchPage() {
     );
   }
 
-  const res = await getLaunchStatusAction();
+  const [res, inviteRes] = await Promise.all([getLaunchStatusAction(), getInviteStatsAction()]);
   let data: LaunchStatus | null = null;
   let isDemo = false;
   let errored: { message: string; code?: DbErrorCode } | null = null;
   if (res.ok) data = res.data;
   else if (res.code === 'NOT_CONFIGURED') { data = demoLaunchStatus(); isDemo = true; }
   else errored = { message: res.error, code: res.code };
+  const inviteStats = inviteRes.ok ? inviteRes.data : demoInviteStats();
 
   return (
     <>
@@ -89,6 +92,23 @@ export default async function LaunchPage() {
         ) : !data ? null : (
           <div className="space-y-6">
             <ReadinessScoreCard readiness={data.readiness} />
+            <section className="space-y-2">
+              <h3 className="text-h6 font-semibold text-text-primary">Tester invitations</h3>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {[
+                  { label: 'Total testers', value: inviteStats.totalTesters, color: '#3B82F6' },
+                  { label: 'Active', value: inviteStats.activeTesters, color: '#10B981' },
+                  { label: 'Pending invitations', value: inviteStats.pendingInvitations, color: '#F59E0B' },
+                  { label: 'Suspended', value: inviteStats.suspendedUsers, color: '#EF4444' },
+                ].map((s) => (
+                  <Card key={s.label} className="space-y-1 border-border" padded>
+                    <div className="text-h5 font-bold tabular-nums" style={{ color: s.color }}>{s.value}</div>
+                    <div className="text-label uppercase tracking-wide text-text-muted">{s.label}</div>
+                  </Card>
+                ))}
+              </div>
+              <Link href={'/dashboard/admin/users' as never} className="inline-flex items-center gap-1.5 text-caption font-semibold text-electric hover:text-white">Manage users →</Link>
+            </section>
             <LaunchAreaGrid readiness={data.readiness} />
             <MigrationStatusPanel audit={data.migration} demo={isDemo} />
             <div className="grid gap-4 lg:grid-cols-3">

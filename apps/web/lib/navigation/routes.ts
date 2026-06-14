@@ -97,6 +97,12 @@ export const ROUTES = {
   briefings: '/dashboard/briefings',
   execGovernance: '/dashboard/exec-governance',
 
+  // ---- Administration / IAM (Phase 24B) ----------------------------------
+  adminUsers: '/dashboard/admin/users',
+  adminTeams: '/dashboard/admin/teams',
+  adminTesters: '/dashboard/admin/testers',
+  adminAccessLogs: '/dashboard/admin/access-logs',
+
   // ---- System -------------------------------------------------------------
   security: '/dashboard/security',
   securityMonitor: '/dashboard/security-monitor',

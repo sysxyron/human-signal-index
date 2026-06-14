@@ -4764,3 +4764,88 @@ export interface OperationsHighlights {
   publicationBacklog?: number;
   openAlerts?: number;
 }
+
+// =============================================================================
+// Identity & Access Management — Phase 24B
+//
+// View-models for the admin IAM console (users, teams, testers, access logs).
+// Role lives in public.user_roles → roles; status on public.users; team in
+// public.team_members. All admin-only; every change is audited to
+// security_audit_events. No JWT/metadata role storage.
+// =============================================================================
+
+export type UserStatus = 'pending' | 'active' | 'suspended' | 'disabled';
+
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  name: string | null;
+  status: UserStatus;
+  role: string | null; // highest role
+  roles: string[];
+  team: string | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface AdminUsersData {
+  users: AdminUserRow[];
+  roleOptions: string[];
+  teamOptions: { key: string; name: string }[];
+  counts: { total: number; active: number; pending: number; suspended: number; disabled: number };
+}
+
+export interface AdminTeamRow {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  members: { userId: string; email: string; name: string | null; teamRole: 'member' | 'lead' }[];
+  memberCount: number;
+}
+
+export interface AdminTeamsData {
+  teams: AdminTeamRow[];
+  assignableUsers: { id: string; email: string; name: string | null }[];
+}
+
+export interface AdminTesterRow {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string | null;
+  team: string | null;
+  status: UserStatus;
+  lastLoginAt: string | null;
+  signalsCreated: number;
+  reviewsCompleted: number;
+  reportsSubmitted: number;
+  ready: boolean;
+}
+
+export interface AdminTestersData {
+  testers: AdminTesterRow[];
+}
+
+export interface AdminAccessLogRow {
+  id: string;
+  userId: string | null;
+  email: string | null;
+  eventType: string | null;
+  severity: string | null;
+  route: string | null;
+  message: string | null;
+  createdAt: string;
+}
+
+export interface AdminAccessLogsData {
+  events: AdminAccessLogRow[];
+  eventTypes: string[];
+}
+
+export interface InviteStats {
+  totalTesters: number;
+  activeTesters: number;
+  pendingInvitations: number;
+  suspendedUsers: number;
+}

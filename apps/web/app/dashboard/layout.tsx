@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { DashboardSidebar } from '@hsi/ui';
 import { AuthButton } from '@/components/auth/AuthButton';
 import { NotificationCenter } from '@/components/governance/NotificationCenter';
+import { AccountStatusBanner } from '@/components/admin/AccountStatusBanner';
 
 export default function DashboardLayout({
   children,
@@ -23,6 +24,7 @@ export default function DashboardLayout({
             <AuthButton />
           </div>
         </div>
+        <AccountStatusBanner />
         {children}
       </div>
     </div>
