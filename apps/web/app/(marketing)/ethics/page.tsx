@@ -13,7 +13,11 @@ const principles = [
   { icon: HeartHandshake, title: 'Humanity above all', body: 'When in doubt, we err on the side of human dignity and the public good.' },
 ];
 
-export default function EthicsPage() {
+import { getPublishedPage as cmsGet } from '@/lib/cms/cms';
+import { CmsBlocks as CmsBlocksView } from '@/components/cms/CmsBlocks';
+export default async function EthicsPage() {
+  const cms = await cmsGet('ethics');
+  if (cms) return <CmsBlocksView blocks={cms.blocks} />;
   return (
     <>
       <PageHeader

@@ -10,7 +10,11 @@ const channels = [
   { icon: GraduationCap, title: 'Research & education', body: 'Collaborations, datasets, and classroom resources.', email: 'research@humansignalindex.org' },
 ];
 
-export default function ContactPage() {
+import { getPublishedPage as cmsGet } from '@/lib/cms/cms';
+import { CmsBlocks as CmsBlocksView } from '@/components/cms/CmsBlocks';
+export default async function ContactPage() {
+  const cms = await cmsGet('contact');
+  if (cms) return <CmsBlocksView blocks={cms.blocks} />;
   return (
     <>
       <PageHeader

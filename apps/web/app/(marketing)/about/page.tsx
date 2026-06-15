@@ -11,7 +11,11 @@ const values = [
   { icon: Users, title: 'Human in the loop', body: 'People review every published finding. Models assist; they do not decide.' },
 ];
 
-export default function AboutPage() {
+import { getPublishedPage as cmsGet } from '@/lib/cms/cms';
+import { CmsBlocks as CmsBlocksView } from '@/components/cms/CmsBlocks';
+export default async function AboutPage() {
+  const cms = await cmsGet('about');
+  if (cms) return <CmsBlocksView blocks={cms.blocks} />;
   return (
     <>
       <PageHeader

@@ -6,9 +6,9 @@ import { EXPECTED_MIGRATIONS, auditMigrations } from './migration-audit';
 const ALL = EXPECTED_MIGRATIONS.map((m) => m.id);
 
 test('expected set is contiguous from 0001', () => {
-  assert.equal(EXPECTED_MIGRATIONS.length, 37);
+  assert.equal(EXPECTED_MIGRATIONS.length, 38);
   assert.equal(ALL[0], '0001');
-  assert.equal(ALL[ALL.length - 1], '0037');
+  assert.equal(ALL[ALL.length - 1], '0038');
   for (let i = 0; i < ALL.length; i++) {
     assert.equal(ALL[i], String(i + 1).padStart(4, '0'));
   }

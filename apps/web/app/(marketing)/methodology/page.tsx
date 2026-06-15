@@ -44,7 +44,11 @@ const pipeline = [
   },
 ];
 
-export default function MethodologyPage() {
+import { getPublishedPage as cmsGet } from '@/lib/cms/cms';
+import { CmsBlocks as CmsBlocksView } from '@/components/cms/CmsBlocks';
+export default async function MethodologyPage() {
+  const cms = await cmsGet('methodology');
+  if (cms) return <CmsBlocksView blocks={cms.blocks} />;
   return (
     <>
       <PageHeader

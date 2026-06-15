@@ -143,6 +143,9 @@ importers:
       '@hsi/simulation-engine':
         specifier: workspace:*
         version: link:../../packages/simulation-engine
+      '@hsi/site-builder':
+        specifier: workspace:*
+        version: link:../../packages/site-builder
       '@hsi/source-intelligence':
         specifier: workspace:*
         version: link:../../packages/source-intelligence
@@ -625,6 +628,12 @@ importers:
       '@hsi/world-models':
         specifier: workspace:*
         version: link:../world-models
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/site-builder:
     devDependencies:
       typescript:
         specifier: ^5.4.0

@@ -375,7 +375,9 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Administration',
     items: [
       { label: 'Users', href: '/dashboard/admin/users', icon: UserCog },
+      { label: 'Site Operations', href: '/dashboard/admin/site-ops', icon: LayoutDashboard },
       { label: 'Content (CMS)', href: '/dashboard/admin/cms', icon: FileText },
+      { label: 'Site Settings', href: '/dashboard/admin/site-settings', icon: Settings },
       { label: 'Teams', href: '/dashboard/admin/teams', icon: UsersRound },
       { label: 'Applications', href: '/dashboard/admin/applications', icon: ClipboardCheck },
       { label: 'Contribution Monitoring', href: '/dashboard/admin/contribution-monitoring', icon: Activity },

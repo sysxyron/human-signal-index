@@ -52,7 +52,11 @@ const columns: TableColumn<Row>[] = [
   { key: 'date', header: 'Published', align: 'right', render: (r) => r.date },
 ];
 
-export default function ResearchReportsPage() {
+import { getPublishedPage as cmsGet } from '@/lib/cms/cms';
+import { CmsBlocks as CmsBlocksView } from '@/components/cms/CmsBlocks';
+export default async function ResearchReportsPage() {
+  const cms = await cmsGet('research-reports');
+  if (cms) return <CmsBlocksView blocks={cms.blocks} />;
   return (
     <>
       <PageHeader

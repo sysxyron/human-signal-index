@@ -30,6 +30,7 @@
     "@hsi/cms-engine": "workspace:*",
     "@hsi/beta-engine": "workspace:*",
     "@hsi/launch-readiness": "workspace:*",
+    "@hsi/site-builder": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",
