@@ -9,9 +9,13 @@
 import { TopNav, Card } from '@hsi/ui';
 import { CreditCard, Check, X, Gauge, Clock, FileText, ExternalLink, Download } from 'lucide-react';
 import { getBillingCenterAction, listInvoicesAction } from '@/lib/billing/billing';
+import { getOrgBillingInsightsAction } from '@/lib/saas-ops/operations';
 import { invoiceDisplayAmount } from '@hsi/billing';
 import { BillingActions } from '@/components/billing/BillingActions';
 import { ErrorState, OfflineDemoBanner } from '@/components/signals/states';
+import { TrendingUp, Activity, AlertTriangle } from 'lucide-react';
+
+const HEALTH_TINT: Record<string, string> = { healthy: '#10B981', warning: '#F59E0B', 'at-risk': '#EF4444' };
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -36,8 +40,9 @@ export default async function OrgBillingPage({ searchParams }: { searchParams?: 
     return (<><TopNav title="Billing & Plan" subtitle="Plan, billing and usage" /><main className="space-y-6 p-5 lg:p-6"><ErrorState code={res.code === 'AUTH_REQUIRED' ? 'AUTH_REQUIRED' : undefined} title="Could not load billing" message="Unavailable right now." redirectedFrom="/dashboard/org/billing" /></main></>);
   }
   const b = res.data;
-  const inv = await listInvoicesAction();
+  const [inv, insightsRes] = await Promise.all([listInvoicesAction(), getOrgBillingInsightsAction()]);
   const invoices = inv.ok ? inv.data : [];
+  const insights = insightsRes.ok ? insightsRes.data : null;
   const limitEnts = b.entitlements.filter((e) => e.featureKey.endsWith('_limit'));
   const featureEnts = b.entitlements.filter((e) => !e.featureKey.endsWith('_limit'));
   const usageFor = (key: string): number =>
@@ -84,6 +89,31 @@ export default async function OrgBillingPage({ searchParams }: { searchParams?: 
             })}
           </div>
         </div>
+
+        {/* Insights (org owners) */}
+        {insights ? (
+          <div>
+            <h2 className="mb-2 flex items-center gap-1.5 text-label uppercase tracking-wide text-text-muted"><TrendingUp className="h-3.5 w-3.5" /> Insights</h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Card className="space-y-1 border-border" padded>
+                <div className="text-label uppercase tracking-wide text-text-muted">Usage trend</div>
+                <div className="text-h6 font-bold tabular-nums text-text-primary">{insights.usageTrend > 0 ? '+' : ''}{Math.round(insights.usageTrend * 100)}%</div>
+              </Card>
+              <Card className="space-y-1 border-border" padded>
+                <div className="flex items-center gap-1.5 text-label uppercase tracking-wide text-text-muted"><Activity className="h-3.5 w-3.5" /> Health</div>
+                {insights.health ? <div className="text-h6 font-bold capitalize" style={{ color: HEALTH_TINT[insights.health.status] ?? '#94A3B8' }}>{insights.health.status} ({insights.health.score})</div> : <div className="text-caption text-text-muted">Not yet computed</div>}
+              </Card>
+              <Card className="space-y-1 border-border" padded>
+                <div className="text-label uppercase tracking-wide text-text-muted">Renewal forecast</div>
+                <div className="text-h6 font-bold tabular-nums text-text-primary">{insights.renewalForecastLabel}</div>
+              </Card>
+              <Card className="space-y-1 border-border" padded>
+                <div className="flex items-center gap-1.5 text-label uppercase tracking-wide text-text-muted"><AlertTriangle className="h-3.5 w-3.5" /> Projected overages</div>
+                <div className="text-h6 font-bold tabular-nums" style={{ color: insights.hasOverage ? '#EF4444' : '#10B981' }}>{insights.hasOverage ? insights.projectedOverages.filter((o) => o.overage > 0).length : 0}</div>
+              </Card>
+            </div>
+          </div>
+        ) : null}
 
         {/* Upgrade plans */}
         <div>

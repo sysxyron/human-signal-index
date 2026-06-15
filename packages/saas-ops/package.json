@@ -1,0 +1,14 @@
+{
+  "name": "@hsi/saas-ops",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@hsi/billing": "workspace:*",
+    "@hsi/entitlements": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

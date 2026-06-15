@@ -8,10 +8,11 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  reconcileSubscription, planForPriceId, summarizeInvoice,
+  reconcileSubscription, planForPriceId, summarizeInvoice, classifyEvent,
   type SubscriptionSnapshot, type PlanPricing, type StripeSubscriptionStatus, type BillingCycle,
 } from '@hsi/billing';
 import type { PlanSlug } from '@hsi/entitlements';
+import { getPricing } from './stripe';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Db = SupabaseClient;
@@ -156,5 +157,57 @@ export async function orgIdForCustomer(db: Db, customerId: string): Promise<stri
     return (data as { organization_id?: string } | null)?.organization_id ?? null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Dispatch a (verified) Stripe event object to its handler — shared by the webhook
+ * route AND webhook replay so both follow identical, idempotent logic. Returns
+ * {ok,error}; `ok:false` with a reason when the org can't be resolved / sync fails.
+ */
+export async function dispatchStripeEvent(
+  db: Db, type: string, obj: any, orgIdHint: string | null, source: 'webhook' | 'system' = 'webhook',
+): Promise<{ ok: boolean; error: string | null }> {
+  try {
+    const action = classifyEvent(type);
+    if (action === 'sync_subscription') {
+      const subRaw = obj?.object === 'subscription' ? obj : obj?.subscription ? { id: obj.subscription, customer: obj.customer } : obj;
+      const snap = snapshotFromStripeSubscription(subRaw, getPricing());
+      if (!snap) return { ok: true, error: null };
+      const orgId = orgIdHint || (snap.stripeCustomerId ? await orgIdForCustomer(db, snap.stripeCustomerId) : null);
+      if (!orgId) return { ok: false, error: 'org_not_resolved' };
+      const r = await applySubscriptionSync(db, orgId, snap, source, null);
+      return { ok: r.ok, error: r.ok ? null : 'sync_failed' };
+    }
+    if (action === 'record_invoice') {
+      const customerId = String(obj?.customer ?? '');
+      const orgId = orgIdHint || (customerId ? await orgIdForCustomer(db, customerId) : null);
+      if (!orgId) return { ok: false, error: 'org_not_resolved' };
+      await recordInvoiceRow(db, orgId, obj);
+      await billingAudit(db, { orgId, actor: null, action: type, next: { status: obj?.status }, source });
+      return { ok: true, error: null };
+    }
+    if (action === 'record_customer') {
+      const orgId = orgIdHint; const customerId = String(obj?.id ?? '');
+      if (orgId && customerId) await db.from('stripe_customers').upsert({ organization_id: orgId, stripe_customer_id: customerId, email: obj?.email ?? null }, { onConflict: 'organization_id' });
+      return { ok: true, error: null };
+    }
+    return { ok: true, error: null };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'handler_error' };
+  }
+}
+
+/** Record / increment a failed webhook event in the dead-letter queue. Best-effort. */
+export async function recordDeadLetter(db: Db, input: { stripeEventId: string; type: string; orgId: string | null; error: string | null; payload: unknown }): Promise<void> {
+  try {
+    const { data: existing } = await db.from('webhook_deadletters').select('attempts').eq('stripe_event_id', input.stripeEventId).maybeSingle();
+    const attempts = ((existing as { attempts?: number } | null)?.attempts ?? 0) + 1;
+    await db.from('webhook_deadletters').upsert({
+      stripe_event_id: input.stripeEventId, type: input.type, organization_id: input.orgId,
+      attempts, last_error: input.error, payload: input.payload as object, resolved: false,
+    }, { onConflict: 'stripe_event_id' });
+  } catch {
+    /* best-effort */
   }
 }

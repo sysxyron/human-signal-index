@@ -106,6 +106,30 @@ export async function sdkGetSubscription(subscriptionId: string): Promise<Stripe
   }
 }
 
+/**
+ * Update a subscription's price (plan change). Stripe computes the authoritative
+ * proration via `proration_behavior`. `whenAtPeriodEnd` defers downgrades. Returns
+ * the updated subscription, or null.
+ */
+export async function sdkUpdateSubscriptionPlan(input: {
+  subscriptionId: string; newPriceId: string; prorationBehavior: 'create_prorations' | 'none'; atPeriodEnd: boolean;
+}): Promise<StripeLike | null> {
+  const stripe = await getStripe();
+  if (!stripe) return null;
+  try {
+    const current = await stripe.subscriptions.retrieve(input.subscriptionId);
+    const itemId = current?.items?.data?.[0]?.id;
+    if (!itemId) return null;
+    return await stripe.subscriptions.update(input.subscriptionId, {
+      items: [{ id: itemId, price: input.newPriceId }],
+      proration_behavior: input.prorationBehavior,
+      ...(input.atPeriodEnd ? { billing_cycle_anchor: 'unchanged', cancel_at_period_end: false } : {}),
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** List a customer's invoices (raw). Returns []. */
 export async function sdkListInvoices(customerId: string, limit = 20): Promise<StripeLike[]> {
   const stripe = await getStripe();

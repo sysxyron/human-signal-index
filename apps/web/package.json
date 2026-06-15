@@ -33,6 +33,7 @@
     "@hsi/site-builder": "workspace:*",
     "@hsi/entitlements": "workspace:*",
     "@hsi/billing": "workspace:*",
+    "@hsi/saas-ops": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

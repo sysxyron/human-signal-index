@@ -8,13 +8,10 @@
 // =============================================================================
 
 import { NextResponse } from 'next/server';
-import { classifyEvent, decideProcessing } from '@hsi/billing';
-import { sdkConstructEvent, getPricing, webhookConfigured } from '@/lib/billing/stripe';
+import { decideProcessing } from '@hsi/billing';
+import { sdkConstructEvent, webhookConfigured } from '@/lib/billing/stripe';
 import { getServiceClient } from '@/lib/admin/guard';
-import {
-  applySubscriptionSync, snapshotFromStripeSubscription, recordInvoiceRow,
-  billingAudit, orgIdForCustomer,
-} from '@/lib/billing/sync';
+import { dispatchStripeEvent, recordDeadLetter } from '@/lib/billing/sync';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -59,42 +56,16 @@ export async function POST(req: Request): Promise<Response> {
     return ack({ skipped: 'duplicate_insert', type: event.type });
   }
 
-  // 5. Dispatch.
-  let handlerError: string | null = null;
-  try {
-    const action = classifyEvent(String(event.type));
-    if (action === 'sync_subscription') {
-      // The object is a subscription (or a checkout.session referencing one).
-      const subRaw = obj?.object === 'subscription' ? obj : obj?.subscription ? { id: obj.subscription, customer: obj.customer } : obj;
-      const snap = snapshotFromStripeSubscription(subRaw, getPricing());
-      if (snap) {
-        const orgId = orgIdHint || (snap.stripeCustomerId ? await orgIdForCustomer(db, snap.stripeCustomerId) : null);
-        if (orgId) await applySubscriptionSync(db, orgId, snap, 'webhook', null);
-        else handlerError = 'org_not_resolved';
-      }
-    } else if (action === 'record_invoice') {
-      const customerId = String(obj?.customer ?? '');
-      const orgId = orgIdHint || (customerId ? await orgIdForCustomer(db, customerId) : null);
-      if (orgId) {
-        await recordInvoiceRow(db, orgId, obj);
-        await billingAudit(db, { orgId, actor: null, action: String(event.type), next: { status: obj?.status }, source: 'webhook' });
-      } else handlerError = 'org_not_resolved';
-    } else if (action === 'record_customer') {
-      const orgId = orgIdHint;
-      const customerId = String(obj?.id ?? '');
-      if (orgId && customerId) {
-        await db.from('stripe_customers').upsert({ organization_id: orgId, stripe_customer_id: customerId, email: obj?.email ?? null }, { onConflict: 'organization_id' });
-      }
-    }
-  } catch (e) {
-    handlerError = e instanceof Error ? e.message : 'handler_error';
-  }
+  // 5. Dispatch (shared with webhook replay).
+  const result = await dispatchStripeEvent(db, String(event.type), obj, orgIdHint, 'webhook');
+  const handlerError = result.ok ? null : result.error;
 
-  // 6. Mark processed (best-effort).
+  // 6. Mark processed (best-effort); record failures to the dead-letter queue.
   try {
     await db.from('stripe_events').update({ processed: handlerError === null, processed_at: new Date().toISOString(), error: handlerError })
       .eq('stripe_event_id', event.id);
   } catch { /* best-effort */ }
+  if (handlerError) await recordDeadLetter(db, { stripeEventId: String(event.id), type: String(event.type), orgId: orgIdHint, error: handlerError, payload: event });
 
   return ack({ type: event.type, processed: handlerError === null });
 }

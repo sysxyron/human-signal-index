@@ -58,7 +58,8 @@
       "@hsi/launch-readiness": ["packages/launch-readiness/src"],
       "@hsi/site-builder": ["packages/site-builder/src"],
       "@hsi/entitlements": ["packages/entitlements/src"],
-      "@hsi/billing": ["packages/billing/src"]
+      "@hsi/billing": ["packages/billing/src"],
+      "@hsi/saas-ops": ["packages/saas-ops/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

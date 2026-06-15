@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserCog, UsersRound, GraduationCap, ScrollText, ClipboardCheck, Activity, ShieldAlert, Target, Network, FileText, Rocket, LayoutGrid, Palette, Building2, Layers, CreditCard, TrendingUp, type LucideProps } from 'lucide-react';
+import { UserCog, UsersRound, GraduationCap, ScrollText, ClipboardCheck, Activity, ShieldAlert, Target, Network, FileText, Rocket, LayoutGrid, Palette, Building2, Layers, CreditCard, TrendingUp, Gauge, Webhook, type LucideProps } from 'lucide-react';
 import { type ComponentType } from 'react';
 import { cn } from '@hsi/ui';
 
@@ -17,6 +17,9 @@ const ITEMS: NavItem[] = [
   { label: 'Plans', href: '/dashboard/admin/plans', icon: Layers },
   { label: 'Subscriptions', href: '/dashboard/admin/subscriptions', icon: CreditCard },
   { label: 'Revenue', href: '/dashboard/admin/revenue', icon: TrendingUp },
+  { label: 'Subscription Health', href: '/dashboard/admin/subscription-health', icon: Activity },
+  { label: 'Billing Ops', href: '/dashboard/admin/billing-ops', icon: Gauge },
+  { label: 'Webhooks', href: '/dashboard/admin/webhooks', icon: Webhook },
   { label: 'Site Ops', href: '/dashboard/admin/site-ops', icon: LayoutGrid },
   { label: 'Content', href: '/dashboard/admin/cms', icon: FileText },
   { label: 'Site Settings', href: '/dashboard/admin/site-settings', icon: Palette },
