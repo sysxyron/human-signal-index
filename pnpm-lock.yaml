@@ -53,6 +53,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@hsi/beta-engine':
+        specifier: workspace:*
+        version: link:../../packages/beta-engine
       '@hsi/calibration-engine':
         specifier: workspace:*
         version: link:../../packages/calibration-engine
@@ -337,6 +340,12 @@ importers:
         version: 1.60.0
 
   packages/ai-prompts: {}
+
+  packages/beta-engine:
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
 
   packages/calibration-engine:
     dependencies:

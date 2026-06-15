@@ -53,7 +53,8 @@
       "@hsi/trust-graph": ["packages/trust-graph/src"],
       "@hsi/outcome-attribution": ["packages/outcome-attribution/src"],
       "@hsi/lineage": ["packages/lineage/src"],
-      "@hsi/cms-engine": ["packages/cms-engine/src"]
+      "@hsi/cms-engine": ["packages/cms-engine/src"],
+      "@hsi/beta-engine": ["packages/beta-engine/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserCog, UsersRound, GraduationCap, ScrollText, ClipboardCheck, Activity, ShieldAlert, Target, Network, FileText, type LucideProps } from 'lucide-react';
+import { UserCog, UsersRound, GraduationCap, ScrollText, ClipboardCheck, Activity, ShieldAlert, Target, Network, FileText, Rocket, type LucideProps } from 'lucide-react';
 import { type ComponentType } from 'react';
 import { cn } from '@hsi/ui';
 
@@ -21,6 +21,7 @@ const ITEMS: NavItem[] = [
   { label: 'Outcome Monitoring', href: '/dashboard/admin/outcome-monitoring', icon: Target },
   { label: 'Graph Explorer', href: '/dashboard/admin/graph-explorer', icon: Network },
   { label: 'Graph Health', href: '/dashboard/admin/graph-health', icon: Activity },
+  { label: 'Beta Ops', href: '/dashboard/admin/tester-ops', icon: Rocket },
   { label: 'Testers', href: '/dashboard/admin/testers', icon: GraduationCap },
   { label: 'Access Logs', href: '/dashboard/admin/access-logs', icon: ScrollText },
 ];

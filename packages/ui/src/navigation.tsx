@@ -367,6 +367,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     items: [
       { label: 'Launch Center', href: '/dashboard/launch', icon: Rocket },
       { label: 'Beta Issues', href: '/dashboard/launch/issues', icon: Bug },
+      { label: 'Beta Tester', href: '/dashboard/tester', icon: Rocket },
       { label: 'Tester Onboarding', href: '/dashboard/tester-onboarding', icon: GraduationCap },
     ],
   },
@@ -382,6 +383,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Outcome Monitoring', href: '/dashboard/admin/outcome-monitoring', icon: Target },
       { label: 'Graph Explorer', href: '/dashboard/admin/graph-explorer', icon: Network },
       { label: 'Graph Health', href: '/dashboard/admin/graph-health', icon: Activity },
+      { label: 'Beta Operations', href: '/dashboard/admin/tester-ops', icon: Rocket },
       { label: 'Testers', href: '/dashboard/admin/testers', icon: GraduationCap },
       { label: 'Access Logs', href: '/dashboard/admin/access-logs', icon: ScrollText },
     ],

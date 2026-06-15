@@ -107,6 +107,7 @@ export const ROUTES = {
   adminOutcomeMonitoring: '/dashboard/admin/outcome-monitoring',
   adminGraphExplorer: '/dashboard/admin/graph-explorer',
   adminGraphHealth: '/dashboard/admin/graph-health',
+  adminTesterOps: '/dashboard/admin/tester-ops',
   adminTesters: '/dashboard/admin/testers',
   adminAccessLogs: '/dashboard/admin/access-logs',
 
@@ -129,6 +130,7 @@ export const ROUTES = {
   // ---- Launch / Beta (Phase 23) ------------------------------------------
   launch: '/dashboard/launch',
   launchIssues: '/dashboard/launch/issues',
+  tester: '/dashboard/tester',
   testerOnboarding: '/dashboard/tester-onboarding',
 
   // ---- Human Operations OS (Phase 24) ------------------------------------

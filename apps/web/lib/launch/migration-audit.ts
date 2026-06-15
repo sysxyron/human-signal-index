@@ -53,6 +53,7 @@ export const EXPECTED_MIGRATIONS: ExpectedMigration[] = [
   { id: '0033', name: 'outcome_attribution_engine' },
   { id: '0034', name: 'intelligence_lineage_graph' },
   { id: '0035', name: 'cms_content_operations' },
+  { id: '0036', name: 'operational_beta_workflows' },
 ];
 
 export type MigrationState = 'applied' | 'missing' | 'out_of_order' | 'failed' | 'unknown';
