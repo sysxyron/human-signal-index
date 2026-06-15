@@ -11,6 +11,7 @@ import { listPages, type PageListRow } from '@/lib/cms/cms';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/security/view';
 import { AdminNav } from '@/components/admin/AdminNav';
+import { CmsSeedButton } from '@/components/cms/CmsSeedButton';
 import { ErrorState, OfflineDemoBanner, EmptyState } from '@/components/signals/states';
 
 export const dynamic = 'force-dynamic';
@@ -48,11 +49,17 @@ export default async function CmsDashboardPage() {
           <Link href={"/dashboard/admin/cms/navigation" as never} className="inline-flex items-center gap-1.5 rounded-card border border-border bg-surface/50 px-3 py-2 text-caption text-text-secondary hover:text-text-primary"><NavIcon className="h-4 w-4" /> Navigation</Link>
           <Link href={"/dashboard/admin/cms/media" as never} className="inline-flex items-center gap-1.5 rounded-card border border-border bg-surface/50 px-3 py-2 text-caption text-text-secondary hover:text-text-primary"><ImageIcon className="h-4 w-4" /> Media</Link>
         </div>
+        {!isDemo && pages.length > 0 ? (
+          <Card className="flex flex-wrap items-center justify-between gap-2 border-border" padded>
+            <p className="text-caption text-text-secondary">Backfill any missing site content into the CMS — idempotent, safe to rerun.</p>
+            <CmsSeedButton label="Backfill site content" />
+          </Card>
+        ) : null}
 
         {!res.ok ? (
           <ErrorState title="Could not load pages" message={(res as { error?: string }).error ?? 'Unavailable right now.'} />
         ) : pages.length === 0 ? (
-          <EmptyState icon={<FileText className="h-5 w-5" />} title="No pages yet" message="Create your first content page." />
+          <EmptyState icon={<FileText className="h-5 w-5" />} title="No pages yet" message={isDemo ? 'Connect Supabase, then seed existing site content.' : 'Seed the existing site content into the CMS, or create a page from scratch.'} action={!isDemo ? <CmsSeedButton /> : undefined} />
         ) : (
           <Card className="overflow-x-auto border-border p-0" padded={false}>
             <table className="w-full text-caption">

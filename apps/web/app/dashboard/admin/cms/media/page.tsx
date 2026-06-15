@@ -53,7 +53,10 @@ export default async function CmsMediaPage() {
             </table>
           </Card>
         )}
-        <p className="text-label text-text-muted">Media is admin-managed (<code className="text-text-primary">cms_media</code>) and world-readable for use in published content.</p>
+        <Card className="flex items-start gap-2.5 border-warning/30 bg-warning/5" padded>
+          <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <p className="text-caption text-text-secondary">Media upload requires a Supabase Storage bucket <code className="text-text-primary">cms_media</code>. Until it is provisioned, uploads are disabled (no dead controls); media records are admin-managed in <code className="text-text-primary">cms_media</code> and world-readable for use in published content.</p>
+        </Card>
       </main>
     </>
   );

@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { appHref } from '@/lib/env/app-url';
 import { AuthHashForwarder } from '@/components/auth/AuthHashForwarder';
+import { getPublishedPage } from '@/lib/cms/cms';
+import { CmsBlocks } from '@/components/cms/CmsBlocks';
 
 const heroMetrics = [
   { label: 'Active Sources', value: '24,781', accent: '#3B82F6', spark: [12, 18, 15, 22, 28, 26, 34] },
@@ -98,7 +100,12 @@ const heatRows = Array.from({ length: 5 }, (_, r) =>
   ),
 );
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Phase 31B — CMS-first: if an admin has PUBLISHED a 'home' page, render it.
+  // Otherwise fall back to this flagship hardcoded homepage (never breaks).
+  const cms = await getPublishedPage('home');
+  if (cms) return <CmsBlocks blocks={cms.blocks} />;
+
   return (
     <main className="text-text-primary">
       {/* Defensive: forward any Supabase auth hash that lands here to the

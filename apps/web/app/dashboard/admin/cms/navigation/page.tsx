@@ -11,6 +11,8 @@ import { listNavigation, type NavItem } from '@/lib/cms/cms';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/security/view';
 import { AdminNav } from '@/components/admin/AdminNav';
+import { NavManager } from '@/components/cms/NavManager';
+import { CmsSeedButton } from '@/components/cms/CmsSeedButton';
 import { ErrorState, OfflineDemoBanner } from '@/components/signals/states';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +38,19 @@ export default async function CmsNavigationPage() {
         <AdminNav />
         {isDemo ? <OfflineDemoBanner /> : null}
         <Link href={"/dashboard/admin/cms" as never} className="inline-flex items-center gap-1.5 text-caption text-text-muted hover:text-text-primary"><ArrowLeft className="h-3.5 w-3.5" /> Content</Link>
+
+        {/* Phase 31B — CRUD manager (live) or seed prompt when empty */}
+        {!isDemo ? (
+          items.length === 0 ? (
+            <Card className="flex flex-wrap items-center justify-between gap-2 border-border" padded>
+              <p className="text-caption text-text-secondary">No navigation links yet — seed the existing site menus.</p>
+              <CmsSeedButton />
+            </Card>
+          ) : (
+            <NavManager items={items} />
+          )
+        ) : (
+        <>
         {LOCATIONS.map((loc) => {
           const rows = items.filter((i) => i.location === loc.key);
           return (
@@ -52,6 +67,8 @@ export default async function CmsNavigationPage() {
             </section>
           );
         })}
+        </>
+        )}
         <p className="text-label text-text-muted">Navigation links are admin-managed and stored in <code className="text-text-primary">cms_navigation</code>; active links render on the public site with a code fallback.</p>
       </main>
     </>

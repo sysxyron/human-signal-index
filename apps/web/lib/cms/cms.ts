@@ -203,6 +203,43 @@ export async function listMedia(): Promise<DbResult<MediaItem[]> & { demo?: bool
   } catch (e) { return adminFail(e); }
 }
 
+// ---- navigation CRUD (Deliverable 12) — admin only, audited ---------------
+export async function createNavItem(input: { location: string; label: string; href: string; position?: number }): Promise<DbResult<{ id: string }>> {
+  if (!supabaseConfigured()) return notConfigured();
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  try {
+    const { data, error } = await gate.ctx.db.from('cms_navigation').insert({ location: input.location, label: input.label, href: input.href, position: input.position ?? 0, active: true }).select('id').single();
+    if (error) return adminFail(error);
+    await audit(gate.ctx.db, gate.ctx.user.id, 'nav_create', 'cms_navigation', String((data as { id: string }).id));
+    return { ok: true, data: { id: String((data as { id: string }).id) } };
+  } catch (e) { return adminFail(e); }
+}
+
+export async function updateNavItem(id: string, patch: { label?: string; href?: string; position?: number; active?: boolean }): Promise<DbResult<{ id: string }>> {
+  if (!supabaseConfigured()) return notConfigured();
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  try {
+    const { error } = await gate.ctx.db.from('cms_navigation').update(patch).eq('id', id);
+    if (error) return adminFail(error);
+    await audit(gate.ctx.db, gate.ctx.user.id, 'nav_update', 'cms_navigation', id, patch);
+    return { ok: true, data: { id } };
+  } catch (e) { return adminFail(e); }
+}
+
+export async function deleteNavItem(id: string): Promise<DbResult<{ id: string }>> {
+  if (!supabaseConfigured()) return notConfigured();
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  try {
+    const { error } = await gate.ctx.db.from('cms_navigation').delete().eq('id', id);
+    if (error) return adminFail(error);
+    await audit(gate.ctx.db, gate.ctx.user.id, 'nav_delete', 'cms_navigation', id);
+    return { ok: true, data: { id } };
+  } catch (e) { return adminFail(e); }
+}
+
 // ---- public read (marketing/dashboard render; falls back to hardcoded) -----
 export interface PublishedPage { page: CmsPage; blocks: CmsBlock[]; seo: { title: string; description: string } }
 
