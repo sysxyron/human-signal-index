@@ -8,6 +8,7 @@
 
 import Link from 'next/link';
 import { TopNav, Card } from '@hsi/ui';
+import { getSignalLineageAction } from '@/lib/contributor/lineage';
 import {
   Inbox,
   Database,
@@ -125,6 +126,11 @@ export default async function SignalDetailPage({
   const canReviewSignal = canReviewRole(role) && authed;
   const canCreateResearch = canResearch(role) && authed;
 
+  // ADDITIVE (Phase 30): materialized intelligence lineage for this signal.
+  let lineage: Awaited<ReturnType<typeof getSignalLineageAction>> | null = null;
+  try { lineage = await getSignalLineageAction(isDemo ? 'demo' : params.id); } catch { lineage = null; }
+  const lin = lineage && lineage.ok ? lineage.data : null;
+
   // ADDITIVE (Phase 11): when the signal is tied to a narrative, surface that
   // narrative's causal events / evolution / influence + a replay link. Wrapped so
   // any failure (e.g. action not present, or no narrative) hides the block.
@@ -155,6 +161,22 @@ export default async function SignalDetailPage({
       <TopNav title={signal.title} subtitle="Signal detail" />
       <main className="space-y-6 p-5 lg:p-6">
         <IntelNav />
+
+        {/* Intelligence lineage (Phase 30 — Deliverable 15) */}
+        {lin ? (
+          <Card className="space-y-2 border-electric/30 bg-electric/5" padded>
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-h6 font-semibold text-text-primary"><GitMerge className="h-4 w-4 text-electric" /> Intelligence lineage</h3>
+              <Link href={`/dashboard/lineage?kind=signal&id=${params.id}` as never} className="text-caption text-electric hover:underline">Open in lineage explorer →</Link>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-caption sm:grid-cols-4">
+              {([['Evidence', lin.evidence.length], ['Investigations', lin.investigations.length], ['Publications', lin.publications.length], ['Outcomes', lin.outcomes.length]] as Array<[string, number]>).map(([label, n]) => (
+                <div key={label} className="rounded-card border border-border bg-surface/50 px-3 py-2"><div className="text-h6 font-bold tabular-nums text-text-primary">{n}</div><div className="text-label text-text-muted">{label}</div></div>
+              ))}
+            </div>
+            <p className="text-label text-text-muted">Traceable chain: signal → investigations → evidence → publications → outcomes. Depth {lin.depth}.</p>
+          </Card>
+        ) : null}
 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">

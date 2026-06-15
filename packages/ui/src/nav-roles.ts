@@ -36,6 +36,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   // Collective
   '/dashboard/investigations': ['researcher', 'reviewer'],
   '/dashboard/impact': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/lineage': ['researcher', 'reviewer', 'curator'],
   // Trust & Outcomes
   '/dashboard/governance': ['reviewer', 'curator'],
   // Publishing
@@ -66,6 +67,8 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/admin/contribution-monitoring': ['admin'],
   '/dashboard/admin/trust-monitoring': ['admin'],
   '/dashboard/admin/outcome-monitoring': ['admin'],
+  '/dashboard/admin/graph-explorer': ['admin'],
+  '/dashboard/admin/graph-health': ['admin'],
   '/dashboard/admin/testers': ['admin'],
   '/dashboard/admin/access-logs': ['admin'],
   // System (admin)
@@ -85,7 +88,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',
   '/dashboard/review', '/dashboard/governance-queue', '/dashboard/alerts', '/dashboard/counter-narrative', '/dashboard/public-reports',
   '/dashboard/forecasts', '/dashboard/scenarios', '/dashboard/warnings',
-  '/dashboard/investigations', '/dashboard/impact', '/dashboard/consensus', '/dashboard/debates', '/dashboard/contributors',
+  '/dashboard/investigations', '/dashboard/impact', '/dashboard/lineage', '/dashboard/consensus', '/dashboard/debates', '/dashboard/contributors',
   '/dashboard/outcomes', '/dashboard/governance', '/dashboard/trust', '/dashboard/calibration',
   '/dashboard/publishing', '/dashboard/publishing/review', '/dashboard/publishing/retractions',
   '/dashboard/executive', '/dashboard/priorities', '/dashboard/risks', '/dashboard/opportunities', '/dashboard/briefings', '/dashboard/exec-governance',
@@ -93,7 +96,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
   '/dashboard/launch', '/dashboard/launch/issues', '/dashboard/tester-onboarding',
   '/dashboard/profile',
-  '/dashboard/admin/users', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
+  '/dashboard/admin/users', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',
 ];
 

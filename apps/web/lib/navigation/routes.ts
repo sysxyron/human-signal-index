@@ -104,6 +104,8 @@ export const ROUTES = {
   adminContributionMonitoring: '/dashboard/admin/contribution-monitoring',
   adminTrustMonitoring: '/dashboard/admin/trust-monitoring',
   adminOutcomeMonitoring: '/dashboard/admin/outcome-monitoring',
+  adminGraphExplorer: '/dashboard/admin/graph-explorer',
+  adminGraphHealth: '/dashboard/admin/graph-health',
   adminTesters: '/dashboard/admin/testers',
   adminAccessLogs: '/dashboard/admin/access-logs',
 
@@ -113,6 +115,7 @@ export const ROUTES = {
   leaderboard: '/dashboard/leaderboard',
   authority: '/dashboard/authority',
   impact: '/dashboard/impact',
+  lineage: '/dashboard/lineage',
   governanceQueue: '/dashboard/governance-queue',
   onboardingPurpose: '/dashboard/onboarding/purpose',
 

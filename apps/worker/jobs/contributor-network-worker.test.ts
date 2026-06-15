@@ -41,3 +41,10 @@ test('summary carries Phase-29 outcome-attribution counters', async () => {
   assert.equal(typeof s.attributionEdgesWritten, 'number');
   assert.equal(typeof s.entityImpactUpserted, 'number');
 });
+
+test('summary carries Phase-30 lineage counters', async () => {
+  const r = await makeContributorNetworkJob().run(ctx);
+  const s = r.summary as Record<string, number>;
+  assert.equal(typeof s.lineageLinksBackfilled, 'number');
+  assert.equal(typeof s.graphHealthScore, 'number');
+});

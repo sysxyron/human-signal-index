@@ -51,6 +51,7 @@ export const EXPECTED_MIGRATIONS: ExpectedMigration[] = [
   { id: '0031', name: 'trust_graph_authority' },
   { id: '0032', name: 'operational_trust_wiring' },
   { id: '0033', name: 'outcome_attribution_engine' },
+  { id: '0034', name: 'intelligence_lineage_graph' },
 ];
 
 export type MigrationState = 'applied' | 'missing' | 'out_of_order' | 'failed' | 'unknown';

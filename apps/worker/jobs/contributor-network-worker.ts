@@ -44,6 +44,9 @@ import {
   investigationImpact, publicationReach, contributorImpact, cleanAttribution,
   type AttributionEdge, type OutcomeType,
 } from '@hsi/outcome-attribution';
+import {
+  computeGraphHealth, type LineageEdge, type LineageNode,
+} from '@hsi/lineage';
 import { logger } from '../src/logger';
 import type { Job, JobContext, JobResult } from './types';
 
@@ -60,6 +63,8 @@ export interface ContributorNetworkResult {
   outcomeEventsWritten: number;
   attributionEdgesWritten: number;
   entityImpactUpserted: number;
+  lineageLinksBackfilled: number;
+  graphHealthScore: number;
 }
 
 // ---- REAL operational outcomes (Phase 28) ---------------------------------
@@ -254,11 +259,11 @@ function runOffline(now: string): ContributorNetworkResult {
   for (const c of demoContributors) { computeReputation(qualityFor(emptyAgg())); rankProgress(trackForRole(c.role), c.xp, c.reputation, demoMetrics); }
   for (const v of LEADERBOARD_VIEWS) v === 'top_teams' ? rankTeams(demoTeams) : rankContributors(demoContributors, v);
   for (const c of demoContributors) computeTrust(trustInputsFor({ signalsSubmitted: c.acceptedSignals + c.rejectedSignals, signalsAccepted: c.acceptedSignals, signalsRejected: c.rejectedSignals, reviewsCompleted: c.reviewsCompleted, evidenceSubmitted: c.evidencePackages, publications: c.reportsPrepared, investigationsOwned: 0 }, emptyOutcomes()));
-  return { mode: 'offline', usersAggregated: demoContributors.length, statsUpserted: demoContributors.length, badgesAwarded: evaluateBadges(demoMetrics).length, missionsUpdated: MISSION_TEMPLATES.length, leaderboardsWritten: LEADERBOARD_VIEWS.length * PERIODS.length, teamsUpdated: demoTeams.length, trustProfilesUpserted: demoContributors.length, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0 };
+  return { mode: 'offline', usersAggregated: demoContributors.length, statsUpserted: demoContributors.length, badgesAwarded: evaluateBadges(demoMetrics).length, missionsUpdated: MISSION_TEMPLATES.length, leaderboardsWritten: LEADERBOARD_VIEWS.length * PERIODS.length, teamsUpdated: demoTeams.length, trustProfilesUpserted: demoContributors.length, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0, lineageLinksBackfilled: 0, graphHealthScore: 0 };
 }
 
 async function runDb(client: AnyClient, now: string): Promise<ContributorNetworkResult> {
-  const result: ContributorNetworkResult = { mode: 'db', usersAggregated: 0, statsUpserted: 0, badgesAwarded: 0, missionsUpdated: 0, leaderboardsWritten: 0, teamsUpdated: 0, trustProfilesUpserted: 0, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0 };
+  const result: ContributorNetworkResult = { mode: 'db', usersAggregated: 0, statsUpserted: 0, badgesAwarded: 0, missionsUpdated: 0, leaderboardsWritten: 0, teamsUpdated: 0, trustProfilesUpserted: 0, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0, lineageLinksBackfilled: 0, graphHealthScore: 0 };
   const nowMs = Date.parse(now);
 
   // ---- load events + xp/credit ledgers --------------------------------------
@@ -480,6 +485,9 @@ async function runDb(client: AnyClient, now: string): Promise<ContributorNetwork
   // ---- OUTCOME ATTRIBUTION (Phase 29) — chains + impact + backfill -----------
   await runOutcomeAttribution(client, now, result);
 
+  // ---- INTELLIGENCE LINEAGE (Phase 30) — backfill links + graph health -------
+  await runLineage(client, now, result);
+
   return result;
 }
 
@@ -499,6 +507,18 @@ async function runOutcomeAttribution(client: AnyClient, now: string, result: Con
 
   const govByInv = new Map<string, { decision: string; decider: string | null }>();
   const invImpactRows: Array<{ id: string; owner: string | null; teamId: string | null; status: string }> = [];
+
+  // Phase 30 upgrade — use MATERIALIZED lineage links instead of inferred chains.
+  try {
+    const { data: sigLinks } = await client.from('investigation_signals').select('signal_id, investigation_id').limit(50000);
+    for (const r of (sigLinks ?? []) as Array<{ signal_id: string; investigation_id: string }>) {
+      edges.push({ origin: { type: 'signal', id: r.signal_id }, destination: { type: 'investigation', id: r.investigation_id }, relationship: 'signal_to_investigation', weight: 0.8 });
+    }
+    const { data: pubLinks } = await client.from('investigation_publications').select('investigation_id, publication_id').limit(50000);
+    for (const r of (pubLinks ?? []) as Array<{ investigation_id: string; publication_id: string }>) {
+      edges.push({ origin: { type: 'investigation', id: r.investigation_id }, destination: { type: 'publication', id: r.publication_id }, relationship: 'investigation_to_publication', weight: 0.9 });
+    }
+  } catch (e) { logger.warn('outcome.lineageLinks.failed', { error: e instanceof Error ? e.message : String(e) }); }
 
   try {
     const { data: govs } = await client.from('investigation_governance_decisions').select('investigation_id, decided_by, decision, created_at').order('created_at', { ascending: true });
@@ -600,6 +620,60 @@ async function runOutcomeAttribution(client: AnyClient, now: string, result: Con
 
 function isUuid(v: string | null | undefined): v is string {
   return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
+/**
+ * INTELLIGENCE LINEAGE (Phase 30) — BACKFILL the derivable links + compute graph
+ * health. publication_evidence is materialized from the research-runs pipeline
+ * (evidence_sources.research_run_id ⋈ hsin_publications.run_id). The lineage
+ * graph (link tables + outcome events) feeds graph_health. NEVER writes user_roles.
+ */
+async function runLineage(client: AnyClient, now: string, result: ContributorNetworkResult): Promise<void> {
+  const N = (kind: LineageNode['kind'], id: string): LineageNode => ({ kind, id });
+  const edges: LineageEdge[] = [];
+
+  // 1. BACKFILL publication_evidence from research-runs (the real, derivable link).
+  try {
+    const { data: pubs } = await client.from('hsin_publications').select('id, run_id');
+    const runToPubs = new Map<string, string[]>();
+    for (const p of (pubs ?? []) as Array<{ id: string; run_id: string | null }>) {
+      if (!p.run_id) continue;
+      const list = runToPubs.get(p.run_id) ?? []; list.push(p.id); runToPubs.set(p.run_id, list);
+    }
+    if (runToPubs.size > 0) {
+      const { data: evi } = await client.from('evidence_sources').select('id, research_run_id');
+      for (const e of (evi ?? []) as Array<{ id: string; research_run_id: string | null }>) {
+        const pubIds = e.research_run_id ? runToPubs.get(e.research_run_id) : undefined;
+        if (!pubIds) continue;
+        for (const pubId of pubIds) {
+          await client.from('publication_evidence').upsert({ publication_id: pubId, evidence_id: e.id }, { onConflict: 'publication_id,evidence_id', ignoreDuplicates: true });
+          result.lineageLinksBackfilled++;
+        }
+      }
+    }
+  } catch (e) { logger.warn('lineage.backfill.failed', { error: e instanceof Error ? e.message : String(e) }); }
+
+  // 2. Build the lineage graph from the materialized link tables + outcomes.
+  const load = async (table: string, build: (r: Record<string, unknown>) => LineageEdge) => {
+    try { const { data } = await client.from(table).select('*').limit(50000); for (const r of (data ?? []) as Array<Record<string, unknown>>) edges.push(build(r)); } catch { /* optional */ }
+  };
+  await load('investigation_signals', (r) => ({ from: N('signal', String(r.signal_id)), to: N('investigation', String(r.investigation_id)), relation: 'signal_to_investigation' }));
+  await load('investigation_publications', (r) => ({ from: N('investigation', String(r.investigation_id)), to: N('publication', String(r.publication_id)), relation: 'investigation_to_publication' }));
+  await load('investigation_evidence', (r) => ({ from: N('investigation', String(r.investigation_id)), to: N('evidence', String(r.evidence_id)), relation: 'investigation_to_evidence' }));
+  await load('publication_evidence', (r) => ({ from: N('publication', String(r.publication_id)), to: N('evidence', String(r.evidence_id)), relation: 'publication_to_evidence' }));
+  await load('outcome_events', (r) => ({ from: N(String(r.entity_kind) as LineageNode['kind'], String(r.entity_id)), to: N('outcome', String(r.id)), relation: String(r.entity_kind) === 'publication' ? 'publication_to_outcome' : 'investigation_to_outcome' }));
+
+  // 3. Compute + store graph health (Deliverable 23/24).
+  try {
+    const health = computeGraphHealth(edges);
+    result.graphHealthScore = health.healthScore;
+    await client.from('graph_health').insert({
+      node_count: health.nodeCount, edge_count: health.edgeCount, orphan_count: health.orphanCount,
+      broken_chain_count: health.brokenChainCount, cycle_count: health.cycleCount,
+      chain_completeness: health.chainCompleteness, average_trace_depth: health.averageTraceDepth,
+      coverage: health.coverage, health_score: health.healthScore, computed_at: now,
+    });
+  } catch (e) { logger.warn('lineage.health.failed', { error: e instanceof Error ? e.message : String(e) }); }
 }
 
 export function makeContributorNetworkJob(): Job {

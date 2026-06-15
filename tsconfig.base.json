@@ -51,7 +51,8 @@
       "@hsi/performance-engine": ["packages/performance-engine/src"],
       "@hsi/contributor-network": ["packages/contributor-network/src"],
       "@hsi/trust-graph": ["packages/trust-graph/src"],
-      "@hsi/outcome-attribution": ["packages/outcome-attribution/src"]
+      "@hsi/outcome-attribution": ["packages/outcome-attribution/src"],
+      "@hsi/lineage": ["packages/lineage/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]
