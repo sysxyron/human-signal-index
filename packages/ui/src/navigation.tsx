@@ -52,6 +52,7 @@ import {
   UsersRound,
   Award,
   Trophy,
+  Building2,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -261,6 +262,13 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
+    group: 'Organization',
+    items: [
+      { label: 'My Organization', href: '/dashboard/org', icon: Building2 },
+      { label: 'Members', href: '/dashboard/org/members', icon: Users },
+    ],
+  },
+  {
     group: 'Contributor',
     items: [
       { label: 'Missions', href: '/dashboard/missions', icon: Target },
@@ -375,6 +383,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Administration',
     items: [
       { label: 'Users', href: '/dashboard/admin/users', icon: UserCog },
+      { label: 'Organizations', href: '/dashboard/admin/organizations', icon: Building2 },
       { label: 'Site Operations', href: '/dashboard/admin/site-ops', icon: LayoutDashboard },
       { label: 'Content (CMS)', href: '/dashboard/admin/cms', icon: FileText },
       { label: 'Site Settings', href: '/dashboard/admin/site-settings', icon: Settings },

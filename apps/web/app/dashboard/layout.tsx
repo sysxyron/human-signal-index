@@ -10,6 +10,8 @@ import { DashboardSidebarClient } from '@/components/navigation/DashboardSidebar
 import { AuthButton } from '@/components/auth/AuthButton';
 import { NotificationCenter } from '@/components/governance/NotificationCenter';
 import { AccountStatusBanner } from '@/components/admin/AccountStatusBanner';
+import { OrgSwitcher } from '@/components/org/OrgSwitcher';
+import { getUserOrganizations, requireOrganization } from '@/lib/org/organizations';
 
 export default async function DashboardLayout({
   children,
@@ -17,12 +19,17 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const role = await getSessionRole();
+  // Phase 35 — workspace switcher (tenant content scope; never affects RBAC).
+  const [orgsRes, ctxRes] = await Promise.all([getUserOrganizations(), requireOrganization()]);
+  const orgs = orgsRes.ok ? orgsRes.data.map((o) => ({ slug: o.slug, name: o.name })) : [];
+  const currentSlug = ctxRes.ok ? ctxRes.data.org.slug : '';
   return (
     <div className="flex min-h-screen bg-background">
       <DashboardSidebarClient role={role} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Auth chrome: who you are + sign out, kept above the page's own TopNav. */}
         <div className="flex items-center justify-end gap-3 border-b border-border bg-background-deep/60 px-4 py-2">
+          <OrgSwitcher organizations={orgs} currentSlug={currentSlug} />
           <NotificationCenter />
           <div className="w-full max-w-xs sm:w-auto sm:min-w-[180px]">
             <AuthButton />

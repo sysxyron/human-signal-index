@@ -6,13 +6,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserCog, UsersRound, GraduationCap, ScrollText, ClipboardCheck, Activity, ShieldAlert, Target, Network, FileText, Rocket, LayoutGrid, Palette, type LucideProps } from 'lucide-react';
+import { UserCog, UsersRound, GraduationCap, ScrollText, ClipboardCheck, Activity, ShieldAlert, Target, Network, FileText, Rocket, LayoutGrid, Palette, Building2, type LucideProps } from 'lucide-react';
 import { type ComponentType } from 'react';
 import { cn } from '@hsi/ui';
 
 interface NavItem { label: string; href: string; icon: ComponentType<LucideProps> }
 const ITEMS: NavItem[] = [
   { label: 'Users', href: '/dashboard/admin/users', icon: UserCog },
+  { label: 'Organizations', href: '/dashboard/admin/organizations', icon: Building2 },
   { label: 'Site Ops', href: '/dashboard/admin/site-ops', icon: LayoutGrid },
   { label: 'Content', href: '/dashboard/admin/cms', icon: FileText },
   { label: 'Site Settings', href: '/dashboard/admin/site-settings', icon: Palette },
