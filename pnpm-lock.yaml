@@ -59,6 +59,9 @@ importers:
       '@hsi/causal-intelligence':
         specifier: workspace:*
         version: link:../../packages/causal-intelligence
+      '@hsi/cms-engine':
+        specifier: workspace:*
+        version: link:../../packages/cms-engine
       '@hsi/collective-intelligence':
         specifier: workspace:*
         version: link:../../packages/collective-intelligence
@@ -359,6 +362,12 @@ importers:
         version: 5.9.3
 
   packages/classifiers: {}
+
+  packages/cms-engine:
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
 
   packages/collective-intelligence:
     dependencies:

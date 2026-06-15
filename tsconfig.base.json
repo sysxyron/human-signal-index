@@ -52,7 +52,8 @@
       "@hsi/contributor-network": ["packages/contributor-network/src"],
       "@hsi/trust-graph": ["packages/trust-graph/src"],
       "@hsi/outcome-attribution": ["packages/outcome-attribution/src"],
-      "@hsi/lineage": ["packages/lineage/src"]
+      "@hsi/lineage": ["packages/lineage/src"],
+      "@hsi/cms-engine": ["packages/cms-engine/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

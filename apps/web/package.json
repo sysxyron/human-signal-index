@@ -27,6 +27,7 @@
     "@hsi/trust-graph": "workspace:*",
     "@hsi/outcome-attribution": "workspace:*",
     "@hsi/lineage": "workspace:*",
+    "@hsi/cms-engine": "workspace:*",
     "@hsi/causal-intelligence": "workspace:*",
     "@hsi/counterfactual-engine": "workspace:*",
     "@hsi/counterfactuals": "workspace:*",

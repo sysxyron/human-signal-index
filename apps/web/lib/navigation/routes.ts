@@ -99,6 +99,7 @@ export const ROUTES = {
 
   // ---- Administration / IAM (Phase 24B) ----------------------------------
   adminUsers: '/dashboard/admin/users',
+  adminCms: '/dashboard/admin/cms',
   adminTeams: '/dashboard/admin/teams',
   adminApplications: '/dashboard/admin/applications',
   adminContributionMonitoring: '/dashboard/admin/contribution-monitoring',
