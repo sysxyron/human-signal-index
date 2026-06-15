@@ -53,6 +53,9 @@ import {
   Award,
   Trophy,
   Building2,
+  CreditCard,
+  Palette,
+  Layers,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -269,6 +272,9 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Org Leaderboard', href: '/dashboard/org/leaderboard', icon: Trophy },
       { label: 'Org Analytics', href: '/dashboard/org/analytics', icon: TrendingUp },
       { label: 'Org Health', href: '/dashboard/org/health', icon: Activity },
+      { label: 'Settings', href: '/dashboard/org/settings', icon: Settings },
+      { label: 'Branding', href: '/dashboard/org/branding', icon: Palette },
+      { label: 'Billing & Plan', href: '/dashboard/org/billing', icon: CreditCard },
       { label: 'Create Organization', href: '/dashboard/org/create', icon: Building2 },
     ],
   },
@@ -388,6 +394,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     items: [
       { label: 'Users', href: '/dashboard/admin/users', icon: UserCog },
       { label: 'Organizations', href: '/dashboard/admin/organizations', icon: Building2 },
+      { label: 'Plans', href: '/dashboard/admin/plans', icon: Layers },
+      { label: 'Subscriptions', href: '/dashboard/admin/subscriptions', icon: CreditCard },
       { label: 'Site Operations', href: '/dashboard/admin/site-ops', icon: LayoutDashboard },
       { label: 'Content (CMS)', href: '/dashboard/admin/cms', icon: FileText },
       { label: 'Site Settings', href: '/dashboard/admin/site-settings', icon: Settings },

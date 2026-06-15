@@ -56,7 +56,8 @@
       "@hsi/cms-engine": ["packages/cms-engine/src"],
       "@hsi/beta-engine": ["packages/beta-engine/src"],
       "@hsi/launch-readiness": ["packages/launch-readiness/src"],
-      "@hsi/site-builder": ["packages/site-builder/src"]
+      "@hsi/site-builder": ["packages/site-builder/src"],
+      "@hsi/entitlements": ["packages/entitlements/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

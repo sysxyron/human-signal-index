@@ -63,6 +63,8 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   // Administration (admin IAM)
   '/dashboard/admin/users': ['admin'],
   '/dashboard/admin/organizations': ['admin'],
+  '/dashboard/admin/plans': ['admin'],
+  '/dashboard/admin/subscriptions': ['admin'],
   '/dashboard/admin/site-ops': ['admin'],
   '/dashboard/admin/cms': ['admin'],
   '/dashboard/admin/site-settings': ['admin'],
@@ -90,7 +92,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
  */
 export const ALL_NAV_HREFS: string[] = [
   '/dashboard', '/dashboard/source-registry', '/dashboard/signal-intake', '/dashboard/evidence-vault', '/dashboard/operations',
-  '/dashboard/org', '/dashboard/org/members', '/dashboard/org/leaderboard', '/dashboard/org/analytics', '/dashboard/org/health', '/dashboard/org/create',
+  '/dashboard/org', '/dashboard/org/members', '/dashboard/org/leaderboard', '/dashboard/org/analytics', '/dashboard/org/health', '/dashboard/org/settings', '/dashboard/org/branding', '/dashboard/org/billing', '/dashboard/org/create',
   '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',
   '/dashboard/review', '/dashboard/governance-queue', '/dashboard/alerts', '/dashboard/counter-narrative', '/dashboard/public-reports',
@@ -103,7 +105,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
   '/dashboard/launch', '/dashboard/launch/issues', '/dashboard/tester', '/dashboard/tester-onboarding',
   '/dashboard/profile',
-  '/dashboard/admin/users', '/dashboard/admin/organizations', '/dashboard/admin/site-ops', '/dashboard/admin/cms', '/dashboard/admin/site-settings', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/admin/tester-ops', '/dashboard/admin/system-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
+  '/dashboard/admin/users', '/dashboard/admin/organizations', '/dashboard/admin/plans', '/dashboard/admin/subscriptions', '/dashboard/admin/site-ops', '/dashboard/admin/cms', '/dashboard/admin/site-settings', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/admin/tester-ops', '/dashboard/admin/system-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',
 ];
 

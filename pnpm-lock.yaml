@@ -89,6 +89,9 @@ importers:
       '@hsi/distribution-engine':
         specifier: workspace:*
         version: link:../../packages/distribution-engine
+      '@hsi/entitlements':
+        specifier: workspace:*
+        version: link:../../packages/entitlements
       '@hsi/evidence-engine':
         specifier: workspace:*
         version: link:../../packages/evidence-engine
@@ -484,6 +487,12 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/entitlements:
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
         version: 5.9.3
 
   packages/evidence-engine:

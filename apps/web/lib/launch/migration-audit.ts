@@ -58,6 +58,7 @@ export const EXPECTED_MIGRATIONS: ExpectedMigration[] = [
   { id: '0038', name: 'cms_platform_conversion' },
   { id: '0039', name: 'multi_tenant_organizations' },
   { id: '0040', name: 'tenant_operations_provisioning' },
+  { id: '0041', name: 'commercial_saas_foundation' },
 ];
 
 export type MigrationState = 'applied' | 'missing' | 'out_of_order' | 'failed' | 'unknown';
