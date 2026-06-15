@@ -97,7 +97,13 @@ export async function listApplicationsAction(status?: string): Promise<DbResult<
   const gate = await requireAdmin();
   if (!gate.ok) return gate;
   try {
-    let q = gate.ctx.db.from('role_applications').select('*, users(email)').order('created_at', { ascending: false });
+    // role_applications has TWO FKs to users (user_id + reviewed_by), so the embed
+    // must name the relationship explicitly (the applicant), else PostgREST throws
+    // PGRST201. The embedded resource still arrives under the `users` key.
+    let q = gate.ctx.db
+      .from('role_applications')
+      .select('*, users!role_applications_user_id_fkey(email)')
+      .order('created_at', { ascending: false });
     if (status && status !== 'all') q = q.eq('status', status);
     const { data, error } = await q;
     if (error) return adminFail(error);
