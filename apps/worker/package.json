@@ -38,6 +38,7 @@
     "@hsi/operations-engine": "workspace:*",
     "@hsi/scheduler": "workspace:*",
     "@hsi/contributor-network": "workspace:*",
+    "@hsi/trust-graph": "workspace:*",
     "@supabase/supabase-js": "^2.0.0",
     "dotenv": "^16.3.0",
     "node-fetch": "^3.3.2"

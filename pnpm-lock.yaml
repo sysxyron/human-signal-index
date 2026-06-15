@@ -137,6 +137,9 @@ importers:
       '@hsi/timeline-engine':
         specifier: workspace:*
         version: link:../../packages/timeline-engine
+      '@hsi/trust-graph':
+        specifier: workspace:*
+        version: link:../../packages/trust-graph
       '@hsi/trust-history':
         specifier: workspace:*
         version: link:../../packages/trust-history
@@ -282,6 +285,9 @@ importers:
       '@hsi/traceability':
         specifier: workspace:*
         version: link:../../packages/traceability
+      '@hsi/trust-graph':
+        specifier: workspace:*
+        version: link:../../packages/trust-graph
       '@hsi/trust-history':
         specifier: workspace:*
         version: link:../../packages/trust-history
@@ -616,6 +622,12 @@ importers:
         version: 5.9.3
 
   packages/traceability: {}
+
+  packages/trust-graph:
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
 
   packages/trust-history:
     dependencies:

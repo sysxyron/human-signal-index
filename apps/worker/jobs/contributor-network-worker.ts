@@ -37,6 +37,9 @@ import {
   type ContributionMetrics, type ContributorStat, type LeaderboardView, type QualitySignals, type TeamStat,
 } from '@hsi/contributor-network';
 import { createServiceRoleClient } from '@hsi/database';
+import {
+  computeTrust, reviewAccuracy, levelForAuthority, type TrustInputs,
+} from '@hsi/trust-graph';
 import { logger } from '../src/logger';
 import type { Job, JobContext, JobResult } from './types';
 
@@ -48,6 +51,23 @@ export interface ContributorNetworkResult {
   missionsUpdated: number;
   leaderboardsWritten: number;
   teamsUpdated: number;
+  trustProfilesUpserted: number;
+  trustHistoryAppended: number;
+}
+
+/**
+ * Build trust-graph inputs from a user's contribution aggregate. Signal accuracy
+ * + publication volume are real; review-agreement, traceability, and reliability
+ * windows use neutral placeholders until those feeds are wired (Phase 28).
+ * Self-validation is already excluded (the recorder blocks self-accept).
+ */
+function trustInputsFor(agg: UserAgg): TrustInputs {
+  return {
+    signalsSubmitted: agg.signalsSubmitted, signalsAccepted: agg.signalsAccepted, signalsRejected: agg.signalsRejected,
+    reviewAgreements: 0, reviewDisagreements: 0,
+    publicationsApproved: agg.publications, publicationsRejected: 0, publicationTraceability: 0.5, governanceApprovalRate: 0.5,
+    investigationsCompleted: agg.investigationsOwned, investigationsAbandoned: 0, overdueAssignments: 0, activeWindows: 0, totalWindows: 0,
+  };
 }
 
 const LEADERBOARD_VIEWS: LeaderboardView[] = ['top_contributors', 'top_researchers', 'top_reviewers', 'top_curators', 'top_teams'];
@@ -123,11 +143,12 @@ function runOffline(now: string): ContributorNetworkResult {
   for (const t of MISSION_TEMPLATES) missionView({ template: t, progress: demoMissionProgress[t.id] ?? {}, now });
   for (const c of demoContributors) { computeReputation(qualityFor(emptyAgg())); rankProgress(trackForRole(c.role), c.xp, c.reputation, demoMetrics); }
   for (const v of LEADERBOARD_VIEWS) v === 'top_teams' ? rankTeams(demoTeams) : rankContributors(demoContributors, v);
-  return { mode: 'offline', usersAggregated: demoContributors.length, statsUpserted: demoContributors.length, badgesAwarded: evaluateBadges(demoMetrics).length, missionsUpdated: MISSION_TEMPLATES.length, leaderboardsWritten: LEADERBOARD_VIEWS.length * PERIODS.length, teamsUpdated: demoTeams.length };
+  for (const c of demoContributors) computeTrust(trustInputsFor({ signalsSubmitted: c.acceptedSignals + c.rejectedSignals, signalsAccepted: c.acceptedSignals, signalsRejected: c.rejectedSignals, reviewsCompleted: c.reviewsCompleted, evidenceSubmitted: c.evidencePackages, publications: c.reportsPrepared, investigationsOwned: 0 }));
+  return { mode: 'offline', usersAggregated: demoContributors.length, statsUpserted: demoContributors.length, badgesAwarded: evaluateBadges(demoMetrics).length, missionsUpdated: MISSION_TEMPLATES.length, leaderboardsWritten: LEADERBOARD_VIEWS.length * PERIODS.length, teamsUpdated: demoTeams.length, trustProfilesUpserted: demoContributors.length, trustHistoryAppended: 0 };
 }
 
 async function runDb(client: AnyClient, now: string): Promise<ContributorNetworkResult> {
-  const result: ContributorNetworkResult = { mode: 'db', usersAggregated: 0, statsUpserted: 0, badgesAwarded: 0, missionsUpdated: 0, leaderboardsWritten: 0, teamsUpdated: 0 };
+  const result: ContributorNetworkResult = { mode: 'db', usersAggregated: 0, statsUpserted: 0, badgesAwarded: 0, missionsUpdated: 0, leaderboardsWritten: 0, teamsUpdated: 0, trustProfilesUpserted: 0, trustHistoryAppended: 0 };
   const nowMs = Date.parse(now);
 
   // ---- load events + xp/credit ledgers --------------------------------------
@@ -207,6 +228,37 @@ async function runDb(client: AnyClient, now: string): Promise<ContributorNetwork
       const prog = rankProgress(track, xp, trackRep, metrics);
       await client.from('user_ranks').upsert({ user_id: userId, track, rank_name: prog.current.name, rank_level: prog.current.level, computed_at: now }, { onConflict: 'user_id,track' });
     } catch { /* ranks advisory */ }
+
+    // ---- TRUST GRAPH (Phase 27) — quality scores; recognition only ----------
+    try {
+      const inputs = trustInputsFor(agg);
+      const scores = computeTrust(inputs);
+      const rev = reviewAccuracy(inputs);
+      const level = levelForAuthority(scores.authority).name;
+
+      // Read prior authority to detect a change for the append-only history.
+      const { data: prior } = await client.from('trust_profiles').select('trust_score, authority_score').eq('user_id', userId).maybeSingle();
+      const prevTrust = (prior as { trust_score?: number } | null)?.trust_score ?? null;
+      const prevAuthority = (prior as { authority_score?: number } | null)?.authority_score ?? null;
+
+      await client.from('trust_profiles').upsert({
+        user_id: userId,
+        signal_accuracy: scores.signalAccuracy, review_accuracy: scores.reviewAccuracy,
+        publication_quality: scores.publicationQuality, reliability: scores.reliability,
+        accuracy: scores.accuracy, trust_score: scores.trust, authority_score: scores.authority,
+        trust_level: level, agreement_pct: rev.agreementPct, disagreement_pct: rev.disagreementPct, computed_at: now,
+      }, { onConflict: 'user_id' });
+      result.trustProfilesUpserted++;
+
+      if (prevAuthority === null || prevAuthority !== scores.authority || prevTrust !== scores.trust) {
+        await client.from('trust_history').insert({
+          user_id: userId, previous_trust: prevTrust, new_trust: scores.trust,
+          previous_authority: prevAuthority, new_authority: scores.authority,
+          reason: prevAuthority === null ? 'Initial trust computation.' : 'Recomputed from contribution events.',
+        });
+        result.trustHistoryAppended++;
+      }
+    } catch (e) { logger.warn('contributor.trust.failed', { userId, error: e instanceof Error ? e.message : String(e) }); }
   }
 
   // ---- missions -------------------------------------------------------------

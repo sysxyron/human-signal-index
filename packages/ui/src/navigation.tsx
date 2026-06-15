@@ -266,6 +266,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Missions', href: '/dashboard/missions', icon: Target },
       { label: 'Badges', href: '/dashboard/badges', icon: Award },
       { label: 'Leaderboard', href: '/dashboard/leaderboard', icon: Trophy },
+      { label: 'Authority', href: '/dashboard/authority', icon: ShieldCheck },
     ],
   },
   {
@@ -374,6 +375,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Teams', href: '/dashboard/admin/teams', icon: UsersRound },
       { label: 'Applications', href: '/dashboard/admin/applications', icon: ClipboardCheck },
       { label: 'Contribution Monitoring', href: '/dashboard/admin/contribution-monitoring', icon: Activity },
+      { label: 'Trust Monitoring', href: '/dashboard/admin/trust-monitoring', icon: ShieldAlert },
       { label: 'Testers', href: '/dashboard/admin/testers', icon: GraduationCap },
       { label: 'Access Logs', href: '/dashboard/admin/access-logs', icon: ScrollText },
     ],

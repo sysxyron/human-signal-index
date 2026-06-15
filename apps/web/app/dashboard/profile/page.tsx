@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { UserRound, ShieldCheck, Users, Info, ArrowRight, Table2, Trophy, Coins, Award, TrendingUp } from 'lucide-react';
 import { getMyProfileAction } from '@/lib/profile/actions';
 import { getContributionIdentityAction } from '@/lib/contributor/profile';
+import { getMyTrustAction } from '@/lib/contributor/trust';
 import { OfflineDemoBanner } from '@/components/signals/states';
 import type { ReactNode } from 'react';
 import {
@@ -41,9 +42,10 @@ export default async function ProfilePage() {
   const roleLabel = role ? (ROLE_LABEL[role as Role] ?? role) : 'Viewer';
   const tasks = tasksForRole(role);
 
-  const idRes = await getContributionIdentityAction();
+  const [idRes, trustRes] = await Promise.all([getContributionIdentityAction(), getMyTrustAction()]);
   const identity = idRes.ok ? idRes.data : null;
   const identityDemo = idRes.ok && idRes.demo;
+  const trust = trustRes.ok ? trustRes.data : null;
 
   return (
     <>
@@ -136,6 +138,27 @@ export default async function ProfilePage() {
               <Link href={"/dashboard/missions" as never} className="inline-flex items-center gap-1.5 rounded-card border border-border bg-surface/50 px-3 py-2 text-caption text-text-secondary hover:border-electric/50 hover:text-text-primary">View my missions <ArrowRight className="h-3.5 w-3.5" /></Link>
               <Link href={"/dashboard/leaderboard" as never} className="inline-flex items-center gap-1.5 rounded-card border border-border bg-surface/50 px-3 py-2 text-caption text-text-secondary hover:border-electric/50 hover:text-text-primary">Leaderboard <ArrowRight className="h-3.5 w-3.5" /></Link>
             </div>
+          </section>
+        ) : null}
+
+        {/* Trust & authority (Phase 27 — Deliverable 11) */}
+        {trust ? (
+          <section className="space-y-3">
+            <h3 className="flex items-center gap-2 text-h6 font-semibold text-text-primary"><ShieldCheck className="h-4 w-4 text-electric" /> Trust &amp; authority</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {([
+                ['Contributor level', trust.level],
+                ['Authority', `${trust.scores.authority}/100`],
+                ['Trust', `${trust.scores.trust}/100`],
+                ['Reliability', `${trust.scores.reliability}/100`],
+              ] as Array<[string, string]>).map(([label, value]) => (
+                <Card key={label} className="space-y-1 border-border" padded>
+                  <div className="text-label uppercase tracking-wide text-text-muted">{label}</div>
+                  <div className="text-h5 font-bold text-text-primary">{value}</div>
+                </Card>
+              ))}
+            </div>
+            <Link href={"/dashboard/authority" as never} className="inline-flex items-center gap-1.5 text-caption text-electric hover:underline">View full authority breakdown <ArrowRight className="h-3.5 w-3.5" /></Link>
           </section>
         ) : null}
 

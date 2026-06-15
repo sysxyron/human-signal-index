@@ -63,6 +63,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/admin/teams': ['admin'],
   '/dashboard/admin/applications': ['admin'],
   '/dashboard/admin/contribution-monitoring': ['admin'],
+  '/dashboard/admin/trust-monitoring': ['admin'],
   '/dashboard/admin/testers': ['admin'],
   '/dashboard/admin/access-logs': ['admin'],
   // System (admin)
@@ -78,7 +79,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
  */
 export const ALL_NAV_HREFS: string[] = [
   '/dashboard', '/dashboard/source-registry', '/dashboard/signal-intake', '/dashboard/evidence-vault', '/dashboard/operations',
-  '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard',
+  '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',
   '/dashboard/review', '/dashboard/governance-queue', '/dashboard/alerts', '/dashboard/counter-narrative', '/dashboard/public-reports',
   '/dashboard/forecasts', '/dashboard/scenarios', '/dashboard/warnings',
@@ -90,7 +91,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
   '/dashboard/launch', '/dashboard/launch/issues', '/dashboard/tester-onboarding',
   '/dashboard/profile',
-  '/dashboard/admin/users', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
+  '/dashboard/admin/users', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',
 ];
 

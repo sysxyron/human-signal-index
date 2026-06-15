@@ -102,6 +102,7 @@ export const ROUTES = {
   adminTeams: '/dashboard/admin/teams',
   adminApplications: '/dashboard/admin/applications',
   adminContributionMonitoring: '/dashboard/admin/contribution-monitoring',
+  adminTrustMonitoring: '/dashboard/admin/trust-monitoring',
   adminTesters: '/dashboard/admin/testers',
   adminAccessLogs: '/dashboard/admin/access-logs',
 
@@ -109,6 +110,7 @@ export const ROUTES = {
   missions: '/dashboard/missions',
   badges: '/dashboard/badges',
   leaderboard: '/dashboard/leaderboard',
+  authority: '/dashboard/authority',
   governanceQueue: '/dashboard/governance-queue',
   onboardingPurpose: '/dashboard/onboarding/purpose',
 

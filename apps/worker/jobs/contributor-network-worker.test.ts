@@ -26,3 +26,9 @@ test('offline summary reports leaderboards across views × periods', async () =>
   assert.ok(s.leaderboardsWritten >= 5); // at least one view × period batch
   assert.ok(s.statsUpserted > 0);
 });
+
+test('offline summary computes trust profiles (Phase 27)', async () => {
+  const r = await makeContributorNetworkJob().run(ctx);
+  const s = r.summary as { trustProfilesUpserted: number };
+  assert.ok(s.trustProfilesUpserted > 0);
+});
