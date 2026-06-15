@@ -62,6 +62,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/admin/users': ['admin'],
   '/dashboard/admin/teams': ['admin'],
   '/dashboard/admin/applications': ['admin'],
+  '/dashboard/admin/contribution-monitoring': ['admin'],
   '/dashboard/admin/testers': ['admin'],
   '/dashboard/admin/access-logs': ['admin'],
   // System (admin)
@@ -89,7 +90,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
   '/dashboard/launch', '/dashboard/launch/issues', '/dashboard/tester-onboarding',
   '/dashboard/profile',
-  '/dashboard/admin/users', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
+  '/dashboard/admin/users', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',
 ];
 

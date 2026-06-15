@@ -27,6 +27,8 @@ import {
   type TransitionResult,
 } from './persistence';
 import type { RetractionReason } from '@hsi/publishing-engine';
+import { getUser } from '@/lib/supabase/server';
+import { recordContribution } from '@/lib/contributor/recorder';
 import type {
   PublicIntelligenceData,
   PublicationPageData,
@@ -94,7 +96,15 @@ export async function createPublicationAction(input: {
 
 export async function transitionPublicationAction(id: string, to: PublicationState, reason?: string): Promise<DbResult<TransitionResult>> {
   const result = await transitionPublicationDal(id, to, new Date().toISOString(), reason);
-  if (result.ok) revalidate(DASH, PORTAL, `${DASH}/review`);
+  if (result.ok) {
+    revalidate(DASH, PORTAL, `${DASH}/review`);
+    // Phase 26 — additive, best-effort: credit the publisher on PUBLISHED. Does
+    // NOT change publication approval/state logic.
+    if (to === 'PUBLISHED') {
+      const user = await getUser();
+      if (user) await recordContribution({ event: 'REPORT_PUBLISHED', actorId: user.id, refKind: 'publication', refId: id, reason: 'Publication published.' });
+    }
+  }
   return result;
 }
 

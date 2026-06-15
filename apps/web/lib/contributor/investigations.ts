@@ -18,6 +18,18 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { loadHighestRole } from '@/lib/auth/get-session-role';
 import { hasRole } from '@/lib/security/rbac-audit';
 import { contributorConfigured, type ContribResult } from './options';
+import { recordContribution } from './recorder';
+import type { ContributionEventType } from '@hsi/contributor-network';
+
+/** Map an investigation status to the contribution event emitted on entering it. */
+const INVESTIGATION_EVENT_BY_STATUS: Partial<Record<InvestigationStatus, ContributionEventType>> = {
+  intake: 'INVESTIGATION_SUBMITTED',
+  research: 'INVESTIGATION_ACTIVE',
+  review: 'INVESTIGATION_UNDER_REVIEW',
+  publication_ready: 'INVESTIGATION_APPROVED',
+  published: 'INVESTIGATION_PUBLISHED',
+  archived: 'INVESTIGATION_ARCHIVED',
+};
 
 // ---- reads -----------------------------------------------------------------
 
@@ -150,9 +162,10 @@ async function applyTransition(
     const role = await loadHighestRole(db, user.id);
     if (!hasRole(role ?? undefined, minRole)) return { ok: false, code: 'FORBIDDEN' };
 
-    const { data: inv, error: loadErr } = await db.from('investigations').select('status').eq('id', id).single();
+    const { data: inv, error: loadErr } = await db.from('investigations').select('status, owner_id').eq('id', id).single();
     if (loadErr || !inv) return { ok: false, code: 'DB_ERROR', error: loadErr?.message };
     const from = (inv as { status: InvestigationStatus }).status;
+    const ownerId = (inv as { owner_id?: string | null }).owner_id ?? null;
 
     const t = transitionInvestigation(from, to, { actor: user.id, reason }, { now: new Date().toISOString() });
     if (!t.ok) return { ok: false, code: 'DB_ERROR', error: t.reason };
@@ -166,6 +179,15 @@ async function applyTransition(
     if (extra?.assignmentAction) {
       await db.from('investigation_assignments').insert({ investigation_id: id, assignee_id: extra.ownerId ?? null, assigner_id: user.id, action: extra.assignmentAction, reason: reason.trim() });
     }
+
+    // Phase 26 — additive, best-effort contribution award on the state move.
+    const evt = INVESTIGATION_EVENT_BY_STATUS[to];
+    if (evt) {
+      // For approval, credit the OWNER (subject) and the reviewer (actor).
+      const subjectId = to === 'publication_ready' ? ownerId : null;
+      await recordContribution({ event: evt, actorId: user.id, subjectId, refKind: 'investigation', refId: id, reason: reason.trim() });
+    }
+
     return { ok: true, data: { id, status: to } };
   } catch {
     return { ok: false, code: 'DB_ERROR' };

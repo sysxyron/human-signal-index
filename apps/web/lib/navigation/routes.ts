@@ -101,6 +101,7 @@ export const ROUTES = {
   adminUsers: '/dashboard/admin/users',
   adminTeams: '/dashboard/admin/teams',
   adminApplications: '/dashboard/admin/applications',
+  adminContributionMonitoring: '/dashboard/admin/contribution-monitoring',
   adminTesters: '/dashboard/admin/testers',
   adminAccessLogs: '/dashboard/admin/access-logs',
 

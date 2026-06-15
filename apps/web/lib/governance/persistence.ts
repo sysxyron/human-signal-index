@@ -58,6 +58,7 @@ import type {
   EvidenceCoverageSummary,
 } from '@hsi/shared-types';
 import { buildPublicReport } from './report-builder';
+import { recordContribution } from '@/lib/contributor/recorder';
 
 // -----------------------------------------------------------------------------
 // Result type — canonical DbResult EXTENDED with 'FORBIDDEN' (Phase 6). Declared
@@ -593,6 +594,19 @@ export async function submitReviewDecision(
       queue.entity_id,
       { queue_id: queueId, decision, status: newStatus },
     );
+
+    // Phase 26 — additive, best-effort contributor award (idempotent + audited).
+    // Does NOT alter the review decision; just records contribution events.
+    if (decision === 'APPROVE' || decision === 'REJECT') {
+      await recordContribution({
+        event: decision === 'APPROVE' ? 'SIGNAL_ACCEPTED' : 'SIGNAL_REJECTED',
+        actorId: gate.user.id,
+        subjectId: creatorId,
+        refKind: queue.entity_type,
+        refId: queue.entity_id,
+        reason: `Review ${decision.toLowerCase()}.`,
+      });
+    }
 
     return { ok: true, data: decisionRecord };
   } catch (e) {

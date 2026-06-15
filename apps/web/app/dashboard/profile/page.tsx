@@ -98,12 +98,15 @@ export default async function ProfilePage() {
             <div className="grid gap-3 sm:grid-cols-2">
               {/* Stats */}
               <Card className="space-y-2 border-border" padded>
-                <h4 className="text-caption font-semibold text-text-primary">Activity</h4>
+                <h4 className="text-caption font-semibold text-text-primary">Activity {identity.live ? <span className="ml-1 rounded-full bg-success/15 px-1.5 py-0.5 text-label font-semibold text-success">live</span> : null}</h4>
                 <dl className="grid grid-cols-2 gap-2 text-caption">
+                  {identity.signalsSubmitted !== undefined ? <div className="flex justify-between"><dt className="text-text-muted">Signals submitted</dt><dd className="tabular-nums text-text-primary">{identity.signalsSubmitted}</dd></div> : null}
                   <div className="flex justify-between"><dt className="text-text-muted">Accepted signals</dt><dd className="tabular-nums text-text-primary">{identity.acceptedSignals}</dd></div>
                   <div className="flex justify-between"><dt className="text-text-muted">Evidence packages</dt><dd className="tabular-nums text-text-primary">{identity.evidencePackages}</dd></div>
                   <div className="flex justify-between"><dt className="text-text-muted">Reviews completed</dt><dd className="tabular-nums text-text-primary">{identity.reviewsCompleted}</dd></div>
-                  <div className="flex justify-between"><dt className="text-text-muted">Reports prepared</dt><dd className="tabular-nums text-text-primary">{identity.reportsPrepared}</dd></div>
+                  <div className="flex justify-between"><dt className="text-text-muted">Publications</dt><dd className="tabular-nums text-text-primary">{identity.publicationsContributed ?? identity.reportsPrepared}</dd></div>
+                  {identity.missionsCompleted !== undefined ? <div className="flex justify-between"><dt className="text-text-muted">Missions completed</dt><dd className="tabular-nums text-text-primary">{identity.missionsCompleted}</dd></div> : null}
+                  {identity.xpRank ? <div className="flex justify-between"><dt className="text-text-muted">Contribution rank</dt><dd className="text-text-primary">{identity.xpRank}</dd></div> : null}
                 </dl>
               </Card>
               {/* Next rank */}

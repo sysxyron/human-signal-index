@@ -52,6 +52,7 @@ import {
   type UpdateSourcePatch,
 } from './persistence';
 import { runSourceIntake, type IntakeOutcome } from './pipeline';
+import { recordContribution } from '@/lib/contributor/recorder';
 
 // -----------------------------------------------------------------------------
 // Dashboard routes revalidated after mutations (best-effort; safe if absent).
@@ -142,7 +143,13 @@ export async function getSignalAction(id: string) {
 
 export async function submitManualSignalAction(input: ManualSignalInput) {
   const result = await submitManualSignal(input);
-  if (result.ok) revalidate(SIGNALS_ROUTE, OVERVIEW_ROUTE);
+  if (result.ok) {
+    revalidate(SIGNALS_ROUTE, OVERVIEW_ROUTE);
+    // Phase 26 — additive, best-effort contributor award (idempotent + audited).
+    if (result.data.created_by) {
+      await recordContribution({ event: 'SIGNAL_SUBMITTED', actorId: result.data.created_by, refKind: 'signal', refId: result.data.id, reason: 'Signal submitted.' });
+    }
+  }
   return result;
 }
 

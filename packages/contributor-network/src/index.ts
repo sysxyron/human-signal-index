@@ -21,4 +21,5 @@ export * from './ranks';
 export * from './missions';
 export * from './investigation';
 export * from './leaderboard';
+export * from './awards';
 export * from './fixtures';

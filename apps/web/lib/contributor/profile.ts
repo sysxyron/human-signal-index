@@ -10,7 +10,7 @@
 import type { ContributionIdentity } from '@hsi/shared-types';
 import {
   totalXp, totalCredits, computeReputation, overallReputation, trackForRole, rankProgress,
-  badgeById, demoXpLedger, demoCreditLedger, demoQuality, demoMetrics, evaluateBadges,
+  badgeById, xpRankFor, demoXpLedger, demoCreditLedger, demoQuality, demoMetrics, evaluateBadges,
   type ContributionMetrics, type QualitySignals, type XpEntry, type CreditEntry,
 } from '@hsi/contributor-network';
 import { createClient, getUser } from '@/lib/supabase/server';
@@ -39,6 +39,7 @@ function buildIdentity(
     role,
     rankName: progress.current.name,
     rankTrack: track,
+    xpRank: xpRankFor(xp).name,
     xp,
     intelCredits: credits,
     reputation,
@@ -97,7 +98,28 @@ export async function getContributionIdentityAction(): Promise<ContribResult<Con
     const track = trackForRole(role);
     const grantedLevel = ((rankRows ?? []).find((r) => (r as { track: string }).track === track) as { granted_level?: number } | undefined)?.granted_level ?? 1;
 
+    // Phase 26 — prefer the worker-materialized live stats when present.
+    let stats: Record<string, number | string> | null = null;
+    try {
+      const { data } = await db.from('user_contribution_stats').select('*').eq('user_id', user.id).maybeSingle();
+      if (data) stats = data as Record<string, number | string>;
+    } catch { /* table present since 0030 */ }
+
     const identity = buildIdentity(role, totalXp(ledger), totalCredits(creditLedger), quality, metrics, held, grantedLevel);
+    if (stats) {
+      identity.live = true;
+      identity.xp = Number(stats.xp ?? identity.xp);
+      identity.intelCredits = Number(stats.credits ?? identity.intelCredits);
+      identity.acceptedSignals = Number(stats.signals_accepted ?? 0);
+      identity.evidencePackages = Number(stats.evidence_submitted ?? 0);
+      identity.reviewsCompleted = Number(stats.reviews_completed ?? 0);
+      identity.reportsPrepared = Number(stats.publications_contributed ?? 0);
+      identity.signalsSubmitted = Number(stats.signals_submitted ?? 0);
+      identity.publicationsContributed = Number(stats.publications_contributed ?? 0);
+      identity.missionsCompleted = Number(stats.missions_completed ?? 0);
+      identity.xpRank = String(stats.xp_rank ?? '');
+      if (typeof stats.reputation_overall === 'number') identity.overallReputation = stats.reputation_overall;
+    }
     // Prefer the stored reputation snapshot when present (already computed by worker).
     if (repRow) {
       const r = repRow as Record<string, number>;

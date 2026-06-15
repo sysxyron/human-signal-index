@@ -4934,4 +4934,10 @@ export interface ContributionIdentity {
   reviewsCompleted: number;
   reportsPrepared: number;
   nextRank: { name: string; xpToNext: number; reputationToNext: number; needsAdminApproval: boolean } | null;
+  // Phase 26 — live stats (from user_contribution_stats when present).
+  xpRank?: string;
+  signalsSubmitted?: number;
+  publicationsContributed?: number;
+  missionsCompleted?: number;
+  live?: boolean;
 }

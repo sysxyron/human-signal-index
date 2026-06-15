@@ -10,7 +10,8 @@
 // =============================================================================
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getUser } from '@/lib/supabase/server';
+import { recordContribution } from '@/lib/contributor/recorder';
 import {
   runEvidenceForRun,
   getEvidenceForRun,
@@ -72,6 +73,12 @@ export async function runEvidenceForRunAction(
     revalidatePath(`${RESEARCH_BASE}/${runId}`);
     revalidatePath(`${RESEARCH_BASE}/${runId}/evidence`);
     revalidatePath(`${RESEARCH_BASE}/${runId}/provenance`);
+    // Phase 26 — additive, best-effort evidence contribution award. Only when the
+    // run actually produced evidence (idempotent per run via the recorder key).
+    if (Object.keys(res.data.bySource ?? {}).length > 0) {
+      const user = await getUser();
+      if (user) await recordContribution({ event: 'EVIDENCE_SUBMITTED', actorId: user.id, refKind: 'research_run', refId: runId, reason: 'Evidence gathered for run.' });
+    }
   }
   return res;
 }
