@@ -191,9 +191,9 @@ export async function getOrgDashboardAction(): Promise<OrgResult<OrgDashboard>> 
 }
 
 // ---- platform admin oversight (J) ------------------------------------------
-export interface OrgOversightRow { id: string; slug: string; name: string; status: string; members: number; publications: number }
+export interface OrgOversightRow { id: string; slug: string; name: string; status: string; members: number; publications: number; investigations: number }
 export async function listOrganizationsAction(): Promise<OrgResult<OrgOversightRow[]>> {
-  if (!configured()) return { ok: true, demo: true, data: [{ id: DEFAULT_ORG.id, slug: 'default', name: 'Human Signal Index', status: 'active', members: 24, publications: 6 }] };
+  if (!configured()) return { ok: true, demo: true, data: [{ id: DEFAULT_ORG.id, slug: 'default', name: 'Human Signal Index', status: 'active', members: 24, publications: 6, investigations: 12 }] };
   try {
     const user = await getUser();
     if (!user) return { ok: false, code: 'AUTH_REQUIRED' };
@@ -206,7 +206,8 @@ export async function listOrganizationsAction(): Promise<OrgResult<OrgOversightR
       const org = mapOrg(o);
       const memberCount = await db.from('organization_members').select('*', { count: 'exact', head: true }).eq('organization_id', org.id);
       const pubCount = await db.from('hsin_publications').select('*', { count: 'exact', head: true }).eq('organization_id', org.id);
-      rows.push({ id: org.id, slug: org.slug, name: org.name, status: org.status, members: memberCount.count ?? 0, publications: pubCount.count ?? 0 });
+      const invCount = await db.from('investigations').select('*', { count: 'exact', head: true }).eq('organization_id', org.id);
+      rows.push({ id: org.id, slug: org.slug, name: org.name, status: org.status, members: memberCount.count ?? 0, publications: pubCount.count ?? 0, investigations: invCount.count ?? 0 });
     }
     return { ok: true, data: rows };
   } catch { return { ok: false, code: 'DB_ERROR' }; }

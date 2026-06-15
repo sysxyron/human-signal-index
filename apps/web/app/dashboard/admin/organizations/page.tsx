@@ -42,7 +42,7 @@ export default async function AdminOrganizationsPage() {
           <Card className="overflow-x-auto border-border p-0" padded={false}>
             <table className="w-full text-caption">
               <thead className="border-b border-border bg-surface/50 text-label uppercase tracking-wide text-text-muted">
-                <tr><th className="px-4 py-2.5 text-left">Organization</th><th className="px-4 py-2.5 text-left">Slug</th><th className="px-4 py-2.5 text-left">Status</th><th className="px-4 py-2.5 text-right">Members</th><th className="px-4 py-2.5 text-right">Publications</th></tr>
+                <tr><th className="px-4 py-2.5 text-left">Organization</th><th className="px-4 py-2.5 text-left">Slug</th><th className="px-4 py-2.5 text-left">Status</th><th className="px-4 py-2.5 text-right">Members</th><th className="px-4 py-2.5 text-right">Investigations</th><th className="px-4 py-2.5 text-right">Publications</th></tr>
               </thead>
               <tbody>
                 {orgs.map((o) => (
@@ -51,6 +51,7 @@ export default async function AdminOrganizationsPage() {
                     <td className="px-4 py-2.5 text-text-muted">/{o.slug}</td>
                     <td className="px-4 py-2.5"><span className="rounded-full px-2 py-0.5 text-label font-semibold capitalize" style={{ backgroundColor: `${STATUS_COLOR[o.status]}1f`, color: STATUS_COLOR[o.status] }}>{o.status}</span></td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-text-secondary">{o.members}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-text-secondary">{o.investigations}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-text-secondary">{o.publications}</td>
                   </tr>
                 ))}

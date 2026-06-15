@@ -266,6 +266,10 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     items: [
       { label: 'My Organization', href: '/dashboard/org', icon: Building2 },
       { label: 'Members', href: '/dashboard/org/members', icon: Users },
+      { label: 'Org Leaderboard', href: '/dashboard/org/leaderboard', icon: Trophy },
+      { label: 'Org Analytics', href: '/dashboard/org/analytics', icon: TrendingUp },
+      { label: 'Org Health', href: '/dashboard/org/health', icon: Activity },
+      { label: 'Create Organization', href: '/dashboard/org/create', icon: Building2 },
     ],
   },
   {

@@ -20,6 +20,7 @@ import {
   type ContributionEventType,
 } from '@hsi/contributor-network';
 import { getServiceClient } from '@/lib/admin/guard';
+import { getCurrentOrganizationId } from '@/lib/org/operations';
 
 export interface RecordContributionInput {
   event: ContributionEventType;
@@ -74,6 +75,9 @@ export async function recordContribution(input: RecordContributionInput): Promis
     // Action-level idempotency key — re-running the same action is a no-op.
     const key = idempotencyKey({ event: input.event, refKind: input.refKind, refId: input.refId, recipientId: input.actorId, slot: input.subjectId ?? 'action' });
 
+    // Phase 36 — stamp the caller's current organization (tenant scoping).
+    const organizationId = await getCurrentOrganizationId().catch(() => null);
+
     // 1. Gate: insert the audit row; duplicates are ignored.
     const { data: evRows, error: evErr } = await db
       .from('contribution_events')
@@ -89,6 +93,7 @@ export async function recordContribution(input: RecordContributionInput): Promis
           xp_awarded: xpTotal,
           credits_awarded: creditTotal,
           reputation_delta: repDelta,
+          organization_id: organizationId,
           idempotency_key: key,
         },
         { onConflict: 'idempotency_key', ignoreDuplicates: true },

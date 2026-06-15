@@ -90,7 +90,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
  */
 export const ALL_NAV_HREFS: string[] = [
   '/dashboard', '/dashboard/source-registry', '/dashboard/signal-intake', '/dashboard/evidence-vault', '/dashboard/operations',
-  '/dashboard/org', '/dashboard/org/members',
+  '/dashboard/org', '/dashboard/org/members', '/dashboard/org/leaderboard', '/dashboard/org/analytics', '/dashboard/org/health', '/dashboard/org/create',
   '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',
   '/dashboard/review', '/dashboard/governance-queue', '/dashboard/alerts', '/dashboard/counter-narrative', '/dashboard/public-reports',

@@ -65,6 +65,31 @@ export interface ContributorNetworkResult {
   entityImpactUpserted: number;
   lineageLinksBackfilled: number;
   graphHealthScore: number;
+  orgSnapshotsWritten: number;
+}
+
+/**
+ * PER-ORGANIZATION snapshots (Phase 36) — recompute org-scoped leaderboards from
+ * the org-stamped user_contribution_stats. Tenant-isolated: each org's board uses
+ * only its own rows. NEVER writes user_roles.
+ */
+async function runOrgSnapshots(client: AnyClient, now: string, result: ContributorNetworkResult): Promise<void> {
+  try {
+    const { data: orgs } = await client.from('organizations').select('id').eq('status', 'active').limit(1000);
+    for (const o of (orgs ?? []) as Array<{ id: string }>) {
+      const { data: stats } = await client.from('user_contribution_stats').select('user_id, xp, signals_accepted, signals_rejected, reviews_completed, publications_contributed, reputation_overall').eq('organization_id', o.id).limit(5000);
+      const contribs = ((stats ?? []) as Array<Record<string, number | string>>).map((s) => ({
+        id: String(s.user_id), name: String(s.user_id), role: 'researcher' as const, xp: Number(s.xp ?? 0),
+        acceptedSignals: Number(s.signals_accepted ?? 0), rejectedSignals: Number(s.signals_rejected ?? 0),
+        evidencePackages: 0, reviewsCompleted: Number(s.reviews_completed ?? 0), reportsPrepared: Number(s.publications_contributed ?? 0),
+        reputation: Number(s.reputation_overall ?? 0),
+      }));
+      if (contribs.length === 0) continue;
+      const rows = rankContributors(contribs, 'top_contributors', 100);
+      await client.from('leaderboard_snapshots').insert({ view: 'top_contributors', period: 'all_time', rows, computed_at: now, organization_id: o.id });
+      result.orgSnapshotsWritten++;
+    }
+  } catch (e) { logger.warn('contributor.orgSnapshots.failed', { error: e instanceof Error ? e.message : String(e) }); }
 }
 
 // ---- REAL operational outcomes (Phase 28) ---------------------------------
@@ -259,11 +284,11 @@ function runOffline(now: string): ContributorNetworkResult {
   for (const c of demoContributors) { computeReputation(qualityFor(emptyAgg())); rankProgress(trackForRole(c.role), c.xp, c.reputation, demoMetrics); }
   for (const v of LEADERBOARD_VIEWS) v === 'top_teams' ? rankTeams(demoTeams) : rankContributors(demoContributors, v);
   for (const c of demoContributors) computeTrust(trustInputsFor({ signalsSubmitted: c.acceptedSignals + c.rejectedSignals, signalsAccepted: c.acceptedSignals, signalsRejected: c.rejectedSignals, reviewsCompleted: c.reviewsCompleted, evidenceSubmitted: c.evidencePackages, publications: c.reportsPrepared, investigationsOwned: 0 }, emptyOutcomes()));
-  return { mode: 'offline', usersAggregated: demoContributors.length, statsUpserted: demoContributors.length, badgesAwarded: evaluateBadges(demoMetrics).length, missionsUpdated: MISSION_TEMPLATES.length, leaderboardsWritten: LEADERBOARD_VIEWS.length * PERIODS.length, teamsUpdated: demoTeams.length, trustProfilesUpserted: demoContributors.length, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0, lineageLinksBackfilled: 0, graphHealthScore: 0 };
+  return { mode: 'offline', usersAggregated: demoContributors.length, statsUpserted: demoContributors.length, badgesAwarded: evaluateBadges(demoMetrics).length, missionsUpdated: MISSION_TEMPLATES.length, leaderboardsWritten: LEADERBOARD_VIEWS.length * PERIODS.length, teamsUpdated: demoTeams.length, trustProfilesUpserted: demoContributors.length, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0, lineageLinksBackfilled: 0, graphHealthScore: 0, orgSnapshotsWritten: 0 };
 }
 
 async function runDb(client: AnyClient, now: string): Promise<ContributorNetworkResult> {
-  const result: ContributorNetworkResult = { mode: 'db', usersAggregated: 0, statsUpserted: 0, badgesAwarded: 0, missionsUpdated: 0, leaderboardsWritten: 0, teamsUpdated: 0, trustProfilesUpserted: 0, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0, lineageLinksBackfilled: 0, graphHealthScore: 0 };
+  const result: ContributorNetworkResult = { mode: 'db', usersAggregated: 0, statsUpserted: 0, badgesAwarded: 0, missionsUpdated: 0, leaderboardsWritten: 0, teamsUpdated: 0, trustProfilesUpserted: 0, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0, lineageLinksBackfilled: 0, graphHealthScore: 0, orgSnapshotsWritten: 0 };
   const nowMs = Date.parse(now);
 
   // ---- load events + xp/credit ledgers --------------------------------------
@@ -487,6 +512,9 @@ async function runDb(client: AnyClient, now: string): Promise<ContributorNetwork
 
   // ---- INTELLIGENCE LINEAGE (Phase 30) — backfill links + graph health -------
   await runLineage(client, now, result);
+
+  // ---- PER-ORG SNAPSHOTS (Phase 36) — org-scoped leaderboards -----------------
+  await runOrgSnapshots(client, now, result);
 
   return result;
 }

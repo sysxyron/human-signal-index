@@ -53,6 +53,7 @@ import {
 } from './persistence';
 import { runSourceIntake, type IntakeOutcome } from './pipeline';
 import { recordContribution } from '@/lib/contributor/recorder';
+import { getCurrentOrganizationId } from '@/lib/org/operations';
 
 // -----------------------------------------------------------------------------
 // Dashboard routes revalidated after mutations (best-effort; safe if absent).
@@ -145,6 +146,11 @@ export async function submitManualSignalAction(input: ManualSignalInput) {
   const result = await submitManualSignal(input);
   if (result.ok) {
     revalidate(SIGNALS_ROUTE, OVERVIEW_ROUTE);
+    // Phase 36 — stamp the caller's current organization (tenant scoping).
+    try {
+      const orgId = await getCurrentOrganizationId();
+      if (orgId) await createClient().from('hsin_signals').update({ organization_id: orgId }).eq('id', result.data.id);
+    } catch { /* best-effort; RLS keeps null = global */ }
     // Phase 26 — additive, best-effort contributor award (idempotent + audited).
     if (result.data.created_by) {
       await recordContribution({ event: 'SIGNAL_SUBMITTED', actorId: result.data.created_by, refKind: 'signal', refId: result.data.id, reason: 'Signal submitted.' });

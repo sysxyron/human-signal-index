@@ -48,3 +48,9 @@ test('summary carries Phase-30 lineage counters', async () => {
   assert.equal(typeof s.lineageLinksBackfilled, 'number');
   assert.equal(typeof s.graphHealthScore, 'number');
 });
+
+test('summary carries Phase-36 per-org snapshot counter', async () => {
+  const r = await makeContributorNetworkJob().run(ctx);
+  const s = r.summary as Record<string, number>;
+  assert.equal(typeof s.orgSnapshotsWritten, 'number'); // offline → 0, field present, no throw
+});
