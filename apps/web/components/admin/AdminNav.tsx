@@ -22,6 +22,7 @@ const ITEMS: NavItem[] = [
   { label: 'Graph Explorer', href: '/dashboard/admin/graph-explorer', icon: Network },
   { label: 'Graph Health', href: '/dashboard/admin/graph-health', icon: Activity },
   { label: 'Beta Ops', href: '/dashboard/admin/tester-ops', icon: Rocket },
+  { label: 'System Health', href: '/dashboard/admin/system-health', icon: Activity },
   { label: 'Testers', href: '/dashboard/admin/testers', icon: GraduationCap },
   { label: 'Access Logs', href: '/dashboard/admin/access-logs', icon: ScrollText },
 ];

@@ -54,7 +54,8 @@
       "@hsi/outcome-attribution": ["packages/outcome-attribution/src"],
       "@hsi/lineage": ["packages/lineage/src"],
       "@hsi/cms-engine": ["packages/cms-engine/src"],
-      "@hsi/beta-engine": ["packages/beta-engine/src"]
+      "@hsi/beta-engine": ["packages/beta-engine/src"],
+      "@hsi/launch-readiness": ["packages/launch-readiness/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

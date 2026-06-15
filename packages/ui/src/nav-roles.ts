@@ -71,6 +71,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/admin/graph-explorer': ['admin'],
   '/dashboard/admin/graph-health': ['admin'],
   '/dashboard/admin/tester-ops': ['admin'],
+  '/dashboard/admin/system-health': ['admin'],
   '/dashboard/admin/testers': ['admin'],
   '/dashboard/admin/access-logs': ['admin'],
   // System (admin)
@@ -98,7 +99,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
   '/dashboard/launch', '/dashboard/launch/issues', '/dashboard/tester', '/dashboard/tester-onboarding',
   '/dashboard/profile',
-  '/dashboard/admin/users', '/dashboard/admin/cms', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/admin/tester-ops', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
+  '/dashboard/admin/users', '/dashboard/admin/cms', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/admin/tester-ops', '/dashboard/admin/system-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',
 ];
 

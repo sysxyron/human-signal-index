@@ -108,6 +108,7 @@ export const ROUTES = {
   adminGraphExplorer: '/dashboard/admin/graph-explorer',
   adminGraphHealth: '/dashboard/admin/graph-health',
   adminTesterOps: '/dashboard/admin/tester-ops',
+  adminSystemHealth: '/dashboard/admin/system-health',
   adminTesters: '/dashboard/admin/testers',
   adminAccessLogs: '/dashboard/admin/access-logs',
 
