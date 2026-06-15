@@ -24,6 +24,7 @@ import {
   type CreateInvestigationResult,
   type DbResult,
 } from './persistence';
+import { canUseFeatureAction } from '@/lib/billing/billing';
 import type {
   CollectiveHighlights,
   ConsensusBoardData,
@@ -74,6 +75,9 @@ export async function getCollectiveHighlightsAction(): Promise<DbResult<Collecti
 
 // ---- writes -----------------------------------------------------------------
 export async function createInvestigationAction(input: { slug: string; title: string; question: string }): Promise<DbResult<CreateInvestigationResult>> {
+  // Phase 38 — entitlement enforcement (non-blocking under high Community limits).
+  const gate = await canUseFeatureAction('investigation');
+  if (!gate.allowed) return { ok: false, error: gate.reason ?? 'Upgrade required to create more investigations.', code: 'FORBIDDEN' };
   const result = await createInvestigationDal(input, new Date().toISOString());
   if (result.ok) revalidate(INV);
   return result;

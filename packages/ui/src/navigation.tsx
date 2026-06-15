@@ -396,6 +396,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Organizations', href: '/dashboard/admin/organizations', icon: Building2 },
       { label: 'Plans', href: '/dashboard/admin/plans', icon: Layers },
       { label: 'Subscriptions', href: '/dashboard/admin/subscriptions', icon: CreditCard },
+      { label: 'Revenue', href: '/dashboard/admin/revenue', icon: TrendingUp },
       { label: 'Site Operations', href: '/dashboard/admin/site-ops', icon: LayoutDashboard },
       { label: 'Content (CMS)', href: '/dashboard/admin/cms', icon: FileText },
       { label: 'Site Settings', href: '/dashboard/admin/site-settings', icon: Settings },

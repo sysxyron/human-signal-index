@@ -13,6 +13,7 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { loadHighestRole } from '@/lib/auth/get-session-role';
 import { hasRole } from '@/lib/security/rbac-audit';
 import { canManageMembers, canRemoveMember, highestMembership, type MembershipRole } from './membership';
+import { defaultEntitlements, getLimit, type PlanSlug } from '@hsi/entitlements';
 
 const ORG_COOKIE = 'hsi_org';
 const DEFAULT_ORG = { id: '00000000-0000-0000-0000-000000000001', slug: 'default', name: 'Human Signal Index' };
@@ -131,10 +132,34 @@ async function requireOrgManage(orgId: string): Promise<{ ok: true; db: ReturnTy
   return { ok: true, db, userId: user.id };
 }
 
+/**
+ * Phase 38 — entitlement enforcement for member invites (contributors_limit).
+ * Pure-helper based (no billing import → no cycle). Non-blocking under high
+ * Community limits. Returns an error string when the cap is reached, else null.
+ */
+async function contributorLimitExceeded(db: ReturnType<typeof createClient>, orgId: string): Promise<string | null> {
+  try {
+    const { data: sub } = await db.from('organization_subscriptions').select('plans(slug)').eq('organization_id', orgId).maybeSingle();
+    const rel = (sub as { plans?: { slug?: string } | { slug?: string }[] } | null)?.plans;
+    const slug = ((Array.isArray(rel) ? rel[0]?.slug : rel?.slug) as PlanSlug) ?? 'community';
+    // Resolve the contributors limit from the plan's default entitlements. (Custom
+    // per-plan overrides are surfaced via the billing DAL; defaults gate here.)
+    const limit = getLimit(defaultEntitlements(slug), 'contributors_limit');
+    if (limit === null) return null;
+    const { count } = await db.from('organization_members').select('*', { count: 'exact', head: true }).eq('organization_id', orgId);
+    if ((count ?? 0) >= limit) return `Upgrade required: your plan allows ${limit} members.`;
+    return null;
+  } catch {
+    return null; // never block on a read error
+  }
+}
+
 export async function inviteMemberAction(orgId: string, email: string, membershipRole: MembershipRole): Promise<OrgResult<{ userId: string }>> {
   const gate = await requireOrgManage(orgId);
   if (!gate.ok) return gate;
   try {
+    const overLimit = await contributorLimitExceeded(gate.db, orgId);
+    if (overLimit) return { ok: false, code: 'FORBIDDEN', error: overLimit };
     const { data: u } = await gate.db.from('users').select('id').eq('email', email).maybeSingle();
     if (!u) return { ok: false, code: 'DB_ERROR', error: 'No account with that email. The user must sign up first.' };
     const uid = String((u as { id: string }).id);

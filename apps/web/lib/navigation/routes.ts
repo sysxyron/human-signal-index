@@ -112,6 +112,7 @@ export const ROUTES = {
   orgCreate: '/dashboard/org/create',
   adminPlans: '/dashboard/admin/plans',
   adminSubscriptions: '/dashboard/admin/subscriptions',
+  adminRevenue: '/dashboard/admin/revenue',
   adminSiteSettings: '/dashboard/admin/site-settings',
   adminCms: '/dashboard/admin/cms',
   adminCmsMissions: '/dashboard/admin/cms/missions',

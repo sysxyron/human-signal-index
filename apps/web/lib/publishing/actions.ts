@@ -29,6 +29,7 @@ import {
 import type { RetractionReason } from '@hsi/publishing-engine';
 import { getUser } from '@/lib/supabase/server';
 import { recordContribution } from '@/lib/contributor/recorder';
+import { canUseFeatureAction } from '@/lib/billing/billing';
 import type {
   PublicIntelligenceData,
   PublicationPageData,
@@ -89,6 +90,9 @@ export async function createPublicationAction(input: {
   trustScore?: number; confidence?: number; evidenceCount?: number; sourceCount?: number;
   categories?: string[]; topics?: string[]; body?: Record<string, unknown>;
 }): Promise<DbResult<CreatePublicationResult>> {
+  // Phase 38 — entitlement enforcement (non-blocking under high Community limits).
+  const gate = await canUseFeatureAction('publication');
+  if (!gate.allowed) return { ok: false, error: gate.reason ?? 'Upgrade required to publish more.', code: 'FORBIDDEN' };
   const result = await createPublicationDal(input, new Date().toISOString());
   if (result.ok) revalidate(DASH);
   return result;
