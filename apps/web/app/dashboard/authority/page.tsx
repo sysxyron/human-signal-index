@@ -71,6 +71,25 @@ export default async function AuthorityPage() {
           <ScoreCard label="Publication" value={t.scores.publicationQuality} icon={<Award className="h-3.5 w-3.5 text-accent" />} accent="#A78BFA" />
         </div>
 
+        {/* Contributor insights (Deliverable 13) */}
+        <Card className="space-y-3 border-border" padded>
+          <h3 className="text-h6 font-semibold text-text-primary">Strength analysis</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <div className="text-label uppercase tracking-wide text-success">Strengths</div>
+              {t.insights.strengths.length > 0 ? (
+                <div className="mt-1 flex flex-wrap gap-1.5">{t.insights.strengths.map((s) => <span key={s} className="rounded-full bg-success/15 px-2.5 py-1 text-label font-medium text-success">{s}</span>)}</div>
+              ) : <p className="mt-1 text-caption text-text-muted">Keep contributing to build strengths.</p>}
+            </div>
+            <div>
+              <div className="text-label uppercase tracking-wide text-warning">Areas to improve</div>
+              {t.insights.weaknesses.length > 0 ? (
+                <div className="mt-1 flex flex-wrap gap-1.5">{t.insights.weaknesses.map((w) => <span key={w} className="rounded-full bg-warning/15 px-2.5 py-1 text-label font-medium text-warning">{w}</span>)}</div>
+              ) : <p className="mt-1 text-caption text-text-muted">No weak areas flagged.</p>}
+            </div>
+          </div>
+        </Card>
+
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Review breakdown */}
           <Card className="space-y-2 border-border" padded>

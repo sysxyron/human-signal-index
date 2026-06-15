@@ -158,6 +158,25 @@ export default async function ProfilePage() {
                 </Card>
               ))}
             </div>
+            {/* Strengths/weaknesses (Deliverable 13) */}
+            {(trust.insights.strengths.length > 0 || trust.insights.weaknesses.length > 0) ? (
+              <div className="flex flex-wrap gap-1.5">
+                {trust.insights.strengths.map((s) => <span key={s} className="rounded-full bg-success/15 px-2.5 py-1 text-label font-medium text-success">{s}</span>)}
+                {trust.insights.weaknesses.map((w) => <span key={w} className="rounded-full bg-warning/15 px-2.5 py-1 text-label font-medium text-warning">Improve: {w}</span>)}
+              </div>
+            ) : null}
+            {/* Trust & authority evolution (Deliverables 11 & 12) */}
+            {trust.history.length > 0 ? (
+              <Card className="space-y-1.5 border-border" padded>
+                <div className="text-label uppercase tracking-wide text-text-muted">Trust evolution</div>
+                {trust.history.slice(0, 5).map((h, i) => (
+                  <div key={i} className="flex items-center justify-between text-caption">
+                    <span className="text-text-secondary">{new Date(h.at).toLocaleDateString()} · {h.reason}</span>
+                    <span className="tabular-nums text-text-muted">authority {h.previousAuthority ?? '—'} → <span className="text-text-primary">{h.newAuthority}</span></span>
+                  </div>
+                ))}
+              </Card>
+            ) : null}
             <Link href={"/dashboard/authority" as never} className="inline-flex items-center gap-1.5 text-caption text-electric hover:underline">View full authority breakdown <ArrowRight className="h-3.5 w-3.5" /></Link>
           </section>
         ) : null}

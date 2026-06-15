@@ -81,6 +81,31 @@ export default async function TrustMonitoringPage() {
           </section>
         </div>
 
+        {/* Recent trust/authority changes with reasons (Deliverable 15) */}
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-h6 font-semibold text-text-primary"><ShieldCheck className="h-4 w-4 text-electric" /> Recent trust &amp; authority changes</h2>
+          <Card className="overflow-x-auto border-border p-0" padded={false}>
+            <table className="w-full text-caption">
+              <thead className="border-b border-border bg-surface/50 text-label uppercase tracking-wide text-text-muted">
+                <tr><th className="px-4 py-2 text-left">User</th><th className="px-4 py-2 text-right">Trust</th><th className="px-4 py-2 text-right">Authority</th><th className="px-4 py-2 text-left">Reason</th><th className="px-4 py-2 text-left">When</th></tr>
+              </thead>
+              <tbody>
+                {data.recentChanges.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-4 text-center text-text-muted">No recent changes.</td></tr>
+                ) : data.recentChanges.map((c, i) => (
+                  <tr key={`${c.userId}-${i}`} className="border-b border-border/50 last:border-0">
+                    <td className="px-4 py-2 text-text-primary">{c.email ?? c.userId}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-text-secondary">{c.previousTrust ?? '—'} → {c.newTrust ?? '—'}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-text-secondary">{c.previousAuthority ?? '—'} → {c.newAuthority ?? '—'}</td>
+                    <td className="px-4 py-2 text-text-muted">{c.reason ?? '—'}</td>
+                    <td className="px-4 py-2 text-text-muted">{new Date(c.at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </section>
+
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-h6 font-semibold text-text-primary"><Crown className="h-4 w-4 text-electric" /> Authority rankings</h2>
           <Card className="overflow-x-auto border-border p-0" padded={false}>

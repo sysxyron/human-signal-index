@@ -24,6 +24,7 @@ export interface TrustInputs {
   /** 0..1 share of the contributor's publications that cleared governance. */
   governanceApprovalRate: number;
   // Reliability.
+  investigationsOpened: number;
   investigationsCompleted: number;
   investigationsAbandoned: number;
   overdueAssignments: number;
@@ -31,6 +32,13 @@ export interface TrustInputs {
   activeWindows: number;
   /** Total windows observed (for the consistency ratio). */
   totalWindows: number;
+  // Impact (Phase 28) — investigations that produced real outcomes.
+  acceptedFindings: number;
+  governanceActions: number;
+  publicationsDelivered: number;
+  // Governance effectiveness (Phase 28) — decisions confirmed by later outcomes.
+  governanceConfirmed: number;
+  governanceDecisions: number;
 }
 
 /** The four component scores + the headline trust/authority (all 0..100). */
@@ -39,6 +47,8 @@ export interface TrustScores {
   reviewAccuracy: number;
   publicationQuality: number;
   reliability: number;
+  impact: number; // Phase 28 — investigation impact
+  governanceEffectiveness: number; // Phase 28
   accuracy: number; // mean(signalAccuracy, reviewAccuracy)
   trust: number;
   authority: number;
@@ -68,7 +78,13 @@ export type TrustEventType =
   | 'PUBLICATION_APPROVED'
   | 'PUBLICATION_REJECTED'
   | 'INVESTIGATION_COMPLETED'
-  | 'INVESTIGATION_ABANDONED';
+  | 'INVESTIGATION_ABANDONED'
+  // Phase 28 — operational outcome events.
+  | 'INVESTIGATION_ACCEPTED'
+  | 'INVESTIGATION_REJECTED'
+  | 'GOVERNANCE_CONFIRMED'
+  | 'PUBLICATION_HIGH_CONFIDENCE'
+  | 'PUBLICATION_LOW_CONFIDENCE';
 
 /** A self-validation candidate (actor acting on their own work) — excluded from trust. */
 export interface ValidationEvent {

@@ -19,12 +19,19 @@ export const TRUST_EVENT_WEIGHTS: Record<TrustEventType, number> = {
   PUBLICATION_REJECTED: -3,
   INVESTIGATION_COMPLETED: +3,
   INVESTIGATION_ABANDONED: -4,
+  // Phase 28 — operational outcome events.
+  INVESTIGATION_ACCEPTED: +4,
+  INVESTIGATION_REJECTED: -3,
+  GOVERNANCE_CONFIRMED: +3,
+  PUBLICATION_HIGH_CONFIDENCE: +5,
+  PUBLICATION_LOW_CONFIDENCE: -2,
 };
 
 /** Validation events where the actor acted on their OWN work (circular boosting). */
 const VALIDATION_TYPES = new Set<TrustEventType>([
   'SIGNAL_ACCEPTED', 'SIGNAL_REJECTED', 'REVIEW_AGREEMENT', 'REVIEW_DISAGREEMENT',
   'PUBLICATION_APPROVED', 'PUBLICATION_REJECTED',
+  'INVESTIGATION_ACCEPTED', 'INVESTIGATION_REJECTED',
 ]);
 
 /** True when an event is self-validation (must be ignored by trust). */

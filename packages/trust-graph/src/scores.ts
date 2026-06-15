@@ -48,8 +48,26 @@ export function reliability(i: Pick<TrustInputs, 'investigationsCompleted' | 'in
   return clamp((base - overduePenalty) * 100);
 }
 
-/** Weights for the authority model (Deliverable 6). Sum to 1. Deterministic. */
-export const AUTHORITY_WEIGHTS = { trust: 0.35, accuracy: 0.25, reliability: 0.2, publicationQuality: 0.2 } as const;
+/** Phase 28 — investigation IMPACT: share of work that produced real outcomes. */
+export function impactScore(i: Pick<TrustInputs, 'investigationsCompleted' | 'acceptedFindings' | 'governanceActions' | 'publicationsDelivered'>): number {
+  if (i.investigationsCompleted <= 0 && i.acceptedFindings <= 0 && i.governanceActions <= 0 && i.publicationsDelivered <= 0) return NEUTRAL;
+  const outcomes = i.acceptedFindings * 1 + i.governanceActions * 1.5 + i.publicationsDelivered * 2;
+  const denom = Math.max(1, i.investigationsCompleted) * 2; // 2 = a "full impact" weight per completed investigation
+  return clamp(clamp01(outcomes / denom) * 100);
+}
+
+/** Phase 28 — governance EFFECTIVENESS: decisions confirmed by later outcomes. */
+export function governanceEffectiveness(i: Pick<TrustInputs, 'governanceConfirmed' | 'governanceDecisions'>): number {
+  if (i.governanceDecisions <= 0) return NEUTRAL;
+  return clamp((i.governanceConfirmed / i.governanceDecisions) * 100);
+}
+
+/**
+ * Weights for the authority model (Deliverable 9 — real inputs, no placeholder).
+ * Sum to 1. Authority now blends trust, accuracy, reliability, publication quality,
+ * AND investigation impact. Deterministic.
+ */
+export const AUTHORITY_WEIGHTS = { trust: 0.3, accuracy: 0.2, reliability: 0.2, publicationQuality: 0.15, impact: 0.15 } as const;
 
 /** Weights for the trust model (trustworthiness of a contributor's output). */
 export const TRUST_WEIGHTS = { accuracy: 0.6, reliability: 0.4 } as const;
@@ -60,13 +78,16 @@ export function computeTrust(i: TrustInputs): TrustScores {
   const rev = reviewAccuracy(i).score;
   const pub = publicationQuality(i);
   const rel = reliability(i);
+  const impact = impactScore(i);
+  const governance = governanceEffectiveness(i);
   const accuracy = clamp((sig + rev) / 2);
   const trust = clamp(TRUST_WEIGHTS.accuracy * accuracy + TRUST_WEIGHTS.reliability * rel);
   const authority = clamp(
     AUTHORITY_WEIGHTS.trust * trust +
     AUTHORITY_WEIGHTS.accuracy * accuracy +
     AUTHORITY_WEIGHTS.reliability * rel +
-    AUTHORITY_WEIGHTS.publicationQuality * pub,
+    AUTHORITY_WEIGHTS.publicationQuality * pub +
+    AUTHORITY_WEIGHTS.impact * impact,
   );
-  return { signalAccuracy: sig, reviewAccuracy: rev, publicationQuality: pub, reliability: rel, accuracy, trust, authority };
+  return { signalAccuracy: sig, reviewAccuracy: rev, publicationQuality: pub, reliability: rel, impact, governanceEffectiveness: governance, accuracy, trust, authority };
 }

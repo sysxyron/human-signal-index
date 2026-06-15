@@ -20,6 +20,12 @@ const VIEWS: Array<{ key: string; label: string }> = [
   { key: 'top_reviewers', label: 'Top Reviewers' },
   { key: 'top_curators', label: 'Top Curators' },
   { key: 'top_teams', label: 'Top Teams' },
+  // Phase 28 — authority-ranked team-domain boards.
+  { key: 'global', label: 'Global (Authority)' },
+  { key: 'research', label: 'Research' },
+  { key: 'review', label: 'Review' },
+  { key: 'governance', label: 'Governance' },
+  { key: 'security', label: 'Security' },
 ];
 
 const MEDAL = ['#FFD700', '#C0C0C0', '#CD7F32'];

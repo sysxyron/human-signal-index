@@ -4,11 +4,13 @@ import assert from 'node:assert/strict';
 import { TRUST_EVENT_WEIGHTS, isSelfValidation, filterSelfValidation, countSelfValidation } from '../src/events';
 import type { ValidationEvent } from '../src/types';
 
-test('all eight trust event types are weighted', () => {
+test('all trust event types are weighted (8 base + 5 Phase-28)', () => {
   const keys = Object.keys(TRUST_EVENT_WEIGHTS);
-  assert.equal(keys.length, 8);
+  assert.equal(keys.length, 13);
   assert.ok(TRUST_EVENT_WEIGHTS.SIGNAL_ACCEPTED > 0);
   assert.ok(TRUST_EVENT_WEIGHTS.INVESTIGATION_ABANDONED < 0);
+  assert.ok(TRUST_EVENT_WEIGHTS.PUBLICATION_HIGH_CONFIDENCE > 0);
+  assert.ok(TRUST_EVENT_WEIGHTS.GOVERNANCE_CONFIRMED > 0);
 });
 
 // ---- ANTI-GAMING ----------------------------------------------------------

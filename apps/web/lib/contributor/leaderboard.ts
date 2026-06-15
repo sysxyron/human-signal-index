@@ -14,14 +14,19 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import { contributorConfigured, type ContribResult } from './options';
 
-const VIEWS: LeaderboardView[] = ['top_contributors', 'top_researchers', 'top_reviewers', 'top_curators', 'top_teams'];
+// Phase 28 — adds authority-ranked team-domain boards (global + per team).
+const VIEWS: string[] = ['top_contributors', 'top_researchers', 'top_reviewers', 'top_curators', 'top_teams', 'global', 'research', 'review', 'governance', 'security'];
+const CONTRIBUTOR_VIEWS = new Set<LeaderboardView>(['top_contributors', 'top_researchers', 'top_reviewers', 'top_curators']);
 
-function computeDemo(view: LeaderboardView): LeaderboardRow[] {
-  return view === 'top_teams' ? rankTeams(demoTeams) : rankContributors(demoContributors, view);
+function computeDemo(view: string): LeaderboardRow[] {
+  if (view === 'top_teams') return rankTeams(demoTeams);
+  if (CONTRIBUTOR_VIEWS.has(view as LeaderboardView)) return rankContributors(demoContributors, view as LeaderboardView);
+  // Domain/global authority boards (demo): rank all demo contributors.
+  return rankContributors(demoContributors, 'top_contributors');
 }
 
-export async function getLeaderboardAction(view: string = 'top_contributors'): Promise<ContribResult<{ view: LeaderboardView; rows: LeaderboardRow[] }>> {
-  const v: LeaderboardView = (VIEWS as string[]).includes(view) ? (view as LeaderboardView) : 'top_contributors';
+export async function getLeaderboardAction(view: string = 'top_contributors'): Promise<ContribResult<{ view: string; rows: LeaderboardRow[] }>> {
+  const v: string = VIEWS.includes(view) ? view : 'top_contributors';
   if (!contributorConfigured()) {
     return { ok: true, demo: true, data: { view: v, rows: computeDemo(v) } };
   }

@@ -12,4 +12,5 @@ export * from './types';
 export * from './scores';
 export * from './ladder';
 export * from './events';
+export * from './insights';
 export * from './fixtures';
