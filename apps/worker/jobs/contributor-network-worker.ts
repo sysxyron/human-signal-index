@@ -40,6 +40,10 @@ import { createServiceRoleClient } from '@hsi/database';
 import {
   computeTrust, reviewAccuracy, levelForAuthority, impactScore, teamEffectiveness, type TrustInputs,
 } from '@hsi/trust-graph';
+import {
+  investigationImpact, publicationReach, contributorImpact, cleanAttribution,
+  type AttributionEdge, type OutcomeType,
+} from '@hsi/outcome-attribution';
 import { logger } from '../src/logger';
 import type { Job, JobContext, JobResult } from './types';
 
@@ -53,6 +57,9 @@ export interface ContributorNetworkResult {
   teamsUpdated: number;
   trustProfilesUpserted: number;
   trustHistoryAppended: number;
+  outcomeEventsWritten: number;
+  attributionEdgesWritten: number;
+  entityImpactUpserted: number;
 }
 
 // ---- REAL operational outcomes (Phase 28) ---------------------------------
@@ -247,11 +254,11 @@ function runOffline(now: string): ContributorNetworkResult {
   for (const c of demoContributors) { computeReputation(qualityFor(emptyAgg())); rankProgress(trackForRole(c.role), c.xp, c.reputation, demoMetrics); }
   for (const v of LEADERBOARD_VIEWS) v === 'top_teams' ? rankTeams(demoTeams) : rankContributors(demoContributors, v);
   for (const c of demoContributors) computeTrust(trustInputsFor({ signalsSubmitted: c.acceptedSignals + c.rejectedSignals, signalsAccepted: c.acceptedSignals, signalsRejected: c.rejectedSignals, reviewsCompleted: c.reviewsCompleted, evidenceSubmitted: c.evidencePackages, publications: c.reportsPrepared, investigationsOwned: 0 }, emptyOutcomes()));
-  return { mode: 'offline', usersAggregated: demoContributors.length, statsUpserted: demoContributors.length, badgesAwarded: evaluateBadges(demoMetrics).length, missionsUpdated: MISSION_TEMPLATES.length, leaderboardsWritten: LEADERBOARD_VIEWS.length * PERIODS.length, teamsUpdated: demoTeams.length, trustProfilesUpserted: demoContributors.length, trustHistoryAppended: 0 };
+  return { mode: 'offline', usersAggregated: demoContributors.length, statsUpserted: demoContributors.length, badgesAwarded: evaluateBadges(demoMetrics).length, missionsUpdated: MISSION_TEMPLATES.length, leaderboardsWritten: LEADERBOARD_VIEWS.length * PERIODS.length, teamsUpdated: demoTeams.length, trustProfilesUpserted: demoContributors.length, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0 };
 }
 
 async function runDb(client: AnyClient, now: string): Promise<ContributorNetworkResult> {
-  const result: ContributorNetworkResult = { mode: 'db', usersAggregated: 0, statsUpserted: 0, badgesAwarded: 0, missionsUpdated: 0, leaderboardsWritten: 0, teamsUpdated: 0, trustProfilesUpserted: 0, trustHistoryAppended: 0 };
+  const result: ContributorNetworkResult = { mode: 'db', usersAggregated: 0, statsUpserted: 0, badgesAwarded: 0, missionsUpdated: 0, leaderboardsWritten: 0, teamsUpdated: 0, trustProfilesUpserted: 0, trustHistoryAppended: 0, outcomeEventsWritten: 0, attributionEdgesWritten: 0, entityImpactUpserted: 0 };
   const nowMs = Date.parse(now);
 
   // ---- load events + xp/credit ledgers --------------------------------------
@@ -470,7 +477,129 @@ async function runDb(client: AnyClient, now: string): Promise<ContributorNetwork
     }
   } catch (e) { logger.warn('contributor.effectiveness.failed', { error: e instanceof Error ? e.message : String(e) }); }
 
+  // ---- OUTCOME ATTRIBUTION (Phase 29) — chains + impact + backfill -----------
+  await runOutcomeAttribution(client, now, result);
+
   return result;
+}
+
+/**
+ * OUTCOME ATTRIBUTION (Phase 29) — backfill attribution chains + impact from the
+ * existing investigations / governance decisions / publications, then materialize
+ * entity_impact + outcome_events (idempotent) + impact_history. Anti-gaming:
+ * cleanAttribution() removes self-loops/cycles/duplicates/self-attribution; UNIQUE
+ * idempotency keys prevent duplicate outcomes/edges. NEVER writes user_roles.
+ */
+async function runOutcomeAttribution(client: AnyClient, now: string, result: ContributorNetworkResult): Promise<void> {
+  const edges: AttributionEdge[] = [];
+  const outcomeRows: Array<{ outcome_type: OutcomeType; entity_kind: string; entity_id: string; actor_id: string | null; team_key: string | null; impact_weight: number; reason: string; idempotency_key: string }> = [];
+  // Per-contributor outcome tallies for contributor impact.
+  const byContributor = new Map<string, { vf: number; ga: number; pubs: number; outcomes: number }>();
+  const cTally = (id: string) => { let t = byContributor.get(id); if (!t) { t = { vf: 0, ga: 0, pubs: 0, outcomes: 0 }; byContributor.set(id, t); } return t; };
+
+  const govByInv = new Map<string, { decision: string; decider: string | null }>();
+  const invImpactRows: Array<{ id: string; owner: string | null; teamId: string | null; status: string }> = [];
+
+  try {
+    const { data: govs } = await client.from('investigation_governance_decisions').select('investigation_id, decided_by, decision, created_at').order('created_at', { ascending: true });
+    for (const g of (govs ?? []) as Array<{ investigation_id: string; decided_by: string | null; decision: string }>) govByInv.set(g.investigation_id, { decision: g.decision, decider: g.decided_by });
+
+    const { data: invs } = await client.from('investigations').select('id, owner_id, team_id, status');
+    for (const inv of (invs ?? []) as Array<{ id: string; owner_id: string | null; team_id: string | null; status: string }>) {
+      invImpactRows.push({ id: inv.id, owner: inv.owner_id, teamId: inv.team_id, status: inv.status });
+      const completed = inv.status === 'published' || inv.status === 'publication_ready';
+      const gov = govByInv.get(inv.id);
+      if (completed) {
+        const type: OutcomeType = inv.status === 'published' ? 'INVESTIGATION_COMPLETED' : 'VERIFIED_FINDING';
+        outcomeRows.push({ outcome_type: type, entity_kind: 'investigation', entity_id: inv.id, actor_id: inv.owner_id, team_key: inv.team_id, impact_weight: 1, reason: `Investigation ${inv.status}.`, idempotency_key: `inv:${inv.id}:${type}` });
+        edges.push({ origin: { type: 'investigation', id: inv.id }, destination: { type: 'outcome', id: `inv-${inv.id}` }, relationship: 'investigation_to_outcome', weight: inv.status === 'published' ? 1 : 0.7, originOwner: inv.owner_id, destinationOwner: inv.owner_id });
+        if (inv.owner_id) {
+          edges.push({ origin: { type: 'contributor', id: inv.owner_id }, destination: { type: 'outcome', id: `inv-${inv.id}` }, relationship: 'contributor_to_outcome', weight: 0.6, originOwner: inv.owner_id, destinationOwner: gov?.decider ?? null });
+          const t = cTally(inv.owner_id); t.vf += inv.status === 'publication_ready' ? 1 : 0; t.outcomes++;
+        }
+      }
+      if (gov && gov.decision === 'cleared') {
+        outcomeRows.push({ outcome_type: 'GOVERNANCE_ACTION', entity_kind: 'investigation', entity_id: inv.id, actor_id: gov.decider, team_key: inv.team_id, impact_weight: 0.9, reason: 'Governance cleared.', idempotency_key: `gov:${inv.id}:cleared` });
+        if (gov.decider) {
+          edges.push({ origin: { type: 'contributor', id: gov.decider }, destination: { type: 'outcome', id: `gov-${inv.id}` }, relationship: 'contributor_to_outcome', weight: 0.5, originOwner: gov.decider, destinationOwner: inv.owner_id });
+          const t = cTally(gov.decider); t.ga++; t.outcomes++;
+        }
+      }
+    }
+  } catch (e) { logger.warn('outcome.investigations.failed', { error: e instanceof Error ? e.message : String(e) }); }
+
+  // Publications → reach + outcomes.
+  const pubImpactRows: Array<{ id: string; quality: number; evidence: number; published: boolean }> = [];
+  try {
+    const { data: pubs } = await client.from('hsin_publications').select('id, created_by, state, trust_score, evidence_count');
+    for (const p of (pubs ?? []) as Array<{ id: string; created_by: string | null; state: string; trust_score: number | null; evidence_count: number | null }>) {
+      const published = p.state === 'PUBLISHED';
+      pubImpactRows.push({ id: p.id, quality: Number(p.trust_score ?? 0), evidence: Number(p.evidence_count ?? 0), published });
+      if (published) {
+        outcomeRows.push({ outcome_type: 'PUBLICATION_RELEASED', entity_kind: 'publication', entity_id: p.id, actor_id: p.created_by, team_key: 'curation', impact_weight: 0.7, reason: 'Publication released.', idempotency_key: `pub:${p.id}:released` });
+        edges.push({ origin: { type: 'publication', id: p.id }, destination: { type: 'outcome', id: `pub-${p.id}` }, relationship: 'publication_to_outcome', weight: 1, originOwner: p.created_by, destinationOwner: p.created_by });
+        if (p.created_by) {
+          edges.push({ origin: { type: 'contributor', id: p.created_by }, destination: { type: 'outcome', id: `pub-${p.id}` }, relationship: 'contributor_to_outcome', weight: 0.7, originOwner: p.created_by, destinationOwner: null });
+          const t = cTally(p.created_by); t.pubs++; t.outcomes++;
+        }
+      }
+    }
+  } catch (e) { logger.warn('outcome.publications.failed', { error: e instanceof Error ? e.message : String(e) }); }
+
+  // Anti-gaming pass before persisting credit edges.
+  const cleaned = cleanAttribution(edges);
+
+  // Persist attribution_ledger (idempotent).
+  try {
+    for (const e of cleaned.clean) {
+      const key = `${e.origin.type}:${e.origin.id}->${e.destination.type}:${e.destination.id}:${e.relationship}`;
+      await client.from('attribution_ledger').upsert({
+        origin_kind: e.origin.type, origin_id: e.origin.id, destination_kind: e.destination.type, destination_id: e.destination.id,
+        relationship: e.relationship, weight: e.weight, origin_owner: isUuid(e.originOwner) ? e.originOwner : null, destination_owner: isUuid(e.destinationOwner) ? e.destinationOwner : null, idempotency_key: key,
+      }, { onConflict: 'idempotency_key', ignoreDuplicates: true });
+      result.attributionEdgesWritten++;
+    }
+  } catch (e) { logger.warn('outcome.ledger.failed', { error: e instanceof Error ? e.message : String(e) }); }
+
+  // Persist outcome_events (idempotent).
+  try {
+    for (const o of outcomeRows) {
+      await client.from('outcome_events').upsert({ ...o, actor_id: isUuid(o.actor_id) ? o.actor_id : null }, { onConflict: 'idempotency_key', ignoreDuplicates: true });
+      result.outcomeEventsWritten++;
+    }
+  } catch (e) { logger.warn('outcome.events.failed', { error: e instanceof Error ? e.message : String(e) }); }
+
+  // Materialize entity_impact (+ impact_history on change).
+  const upsertImpact = async (kind: string, id: string, score: number, extras: Record<string, number | string | null>): Promise<void> => {
+    try {
+      const { data: prior } = await client.from('entity_impact').select('impact_score').eq('entity_kind', kind).eq('entity_id', id).maybeSingle();
+      const prev = (prior as { impact_score?: number } | null)?.impact_score ?? null;
+      await client.from('entity_impact').upsert({ entity_kind: kind, entity_id: id, impact_score: score, computed_at: now, ...extras }, { onConflict: 'entity_kind,entity_id' });
+      result.entityImpactUpserted++;
+      if (prev === null || prev !== score) {
+        await client.from('impact_history').insert({ entity_kind: kind, entity_id: id, previous_score: prev, new_score: score, reason: prev === null ? 'Initial impact computation.' : 'Recomputed from outcomes.' });
+      }
+    } catch (e) { logger.warn('outcome.impact.failed', { kind, id, error: e instanceof Error ? e.message : String(e) }); }
+  };
+
+  for (const inv of invImpactRows) {
+    const completed = inv.status === 'published' || inv.status === 'publication_ready';
+    const score = investigationImpact({ acceptedFindings: completed ? 1 : 0, governanceActions: govByInv.get(inv.id)?.decision === 'cleared' ? 1 : 0, publications: inv.status === 'published' ? 1 : 0, realOutcomes: completed ? 1 : 0 });
+    await upsertImpact('investigation', inv.id, score, { team_key: inv.teamId, verified_findings: inv.status === 'publication_ready' ? 1 : 0, governance_actions: govByInv.get(inv.id)?.decision === 'cleared' ? 1 : 0, publications: inv.status === 'published' ? 1 : 0, outcomes_count: completed ? 1 : 0 });
+  }
+  for (const p of pubImpactRows) {
+    const score = publicationReach({ published: p.published, publicationQuality: p.quality, traceability: p.quality, evidenceVolume: p.evidence, outcomesProduced: p.published ? 1 : 0 });
+    await upsertImpact('publication', p.id, score, { publications: 1, outcomes_count: p.published ? 1 : 0 });
+  }
+  for (const [uid, t] of byContributor) {
+    const attributedWeight = cleaned.clean.filter((e) => e.relationship === 'contributor_to_outcome' && e.origin.id === uid).reduce((s, e) => s + e.weight, 0);
+    const score = contributorImpact({ verifiedFindings: t.vf, governanceActions: t.ga, publicationsDriven: t.pubs, outcomesCreated: t.outcomes, attributedWeight });
+    await upsertImpact('contributor', uid, score, { verified_findings: t.vf, governance_actions: t.ga, publications: t.pubs, outcomes_count: t.outcomes });
+  }
+}
+
+function isUuid(v: string | null | undefined): v is string {
+  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
 
 export function makeContributorNetworkJob(): Job {

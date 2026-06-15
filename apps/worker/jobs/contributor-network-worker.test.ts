@@ -32,3 +32,12 @@ test('offline summary computes trust profiles (Phase 27)', async () => {
   const s = r.summary as { trustProfilesUpserted: number };
   assert.ok(s.trustProfilesUpserted > 0);
 });
+
+test('summary carries Phase-29 outcome-attribution counters', async () => {
+  const r = await makeContributorNetworkJob().run(ctx);
+  const s = r.summary as Record<string, number>;
+  // offline → no DB writes, but the fields must exist (0) and the run must not throw.
+  assert.equal(typeof s.outcomeEventsWritten, 'number');
+  assert.equal(typeof s.attributionEdgesWritten, 'number');
+  assert.equal(typeof s.entityImpactUpserted, 'number');
+});

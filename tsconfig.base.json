@@ -50,7 +50,8 @@
       "@hsi/operations-engine": ["packages/operations-engine/src"],
       "@hsi/performance-engine": ["packages/performance-engine/src"],
       "@hsi/contributor-network": ["packages/contributor-network/src"],
-      "@hsi/trust-graph": ["packages/trust-graph/src"]
+      "@hsi/trust-graph": ["packages/trust-graph/src"],
+      "@hsi/outcome-attribution": ["packages/outcome-attribution/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

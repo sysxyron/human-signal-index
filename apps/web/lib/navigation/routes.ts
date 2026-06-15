@@ -103,6 +103,7 @@ export const ROUTES = {
   adminApplications: '/dashboard/admin/applications',
   adminContributionMonitoring: '/dashboard/admin/contribution-monitoring',
   adminTrustMonitoring: '/dashboard/admin/trust-monitoring',
+  adminOutcomeMonitoring: '/dashboard/admin/outcome-monitoring',
   adminTesters: '/dashboard/admin/testers',
   adminAccessLogs: '/dashboard/admin/access-logs',
 
@@ -111,6 +112,7 @@ export const ROUTES = {
   badges: '/dashboard/badges',
   leaderboard: '/dashboard/leaderboard',
   authority: '/dashboard/authority',
+  impact: '/dashboard/impact',
   governanceQueue: '/dashboard/governance-queue',
   onboardingPurpose: '/dashboard/onboarding/purpose',
 

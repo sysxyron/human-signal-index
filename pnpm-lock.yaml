@@ -98,6 +98,9 @@ importers:
       '@hsi/operations-engine':
         specifier: workspace:*
         version: link:../../packages/operations-engine
+      '@hsi/outcome-attribution':
+        specifier: workspace:*
+        version: link:../../packages/outcome-attribution
       '@hsi/outcome-intelligence':
         specifier: workspace:*
         version: link:../../packages/outcome-intelligence
@@ -249,6 +252,9 @@ importers:
       '@hsi/operations-engine':
         specifier: workspace:*
         version: link:../../packages/operations-engine
+      '@hsi/outcome-attribution':
+        specifier: workspace:*
+        version: link:../../packages/outcome-attribution
       '@hsi/outcome-intelligence':
         specifier: workspace:*
         version: link:../../packages/outcome-intelligence
@@ -479,6 +485,12 @@ importers:
         version: 5.9.3
 
   packages/operations-engine:
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/outcome-attribution:
     devDependencies:
       typescript:
         specifier: ^5.4.0

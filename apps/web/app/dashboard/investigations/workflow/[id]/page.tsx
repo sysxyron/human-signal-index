@@ -9,6 +9,7 @@ import { TopNav, Card } from '@hsi/ui';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Circle, Clock } from 'lucide-react';
 import { getInvestigationWorkflowAction } from '@/lib/contributor/investigations';
+import { getInvestigationAttributionAction } from '@/lib/contributor/attribution';
 import { WorkflowActions } from '@/components/contributor/WorkflowActions';
 import { ErrorState, OfflineDemoBanner } from '@/components/signals/states';
 
@@ -30,6 +31,8 @@ export default async function InvestigationWorkflowPage({ params }: { params: { 
     );
   }
   const { investigation: inv, timeline, readinessChecklist: checklist, publicationReady, canAct, role } = res.data;
+  const attrRes = await getInvestigationAttributionAction(params.id);
+  const attr = attrRes.ok ? attrRes.data : null;
 
   return (
     <>
@@ -88,6 +91,24 @@ export default async function InvestigationWorkflowPage({ params }: { params: { 
             </Card>
 
             {canAct ? <WorkflowActions id={inv.id} status={inv.status} role={role} /> : null}
+
+            {/* Investigation impact / attribution (Phase 29 — Deliverable 16) */}
+            {attr ? (
+              <Card className="space-y-2 border-border" padded>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-h6 font-semibold text-text-primary">Investigation impact</h3>
+                  <span className="text-h6 font-bold tabular-nums text-electric">{attr.impactScore}<span className="text-label text-text-muted">/100</span></span>
+                </div>
+                <div className="text-caption text-text-secondary">Linked signals: <span className="text-text-primary">{attr.linkedSignals.length}</span> · publications: <span className="text-text-primary">{attr.linkedPublications.length}</span> · outcomes: <span className="text-text-primary">{attr.linkedOutcomes.length}</span></div>
+                {attr.linkedOutcomes.length > 0 ? (
+                  <ul className="space-y-1 pt-1">
+                    {attr.linkedOutcomes.map((o, i) => (
+                      <li key={i} className="flex items-center justify-between text-label"><span className="rounded-full bg-electric/15 px-2 py-0.5 font-semibold text-electric">{o.type.replace(/_/g, ' ')}</span><span className="text-text-muted">{new Date(o.at).toLocaleDateString()}</span></li>
+                    ))}
+                  </ul>
+                ) : <p className="text-label text-text-muted">No attributed outcomes yet.</p>}
+              </Card>
+            ) : null}
           </div>
         </div>
       </main>
