@@ -1137,7 +1137,19 @@ export type HsinSourceType =
   | 'podcast'
   | 'forum'
   | 'document'
-  | 'manual';
+  | 'manual'
+  // Phase 40 — advanced source-collection framework (additive).
+  | 'news'
+  | 'research'
+  | 'reddit'
+  | 'social'
+  | 'government'
+  | 'watchlist'
+  | 'email'
+  | 'api'
+  | 'webhook'
+  | 'archive'
+  | 'intelligence_feed';
 
 /** Lifecycle status of a monitored source. Mirrors hsin_sources.status. */
 export type HsinSourceStatus = 'active' | 'paused' | 'disabled' | 'error';
@@ -1220,6 +1232,8 @@ export interface HsinSourceRecord {
   /** 1..5 baseline risk level. */
   risk_level?: number;
   monitoring_enabled?: boolean;
+  /** Phase 40 — type-specific config (capture URL, connector, interval, selector, subreddit, …). */
+  config?: Record<string, unknown>;
   last_checked_at?: string;
   last_changed_at?: string;
   created_by?: string;

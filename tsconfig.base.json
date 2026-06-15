@@ -59,7 +59,8 @@
       "@hsi/site-builder": ["packages/site-builder/src"],
       "@hsi/entitlements": ["packages/entitlements/src"],
       "@hsi/billing": ["packages/billing/src"],
-      "@hsi/saas-ops": ["packages/saas-ops/src"]
+      "@hsi/saas-ops": ["packages/saas-ops/src"],
+      "@hsi/source-collectors": ["packages/source-collectors/src"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "workspaces/**/*", "scripts/**/*"]

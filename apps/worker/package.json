@@ -11,6 +11,7 @@
     "@hsi/database": "workspace:*",
     "@hsi/config": "workspace:*",
     "@hsi/source-connectors": "workspace:*",
+    "@hsi/source-collectors": "workspace:*",
     "@hsi/traceability": "workspace:*",
     "@hsi/classifiers": "workspace:*",
     "@hsi/ai-prompts": "workspace:*",

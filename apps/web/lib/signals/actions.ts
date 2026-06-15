@@ -40,6 +40,7 @@ import {
   listSources,
   listWatchlists,
   reviewSignal,
+  seedRecommendedSources,
   submitManualSignal,
   updateSource,
   type AlertFilters,
@@ -101,6 +102,13 @@ export async function updateSourceAction(id: string, patch: UpdateSourcePatch) {
 export async function disableSourceAction(id: string) {
   const result = await disableSource(id);
   if (result.ok) revalidate(SOURCES_ROUTE, `${SOURCES_ROUTE}/${id}`, OVERVIEW_ROUTE);
+  return result;
+}
+
+/** Phase 40 — admin-only: seed the recommended starter sources (disabled by default). */
+export async function seedRecommendedSourcesAction() {
+  const result = await seedRecommendedSources();
+  if (result.ok) revalidate(SOURCES_ROUTE, OVERVIEW_ROUTE);
   return result;
 }
 

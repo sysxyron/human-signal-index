@@ -20,9 +20,11 @@ import {
   canManageSources,
   canCapture as canCaptureRole,
 } from '@/lib/signals/view';
+import { isAdmin } from '@/lib/security/view';
 import { IntelNav } from '@/components/signals/IntelNav';
 import { SourceTable } from '@/components/signals/SourceTable';
 import { SourceForm } from '@/components/signals/SourceForm';
+import { SeedSourcesButton } from '@/components/signals/SeedSourcesButton';
 import { DemoBadge } from '@/components/signals/badges';
 import {
   ErrorState,
@@ -88,6 +90,7 @@ export default async function SourcesPage() {
             >
               <CalendarClock className="h-3.5 w-3.5" /> Schedules &amp; health
             </Link>
+            {isAdmin(role) && !isDemo ? <SeedSourcesButton /> : null}
             <SourceForm canManage={manage} demo={isDemo} />
           </div>
         </div>

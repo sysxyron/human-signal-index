@@ -6,13 +6,24 @@
 // =============================================================================
 
 import { getConnector, type CapturedSource, type ConnectorKind } from '@hsi/source-connectors';
+import { connectorForSourceType, isSourceType } from '@hsi/source-collectors';
 import { logger } from '../src/logger';
 import type { Job, JobContext, JobResult } from './types';
 
 export interface CaptureTarget {
   sourceId: string;
   url: string;
-  connector: ConnectorKind;
+  /** Explicit connector, OR derive it from `sourceType` (Phase 40 routing). */
+  connector?: ConnectorKind;
+  /** Phase 40 — the source type; routed to a connector when `connector` is absent. */
+  sourceType?: string;
+}
+
+/** Resolve the capture connector for a target (explicit wins; else by source type). */
+export function resolveTargetConnector(target: CaptureTarget): ConnectorKind | null {
+  if (target.connector) return target.connector;
+  if (target.sourceType && isSourceType(target.sourceType)) return connectorForSourceType(target.sourceType);
+  return null;
 }
 
 export type LoadCaptureTargets = (ctx: JobContext) => Promise<CaptureTarget[]>;
@@ -38,11 +49,17 @@ export function makeCaptureSignalsJob(
       let skipped = 0;
       for (const t of targets) {
         try {
-          const connector = getConnector(t.connector);
+          const kind = resolveTargetConnector(t);
+          if (!kind) {
+            skipped += 1;
+            logger.warn('job.captureSignals.unsupported', { sourceId: t.sourceId, url: t.url, sourceType: t.sourceType });
+            continue;
+          }
+          const connector = getConnector(kind);
           const capture = await connector.capture(t.url, ctx.runAt);
           if (!capture) {
             skipped += 1;
-            logger.warn('job.captureSignals.skip', { sourceId: t.sourceId, url: t.url, connector: t.connector });
+            logger.warn('job.captureSignals.skip', { sourceId: t.sourceId, url: t.url, connector: kind });
             continue;
           }
           await persist(t.sourceId, capture);

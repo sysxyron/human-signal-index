@@ -456,6 +456,7 @@ export interface CreateSourceInput {
   rssUrl?: string;
   riskLevel?: number;
   monitoringEnabled?: boolean;
+  config?: Record<string, unknown>;
 }
 
 /** Create a monitored source (researcher+, created_by = user.id). */
@@ -482,6 +483,7 @@ export async function createSource(
         rss_url: input.rssUrl ?? null,
         risk_level: input.riskLevel ?? 1,
         monitoring_enabled: input.monitoringEnabled ?? true,
+        config: input.config ?? {},
         status: 'active',
         created_by: gate.user.id,
       })
@@ -503,6 +505,7 @@ export interface UpdateSourcePatch {
   riskLevel?: number;
   status?: string;
   monitoringEnabled?: boolean;
+  config?: Record<string, unknown>;
 }
 
 /** Update a source (researcher+; owner or reviewer+ authorized by RLS). */
@@ -526,6 +529,7 @@ export async function updateSource(
     if (patch.monitoringEnabled !== undefined) {
       update.monitoring_enabled = patch.monitoringEnabled;
     }
+    if (patch.config !== undefined) update.config = patch.config;
 
     const { data, error } = await client
       .from('hsin_sources')
@@ -545,6 +549,47 @@ export async function disableSource(
   id: string,
 ): Promise<DbResult<HsinSourceRecord>> {
   return updateSource(id, { status: 'disabled', monitoringEnabled: false });
+}
+
+/**
+ * Phase 40 — seed the recommended starter sources (admin only). Each is created
+ * via @hsi/source-collectors normalization, DISABLED by default (safe opt-in), and
+ * skipped if a same-named source already exists. Returns how many were created.
+ */
+export async function seedRecommendedSources(): Promise<DbResult<{ created: number; skipped: number }>> {
+  try {
+    const client = db();
+    const gate = await requireRole(client, 'admin');
+    if (!gate.ok) return gate;
+
+    const { RECOMMENDED_SOURCES, normalizeSourceInput } = await import('@hsi/source-collectors');
+    const { data: existing } = await client.from('hsin_sources').select('name');
+    const have = new Set(((existing ?? []) as Array<{ name: string }>).map((r) => r.name));
+
+    let created = 0;
+    let skipped = 0;
+    for (const seed of RECOMMENDED_SOURCES) {
+      if (have.has(seed.name)) { skipped += 1; continue; }
+      const normalized = normalizeSourceInput({ sourceType: seed.sourceType, url: seed.url, rssUrl: seed.url, homepageUrl: seed.url });
+      const { error } = await client.from('hsin_sources').insert({
+        name: seed.name,
+        description: seed.description,
+        source_type: seed.sourceType,
+        homepage_url: normalized?.homepageUrl ?? seed.url,
+        rss_url: normalized?.rssUrl ?? null,
+        risk_level: seed.riskLevel,
+        monitoring_enabled: seed.enabledByDefault,
+        config: normalized?.config ?? {},
+        status: seed.enabledByDefault ? 'active' : 'paused',
+        created_by: gate.user.id,
+      });
+      if (error) { skipped += 1; continue; }
+      created += 1;
+    }
+    return { ok: true, data: { created, skipped } };
+  } catch (e) {
+    return fail(e);
+  }
 }
 
 /** Add a source to a group (researcher+; parent-authorized by RLS). */

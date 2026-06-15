@@ -46,6 +46,7 @@
     "@hsi/shared-types": "workspace:*",
     "@hsi/simulation-engine": "workspace:*",
     "@hsi/source-intelligence": "workspace:*",
+    "@hsi/source-collectors": "workspace:*",
     "@hsi/temporal-intelligence": "workspace:*",
     "@hsi/timeline-engine": "workspace:*",
     "@hsi/ui": "workspace:*",

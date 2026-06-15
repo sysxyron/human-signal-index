@@ -61,6 +61,7 @@ export const EXPECTED_MIGRATIONS: ExpectedMigration[] = [
   { id: '0041', name: 'commercial_saas_foundation' },
   { id: '0042', name: 'stripe_billing' },
   { id: '0043', name: 'saas_operations' },
+  { id: '0044', name: 'advanced_source_collection' },
 ];
 
 export type MigrationState = 'applied' | 'missing' | 'out_of_order' | 'failed' | 'unknown';
