@@ -12,6 +12,7 @@ import { getSessionRole, getUser } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/security/view';
 import { AdminNav } from '@/components/admin/AdminNav';
 import { CmsSeedButton } from '@/components/cms/CmsSeedButton';
+import { CmsRefreshButton } from '@/components/cms/CmsRefreshButton';
 import { ErrorState, OfflineDemoBanner, EmptyState } from '@/components/signals/states';
 
 export const dynamic = 'force-dynamic';
@@ -50,9 +51,15 @@ export default async function CmsDashboardPage() {
           <Link href={"/dashboard/admin/cms/media" as never} className="inline-flex items-center gap-1.5 rounded-card border border-border bg-surface/50 px-3 py-2 text-caption text-text-secondary hover:text-text-primary"><ImageIcon className="h-4 w-4" /> Media</Link>
         </div>
         {!isDemo && pages.length > 0 ? (
-          <Card className="flex flex-wrap items-center justify-between gap-2 border-border" padded>
-            <p className="text-caption text-text-secondary">Backfill any missing site content into the CMS — idempotent, safe to rerun.</p>
-            <CmsSeedButton label="Backfill site content" />
+          <Card className="flex flex-wrap items-center justify-between gap-3 border-border" padded>
+            <div className="space-y-0.5">
+              <p className="text-caption text-text-secondary">Backfill missing site content (insert-only, safe to rerun), or refresh seeded pages to their code baseline.</p>
+              <p className="text-caption text-text-muted">Refreshing re-syncs seeded pages (blocks, SEO, status) and clears a stale published page that shadows a rebuilt hardcoded page, such as About.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <CmsSeedButton label="Backfill site content" />
+              <CmsRefreshButton label="Refresh seeded content" />
+            </div>
           </Card>
         ) : null}
 

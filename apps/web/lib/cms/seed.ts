@@ -73,3 +73,51 @@ export async function seedCmsContentAction(): Promise<DbResult<SeedResult>> {
     return { ok: true, data: result };
   } catch (e) { return adminFail(e); }
 }
+
+export interface RefreshResult { refreshed: number; slugs: string[] }
+
+/**
+ * ADMIN: RE-SYNC seeded marketing pages to their code-defined baseline. Unlike
+ * the insert-only seed above, this UPSERTS — it replaces a seeded page's blocks,
+ * title, SEO, and STATUS from SEED_PAGES. This is the fix for stale published CMS
+ * records shadowing a rebuilt hardcoded page (e.g. /about): the seed defines
+ * About as a DRAFT, so refreshing un-publishes the stale live record and the rich
+ * hardcoded page renders again. Pages stay fully editable afterwards.
+ *
+ * Scope: pass `slugs` to refresh specific pages; default refreshes all SEED_PAGES.
+ * It only touches pages (not nav/role/mission/etc.). Audited. Admin-only.
+ */
+export async function refreshSeededPagesAction(slugs?: string[]): Promise<DbResult<RefreshResult>> {
+  if (!supabaseConfigured()) return notConfigured();
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  const { db, user } = gate.ctx;
+  try {
+    const targets = slugs && slugs.length ? SEED_PAGES.filter((p) => slugs.includes(p.slug)) : SEED_PAGES;
+    const refreshed: string[] = [];
+    for (const p of targets) {
+      const { data: existing } = await db.from('cms_pages').select('id').eq('slug', p.slug).maybeSingle();
+      const pageFields = {
+        slug: p.slug, page_type: p.pageType, title: p.title, status: p.status, seo: p.seo,
+        updated_by: user.id, published_at: p.status === 'published' ? new Date().toISOString() : null,
+      };
+      let pageId: string;
+      if (existing) {
+        pageId = String((existing as { id: string }).id);
+        const { error } = await db.from('cms_pages').update(pageFields).eq('id', pageId);
+        if (error) continue;
+        await db.from('cms_blocks').delete().eq('page_id', pageId);
+      } else {
+        const { data, error } = await db.from('cms_pages').insert({ ...pageFields, created_by: user.id }).select('id').single();
+        if (error || !data) continue;
+        pageId = String((data as { id: string }).id);
+      }
+      if (p.blocks.length) {
+        await db.from('cms_blocks').insert(p.blocks.map((b, i) => ({ page_id: pageId, block_type: b.type, position: i, content: b.content })));
+      }
+      refreshed.push(p.slug);
+    }
+    await db.from('cms_audit_log').insert({ actor: user.id, action: 'refresh_seeded_pages', entity_kind: 'cms', entity_id: 'seed', metadata: { slugs: refreshed } });
+    return { ok: true, data: { refreshed: refreshed.length, slugs: refreshed } };
+  } catch (e) { return adminFail(e); }
+}

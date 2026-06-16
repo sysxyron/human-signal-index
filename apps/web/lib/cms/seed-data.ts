@@ -57,10 +57,23 @@ const CONTENT_PAGES: SeedPage[] = [
   page('report-confidentially', 'content', 'Report Confidentially', 'Submit sensitive information securely.', [
     { type: 'rich_text', content: { markdown: 'Use this channel for sensitive tips. Provide as much verifiable detail as you safely can.' } },
   ]),
-  page('about', 'content', 'About HSI', 'What Human Signal Index is and why it exists.', [
-    { type: 'hero', content: { heading: 'About Human Signal Index', subheading: 'A governed contributor intelligence network.' } },
-    { type: 'rich_text', content: { markdown: 'HSI exists to make open-source intelligence accountable: verifiable signals, traceable evidence, governed publication, and recognised contribution.' } },
-  ]),
+  // About is seeded as DRAFT (like the homepage) so the rich, nine-section
+  // hardcoded /about page stays the live default. Publishing this in the CMS
+  // intentionally overrides it; "refresh seeded content" re-syncs these blocks.
+  page('about', 'content', 'About HSI', 'What Human Signal Index is, why it exists, how it works, and who it serves.', [
+    { type: 'hero', content: { heading: 'A public-interest intelligence platform', subheading: 'HSI helps researchers, journalists, and the public understand the narratives shaping society, with evidence and human review at every step.' } },
+    { type: 'rich_text', content: { markdown: '**What HSI is.** A public-interest platform for studying the narratives, claims, and movements that influence public life, bringing signal collection, evidence review, and a trained contributor network under one transparent process.' } },
+    { type: 'rich_text', content: { markdown: '**Why it exists.** Public conversation moves faster than the evidence behind it. HSI rebuilds the record so the public can hold claims, and the people who make them, to account.' } },
+    { type: 'card_grid', content: { cards: [
+      { title: 'Collect', body: 'Public signals are gathered and preserved with their source and capture time.' },
+      { title: 'Verify evidence', body: 'Evidence is gathered, checked, and archived so it can be inspected later.' },
+      { title: 'Human review', body: 'Trained reviewers assess each finding and document the reasoning.' },
+      { title: 'Publish', body: 'Only findings with a complete, traceable evidence chain are published.' },
+    ] } },
+    { type: 'rich_text', content: { markdown: '**What makes it different.** Evidence first, human review, traceability, transparency, and contributor recognition. **Core principles:** accuracy over speed, evidence over opinion, transparency over opacity, accountability over anonymity, and human judgment over blind automation.' } },
+    { type: 'rich_text', content: { markdown: '**Governance and contributors.** Authority is earned and reviewed, never assumed. Decisions are written to an audit log and can be reversed, and corrections stay visible. Contributors advance from Viewer through Curator by approval, never automatically.' } },
+    { type: 'cta', content: { label: 'Read our mission', href: '/mission' } },
+  ], 'draft'),
   page('faq', 'help', 'FAQ', 'Frequently asked questions about HSI.', [
     { type: 'faq', content: { items: [
       { q: 'How do I contribute?', a: 'Sign up, choose a purpose, and start with missions. Privileged roles are granted by an administrator after an application.' },
