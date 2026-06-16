@@ -67,9 +67,9 @@ import { filterNavGroups, roleLabel } from './nav-roles';
 /* Brand mark                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export function BrandMark({ compact = false }: { compact?: boolean }) {
+export function BrandMark({ compact = false, homeHref = '/' }: { compact?: boolean; homeHref?: string }) {
   return (
-    <a href="/" className="flex items-center gap-2.5">
+    <a href={homeHref} className="flex items-center gap-2.5">
       <span className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent shadow-glow">
         <Activity className="h-4 w-4 text-white" />
       </span>
@@ -106,20 +106,30 @@ function navIsActive(pathname: string | null, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function PublicNav({ dashboardHref = '/dashboard' }: { dashboardHref?: string } = {}) {
+export function PublicNav({
+  dashboardHref = '/dashboard',
+  siteBase = '',
+  signInHref,
+}: {
+  dashboardHref?: string;
+  /** Marketing origin base (absolute www in prod, '' in dev → relative). */
+  siteBase?: string;
+  /** App-domain sign-in URL; when set, a Sign-in link is shown. */
+  signInHref?: string;
+} = {}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-6 py-3.5">
-        <BrandMark />
+        <BrandMark homeHref={siteBase ? `${siteBase}/` : '/'} />
         <nav className="hidden items-center gap-5 xl:flex">
           {publicNavLinks.map((link) => {
             const active = navIsActive(pathname, link.href);
             return (
               <a
                 key={link.href}
-                href={link.href}
+                href={`${siteBase}${link.href}`}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'text-[13px] font-medium transition',
@@ -134,6 +144,11 @@ export function PublicNav({ dashboardHref = '/dashboard' }: { dashboardHref?: st
           })}
         </nav>
         <div className="hidden items-center gap-3 xl:flex">
+          {signInHref ? (
+            <a href={signInHref} className="text-[13px] font-medium text-text-secondary transition hover:text-text-primary">
+              Sign in
+            </a>
+          ) : null}
           <a href={dashboardHref}>
             <Button variant="primary" size="sm">
               Explore Dashboard
@@ -156,7 +171,7 @@ export function PublicNav({ dashboardHref = '/dashboard' }: { dashboardHref?: st
               return (
                 <a
                   key={link.href}
-                  href={link.href}
+                  href={`${siteBase}${link.href}`}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
                     'rounded-lg px-3 py-2 text-sm transition',
@@ -168,6 +183,11 @@ export function PublicNav({ dashboardHref = '/dashboard' }: { dashboardHref?: st
                 </a>
               );
             })}
+            {signInHref ? (
+              <a href={signInHref} className="rounded-lg px-3 py-2 text-sm text-text-secondary transition hover:bg-surface-2 hover:text-text-primary" onClick={() => setOpen(false)}>
+                Sign in
+              </a>
+            ) : null}
             <a href={dashboardHref} className="mt-2">
               <Button variant="primary" size="sm" className="w-full">
                 Explore Dashboard
@@ -208,7 +228,7 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
     {
       title: 'Trust',
       links: [
-        { label: 'Trust & Transparency', href: '/trust' },
+        { label: 'Trust', href: '/trust' },
         { label: 'Transparency', href: '/transparency' },
         { label: 'Ethics', href: '/ethics' },
         { label: 'Accessibility', href: '/accessibility' },
@@ -226,14 +246,20 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
     },
   ];
 
-export function Footer({ dashboardHref = '/dashboard' }: { dashboardHref?: string } = {}) {
+export function Footer({
+  dashboardHref = '/dashboard',
+  siteBase = '',
+}: {
+  dashboardHref?: string;
+  siteBase?: string;
+} = {}) {
   const pathname = usePathname();
   return (
     <footer className="border-t border-border bg-background-deep">
       <div className="mx-auto max-w-[1180px] px-6 py-14">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="space-y-4">
-            <BrandMark />
+            <BrandMark homeHref={siteBase ? `${siteBase}/` : '/'} />
             <p className="max-w-xs text-body-sm leading-relaxed text-text-secondary">
               A public-interest observatory mapping the narratives that shape
               humanity — with traceability, transparency, and human review at
@@ -252,7 +278,7 @@ export function Footer({ dashboardHref = '/dashboard' }: { dashboardHref?: strin
                   return (
                     <li key={link.label + link.href}>
                       <a
-                        href={link.href === '/dashboard' ? dashboardHref : link.href}
+                        href={link.href === '/dashboard' ? dashboardHref : `${siteBase}${link.href}`}
                         aria-current={active ? 'page' : undefined}
                         className={cn(
                           'text-body-sm transition',
@@ -269,8 +295,7 @@ export function Footer({ dashboardHref = '/dashboard' }: { dashboardHref?: strin
           ))}
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-caption text-text-muted sm:flex-row">
-          <span>© {new Date().getFullYear()} Human Signal Index. A public-interest project.</span>
-          <span>Mapping the narratives that shape humanity.</span>
+          <span>© {new Date().getFullYear()} Human Signal Index. A public-interest project. Mapping the narratives that shape humanity.</span>
         </div>
       </div>
     </footer>
