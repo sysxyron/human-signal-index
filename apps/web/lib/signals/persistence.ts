@@ -45,6 +45,7 @@ import type {
   HsinSignalAlertRecord,
   HsinSignalDecision,
   HsinSignalRecord,
+  HsinSourceCaptureEventRecord,
   HsinSourceHealthRecord,
   HsinSourceRecord,
   HsinWatchlistRecord,
@@ -323,12 +324,51 @@ export async function listSources(
       }
     }
 
+    // Phase 40B capture telemetry: latest capture event + snapshot/diff counts
+    // per source (so the registry never shows a silent zero-signal state).
+    const lastEventBySource = new Map<string, HsinSourceCaptureEventRecord>();
+    {
+      const { data } = await client
+        .from('source_capture_events')
+        .select('*')
+        .in('source_id', sourceIds)
+        .order('created_at', { ascending: false });
+      for (const e of (data ?? []) as HsinSourceCaptureEventRecord[]) {
+        if (!lastEventBySource.has(e.source_id)) lastEventBySource.set(e.source_id, e);
+      }
+    }
+    const snapshotCountBySource = new Map<string, number>();
+    {
+      const { data } = await client
+        .from('source_snapshots')
+        .select('source_id')
+        .in('source_id', sourceIds);
+      for (const r of (data ?? []) as Array<{ source_id?: string }>) {
+        if (r.source_id) snapshotCountBySource.set(r.source_id, (snapshotCountBySource.get(r.source_id) ?? 0) + 1);
+      }
+    }
+    const diffCountBySource = new Map<string, number>();
+    {
+      const { data } = await client
+        .from('source_diffs')
+        .select('source_id')
+        .in('source_id', sourceIds);
+      for (const r of (data ?? []) as Array<{ source_id?: string }>) {
+        if (r.source_id) diffCountBySource.set(r.source_id, (diffCountBySource.get(r.source_id) ?? 0) + 1);
+      }
+    }
+
     const items: SourceWithStats[] = sources.map((source) => ({
       source,
       health: healthBySource.get(source.id),
       signalCount: signalCountBySource.get(source.id) ?? 0,
       alertCount: alertCountBySource.get(source.id) ?? 0,
       watchlists: watchlistsBySource.get(source.id) ?? [],
+      capture: {
+        lastEvent: lastEventBySource.get(source.id),
+        snapshotsCount: snapshotCountBySource.get(source.id) ?? 0,
+        diffsCount: diffCountBySource.get(source.id) ?? 0,
+      },
     }));
 
     return { ok: true, data: items };

@@ -151,6 +151,57 @@ export function sourceHealthDecor(status?: string): Decorated {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Phase 40B — capture telemetry (status + zero-signal explanation)            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Decorate a Phase-40 capture-event status. These come from deriveHealth:
+ * healthy / warning / failing / disabled / unsupported / needs_configuration.
+ */
+export function captureStatusDecor(status?: string): Decorated {
+  switch ((status ?? 'unknown').toLowerCase()) {
+    case 'healthy':
+      return { label: 'Healthy', color: TONE_COLORS.green, tone: 'green' };
+    case 'warning':
+      return { label: 'Warning', color: TONE_COLORS.orange, tone: 'orange' };
+    case 'failing':
+      return { label: 'Failing', color: TONE_COLORS.red, tone: 'red' };
+    case 'unsupported':
+      return { label: 'Unsupported', color: TONE_COLORS.neutral, tone: 'neutral' };
+    case 'needs_configuration':
+      return { label: 'Needs config', color: TONE_COLORS.orange, tone: 'orange' };
+    case 'disabled':
+      return { label: 'Disabled', color: TONE_COLORS.neutral, tone: 'neutral' };
+    default:
+      return { label: 'Not yet captured', color: TONE_COLORS.neutral, tone: 'neutral' };
+  }
+}
+
+/**
+ * A never-silent explanation for a source's signal state. If signals exist, says
+ * so; otherwise surfaces the reason from the last capture event (baseline / no
+ * change / unsupported / misconfigured / failed) — or that capture hasn't run.
+ */
+export function captureExplanation(item: SourceWithStats): string {
+  if (item.signalCount > 0) {
+    return `${item.signalCount} signal${item.signalCount === 1 ? '' : 's'} captured.`;
+  }
+  const ev = item.capture?.lastEvent;
+  if (!ev) return 'No capture has run yet — will capture on the next scheduled run.';
+  if (ev.reason) return ev.reason;
+  switch (ev.status) {
+    case 'unsupported':
+      return 'This source type is not auto-captured.';
+    case 'needs_configuration':
+      return 'Missing a valid feed/page URL.';
+    case 'failing':
+      return ev.error ? `Last capture failed: ${ev.error}` : 'Last capture failed.';
+    default:
+      return 'Captured — no signal produced yet.';
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Signal category / status                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -409,6 +460,25 @@ export function demoSourcesWithStats(): SourceWithStats[] {
       signalCount,
       alertCount: signalCount > 0 ? 1 : 0,
       watchlists: DEFAULT_WATCHLISTS.slice(0, (i % 2) + 1).map((w) => w.name),
+      capture: {
+        lastEvent: {
+          id: `evt_${fx.id}`,
+          source_id: fx.id,
+          source_type: String(fx.sourceType),
+          connector: fx.sourceType === 'rss' ? 'rss' : 'public_page',
+          status: i === 2 ? 'warning' : 'healthy',
+          reason:
+            signalCount > 0
+              ? `${signalCount} signal${signalCount === 1 ? '' : 's'} created.`
+              : 'Baseline snapshot stored — first capture, no diff yet.',
+          items_captured: Math.max(1, signalCount),
+          content_changed: signalCount > 0,
+          captured_at: FIXTURE_NOW,
+          created_at: FIXTURE_NOW,
+        },
+        snapshotsCount: signalCount > 0 ? 2 : 1,
+        diffsCount: signalCount > 0 ? 1 : 0,
+      },
     };
   });
 }

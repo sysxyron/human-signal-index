@@ -17,6 +17,8 @@ import type {
   SourceWithStats,
 } from '@hsi/shared-types';
 import {
+  captureExplanation,
+  captureStatusDecor,
   formatDateTime,
   relativeTime,
   sourceTypeLabel,
@@ -144,7 +146,7 @@ export function SourceTable({
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left">
-                    {['Source', 'Type', 'Status', 'Health', 'Last checked', 'Signals', 'Alerts', 'Actions'].map(
+                    {['Source', 'Type', 'Status', 'Health', 'Last checked', 'Signals', 'Capture', 'Snap', 'Diffs', 'Alerts', 'Actions'].map(
                       (h) => (
                         <th
                           key={h}
@@ -157,7 +159,12 @@ export function SourceTable({
                   </tr>
                 </thead>
                 <tbody>
-                  {g.rows.map(({ source, health, signalCount, alertCount, watchlists: wls }) => (
+                  {g.rows.map((item) => {
+                    const { source, health, signalCount, alertCount, watchlists: wls, capture } = item;
+                    const capStatus = capture?.lastEvent?.status;
+                    const capDecor = captureStatusDecor(capStatus);
+                    const capReason = captureExplanation(item);
+                    return (
                     <tr
                       key={source.id}
                       className="border-b border-border/60 align-top transition last:border-0 hover:bg-surface-2/40"
@@ -195,6 +202,17 @@ export function SourceTable({
                         {relativeTime(source.last_checked_at)}
                       </td>
                       <td className="px-4 py-3 text-text-secondary">{signalCount}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="inline-flex items-center rounded-btn px-1.5 py-0.5 text-caption font-semibold"
+                          style={{ color: capDecor.color, backgroundColor: `${capDecor.color}1a` }}
+                        >
+                          {capDecor.label}
+                        </span>
+                        <p className="mt-0.5 max-w-[18rem] text-caption text-text-muted">{capReason}</p>
+                      </td>
+                      <td className="px-4 py-3 text-caption text-text-secondary">{capture?.snapshotsCount ?? 0}</td>
+                      <td className="px-4 py-3 text-caption text-text-secondary">{capture?.diffsCount ?? 0}</td>
                       <td className="px-4 py-3">
                         <span
                           className={
@@ -236,7 +254,8 @@ export function SourceTable({
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1383,6 +1383,68 @@ export interface HsinNarrativeDriftRecord {
   created_at: string;
 }
 
+// =============================================================================
+// Phase 40 / 40B — advanced source collection telemetry tables.
+// =============================================================================
+
+/** A point-in-time page/feed snapshot. Mirrors the `source_snapshots` table. */
+export interface HsinSourceSnapshotRecord {
+  id: string;
+  source_id: string;
+  url: string;
+  content_text?: string;
+  content_hash: string;
+  captured_at: string;
+  created_at: string;
+}
+
+/** A snapshot-to-snapshot diff. Mirrors the `source_diffs` table. */
+export interface HsinSourceDiffRecord {
+  id: string;
+  source_id: string;
+  snapshot_id?: string | null;
+  changed: boolean;
+  previous_hash?: string | null;
+  new_hash: string;
+  added_chars: number;
+  removed_chars: number;
+  signal_id?: string | null;
+  created_at: string;
+}
+
+/** Per-attempt capture telemetry + health. Mirrors the `source_capture_events` table. */
+export type HsinCaptureEventStatus =
+  | 'healthy'
+  | 'warning'
+  | 'failing'
+  | 'disabled'
+  | 'unsupported'
+  | 'needs_configuration';
+
+export interface HsinSourceCaptureEventRecord {
+  id: string;
+  source_id: string;
+  source_type: string;
+  connector?: string | null;
+  status: HsinCaptureEventStatus;
+  reason?: string | null;
+  items_captured: number;
+  content_changed: boolean;
+  error?: string | null;
+  captured_at: string;
+  created_at: string;
+}
+
+/** Denormalized Phase-40 capture telemetry surfaced on the sources list/detail view. */
+export interface SourceCaptureTelemetry {
+  /** The most recent capture attempt, if any. */
+  lastEvent?: HsinSourceCaptureEventRecord;
+  /** Total snapshots stored for this source. */
+  snapshotsCount: number;
+  /** Total diffs recorded for this source. */
+  diffsCount: number;
+}
+
 /** A source plus its denormalized stats for the sources list/detail view. */
 export interface SourceWithStats {
   source: HsinSourceRecord;
@@ -1391,6 +1453,8 @@ export interface SourceWithStats {
   alertCount: number;
   /** Names of watchlists this source is scoped to. */
   watchlists?: string[];
+  /** Phase 40B — capture telemetry (last event, snapshot/diff counts). */
+  capture?: SourceCaptureTelemetry;
 }
 
 /** A captured signal plus its full surrounding context for the signal detail view. */
