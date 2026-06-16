@@ -9,10 +9,11 @@
 import { useState, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button, Select } from '@hsi/ui';
-import { Ban, ListPlus } from 'lucide-react';
+import { Ban, ListPlus, Archive } from 'lucide-react';
 import {
   disableSourceAction,
   addSourceToWatchlistAction,
+  archiveSourceAction,
 } from '@/lib/signals/actions';
 import type { HsinWatchlistRecord } from '@hsi/shared-types';
 import { SignInPrompt } from '@/components/worldforge/PersistenceUI';
@@ -136,5 +137,72 @@ export function AssignWatchlistControl({
       {done ? <span className="text-caption text-verified">Added</span> : null}
       {error ? <span className="text-caption text-risk">{error}</span> : null}
     </div>
+  );
+}
+
+/**
+ * Phase 41B — admin-only Archive (soft delete). Confirms first, then archives
+ * the source while KEEPING existing signals + audit history. Archived sources
+ * drop out of the active list.
+ */
+export function ArchiveSourceButton({
+  sourceId,
+  canArchive,
+  demo = false,
+  archived = false,
+}: {
+  sourceId: string;
+  canArchive: boolean;
+  demo?: boolean;
+  archived?: boolean;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  if (!canArchive) return null;
+  if (archived) return <span className="text-caption text-text-muted">Archived</span>;
+  if (demo) {
+    return (
+      <Button variant="ghost" size="sm" disabled title="Demo is read-only">
+        <Archive className="h-4 w-4" /> Archive
+      </Button>
+    );
+  }
+
+  if (confirming) {
+    return (
+      <div className="space-y-1">
+        <p className="max-w-[14rem] text-caption text-text-secondary">
+          This will archive the source but keep existing signals and audit history.
+        </p>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={pending}
+            onClick={() => {
+              setError(null);
+              startTransition(async () => {
+                const res = await archiveSourceAction(sourceId);
+                if (res.ok) { setConfirming(false); router.refresh(); }
+                else setError(res.error);
+              });
+            }}
+          >
+            {pending ? 'Archiving…' : 'Confirm archive'}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>Cancel</Button>
+        </div>
+        {error ? <p className="text-caption text-risk">{error}</p> : null}
+      </div>
+    );
+  }
+
+  return (
+    <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
+      <Archive className="h-4 w-4" /> Delete / Archive
+    </Button>
   );
 }

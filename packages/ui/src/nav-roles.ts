@@ -22,8 +22,8 @@ export type NavRole = 'viewer' | 'researcher' | 'reviewer' | 'curator' | 'admin'
  */
 export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   // Operations
-  '/dashboard/source-registry': ['reviewer', 'curator'],
   '/dashboard/signal-intake': ['researcher', 'reviewer'],
+  '/dashboard/signal-submission': ['reviewer', 'curator'], // submission review queue (41B)
   '/dashboard/evidence-vault': ['researcher', 'reviewer', 'curator'],
   '/dashboard/operations': ['reviewer', 'curator'],
   // Intelligence
@@ -87,6 +87,42 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/security-monitor': ['admin'],
   '/dashboard/security': ['admin'],
   '/dashboard/settings': ['admin'],
+  // -------------------------------------------------------------------------
+  // Phase 41B.1 — role-experience hardening. Hide analysis / forecasting /
+  // collective / trust / worldforge / public-report / beta-queue surfaces from
+  // viewers (researcher+ unless noted). RBAC + RLS still gate the routes; this
+  // only stops dead/permission-trap menus appearing in the viewer sidebar.
+  // -------------------------------------------------------------------------
+  // Intelligence (D)
+  '/dashboard/rhetoric-classifier': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/risk-scoring': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/traceability-engine': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/alerts': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/public-reports': ['researcher', 'reviewer', 'curator'],
+  // Forecasting (E)
+  '/dashboard/forecasts': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/scenarios': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/warnings': ['researcher', 'reviewer', 'curator'],
+  // Collective (F)
+  '/dashboard/consensus': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/debates': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/contributors': ['researcher', 'reviewer', 'curator'],
+  // Trust & Outcomes (G)
+  '/dashboard/outcomes': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/trust': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/calibration': ['researcher', 'reviewer', 'curator'],
+  // WorldForge (H) — approved research users only
+  '/dashboard/worldforge': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/simulation': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/worldforge/simulations': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/worldforge/scenarios': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/worldforge/timelines': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/worldforge/dependency-graph': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/worldforge/counterfactuals': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/worldforge/provenance': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/worldforge/universes': ['researcher', 'reviewer', 'curator'],
+  // Beta issues QUEUE — reviewer+/admin only (viewers report via Beta Tester) (C)
+  '/dashboard/launch/issues': ['reviewer', 'curator'],
 };
 
 /**
@@ -95,7 +131,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
  * the client `dashboardNavGroups`. Keep in sync with navigation.tsx's sidebar.
  */
 export const ALL_NAV_HREFS: string[] = [
-  '/dashboard', '/dashboard/source-registry', '/dashboard/signal-intake', '/dashboard/evidence-vault', '/dashboard/operations',
+  '/dashboard', '/dashboard/sources', '/submit-a-signal', '/dashboard/signal-intake', '/dashboard/signal-submission', '/dashboard/evidence-vault', '/dashboard/operations',
   '/dashboard/org', '/dashboard/org/members', '/dashboard/org/leaderboard', '/dashboard/org/analytics', '/dashboard/org/health', '/dashboard/org/settings', '/dashboard/org/branding', '/dashboard/org/billing', '/dashboard/org/create',
   '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',
@@ -108,7 +144,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/worldforge', '/dashboard/simulation', '/dashboard/worldforge/simulations', '/dashboard/worldforge/scenarios', '/dashboard/worldforge/timelines', '/dashboard/worldforge/dependency-graph', '/dashboard/worldforge/counterfactuals', '/dashboard/worldforge/provenance', '/dashboard/worldforge/universes',
   '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
   '/dashboard/launch', '/dashboard/launch/issues', '/dashboard/tester', '/dashboard/tester-onboarding',
-  '/dashboard/profile',
+  '/dashboard/profile', '/dashboard/apply-role',
   '/dashboard/admin/users', '/dashboard/admin/organizations', '/dashboard/admin/plans', '/dashboard/admin/subscriptions', '/dashboard/admin/revenue', '/dashboard/admin/subscription-health', '/dashboard/admin/billing-ops', '/dashboard/admin/webhooks', '/dashboard/admin/site-ops', '/dashboard/admin/cms', '/dashboard/admin/site-settings', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/admin/tester-ops', '/dashboard/admin/system-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',
 ];
@@ -127,15 +163,70 @@ export function isRestrictedRoute(href: string): boolean {
   return href in NAV_VISIBILITY;
 }
 
+// -----------------------------------------------------------------------------
+// Phase 41B.1 — organization visibility is MEMBERSHIP-based, not role-based.
+// Users with no org membership see no org pages (which would otherwise show
+// "Could not load organization"); only "Create Organization" is offered when
+// self-service creation is enabled.
+// -----------------------------------------------------------------------------
+export const ORG_CREATE_ROUTE = '/dashboard/org/create';
+export const ORG_MEMBER_ROUTES = new Set<string>([
+  '/dashboard/org',
+  '/dashboard/org/members',
+  '/dashboard/org/leaderboard',
+  '/dashboard/org/analytics',
+  '/dashboard/org/health',
+  '/dashboard/org/settings',
+  '/dashboard/org/branding',
+  '/dashboard/org/billing',
+]);
+
+/** Context for membership-gated nav items. */
+export interface NavContext {
+  /** True when the signed-in user belongs to at least one organization. */
+  orgMember?: boolean;
+  /** True when self-service org creation is enabled (default true). */
+  selfServeOrg?: boolean;
+}
+
+/** Whether a nav item is visible for a role + membership context. */
+export function isNavItemVisible(href: string, role: string | null | undefined, ctx?: NavContext): boolean {
+  if (!canSeeRoute(href, role)) return false;
+  if (ORG_MEMBER_ROUTES.has(href)) return ctx?.orgMember === true;
+  if (href === ORG_CREATE_ROUTE) return ctx?.orgMember !== true && ctx?.selfServeOrg !== false;
+  return true;
+}
+
 interface NavItemLike { href: string }
 interface NavGroupLike<I extends NavItemLike> { group: string; items: I[] }
 
-/** Filter nav groups for a role, dropping items the role can't see + empty groups. */
+/** Filter nav groups for a role + membership, dropping hidden items + empty groups. */
 export function filterNavGroups<I extends NavItemLike, G extends NavGroupLike<I>>(
   groups: G[],
   role: string | null | undefined,
+  ctx?: NavContext,
 ): G[] {
   return groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => canSeeRoute(i.href, role)) }))
+    .map((g) => ({ ...g, items: g.items.filter((i) => isNavItemVisible(i.href, role, ctx)) }))
     .filter((g) => g.items.length > 0);
+}
+
+// -----------------------------------------------------------------------------
+// Role progression (Phase 41B.1) — display-only guidance. Advancement is by
+// APPROVAL via the role-application workflow; badges/XP never auto-grant a role.
+// -----------------------------------------------------------------------------
+export const ROLE_LADDER = ['viewer', 'contributor', 'researcher', 'reviewer', 'curator', 'admin'] as const;
+
+/** Human label for a role (display indicator). */
+export function roleLabel(role: string | null | undefined): string {
+  if (!role) return 'Viewer';
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+/** The next role a user could apply toward (null at the top / admin). */
+export function nextRole(role: string | null | undefined): string | null {
+  const r = (role ?? 'viewer').toLowerCase();
+  const i = ROLE_LADDER.indexOf(r as (typeof ROLE_LADDER)[number]);
+  if (i < 0 || i >= ROLE_LADDER.length - 1) return null;
+  return ROLE_LADDER[i + 1];
 }

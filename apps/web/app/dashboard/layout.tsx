@@ -23,9 +23,11 @@ export default async function DashboardLayout({
   const [orgsRes, ctxRes] = await Promise.all([getUserOrganizations(), requireOrganization()]);
   const orgs = orgsRes.ok ? orgsRes.data.map((o) => ({ slug: o.slug, name: o.name })) : [];
   const currentSlug = ctxRes.ok ? ctxRes.data.org.slug : '';
+  // Phase 41B.1: org menus only appear for users who actually belong to an org.
+  const orgMember = orgs.length > 0;
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardSidebarClient role={role} />
+      <DashboardSidebarClient role={role} orgMember={orgMember} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Auth chrome: who you are + sign out, kept above the page's own TopNav. */}
         <div className="flex items-center justify-end gap-3 border-b border-border bg-background-deep/60 px-4 py-2">

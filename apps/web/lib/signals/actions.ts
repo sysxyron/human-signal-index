@@ -28,6 +28,7 @@ import {
   acknowledgeAlert,
   addSourceToWatchlist,
   addWatchlistSource,
+  archiveSource,
   createSource,
   createWatchlist,
   disableSource,
@@ -59,11 +60,14 @@ import { getCurrentOrganizationId } from '@/lib/org/operations';
 // -----------------------------------------------------------------------------
 // Dashboard routes revalidated after mutations (best-effort; safe if absent).
 // -----------------------------------------------------------------------------
-const SOURCES_ROUTE = '/signals/sources';
-const SIGNALS_ROUTE = '/signals';
-const WATCHLISTS_ROUTE = '/signals/watchlists';
-const ALERTS_ROUTE = '/signals/alerts';
-const OVERVIEW_ROUTE = '/signals/overview';
+// Phase 41B: these pointed at non-existent /signals/* routes, so revalidatePath
+// never invalidated the real dashboard pages after a mutation (beta bug D —
+// "UI does not update"). They now target the actual /dashboard/* routes.
+const SOURCES_ROUTE = '/dashboard/sources';
+const SIGNALS_ROUTE = '/dashboard/signals';
+const WATCHLISTS_ROUTE = '/dashboard/watchlists';
+const ALERTS_ROUTE = '/dashboard/alerts';
+const OVERVIEW_ROUTE = '/dashboard/intelligence';
 
 function revalidate(...paths: string[]): void {
   for (const p of paths) {
@@ -101,6 +105,13 @@ export async function updateSourceAction(id: string, patch: UpdateSourcePatch) {
 
 export async function disableSourceAction(id: string) {
   const result = await disableSource(id);
+  if (result.ok) revalidate(SOURCES_ROUTE, `${SOURCES_ROUTE}/${id}`, OVERVIEW_ROUTE);
+  return result;
+}
+
+/** Phase 41B — admin-only soft-delete: archive a source (signals/history kept). */
+export async function archiveSourceAction(id: string) {
+  const result = await archiveSource(id);
   if (result.ok) revalidate(SOURCES_ROUTE, `${SOURCES_ROUTE}/${id}`, OVERVIEW_ROUTE);
   return result;
 }

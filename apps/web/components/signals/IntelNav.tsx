@@ -16,6 +16,7 @@ import {
   ListChecks,
   Bell,
   BarChart3,
+  FileCheck2,
   type LucideProps,
 } from 'lucide-react';
 import { type ComponentType } from 'react';
@@ -31,6 +32,7 @@ const ITEMS: IntelNavItem[] = [
   { label: 'Intelligence', href: '/dashboard/intelligence', icon: BarChart3 },
   { label: 'Sources', href: '/dashboard/sources', icon: Database },
   { label: 'Signals', href: '/dashboard/signals', icon: Inbox },
+  { label: 'Submissions', href: '/dashboard/signal-submission', icon: FileCheck2 },
   { label: 'Watchlists', href: '/dashboard/watchlists', icon: ListChecks },
   { label: 'Alerts', href: '/dashboard/alerts', icon: Bell },
 ];

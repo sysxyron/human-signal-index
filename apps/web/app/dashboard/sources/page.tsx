@@ -110,6 +110,7 @@ export default async function SourcesPage() {
             watchlists={watchlists}
             canManage={manage}
             canCapture={capture && authed}
+            canArchive={isAdmin(role)}
             demo={isDemo}
           />
         )}

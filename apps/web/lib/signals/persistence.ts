@@ -35,6 +35,7 @@ import {
   type NarrativeDriftEvent,
   type SignalDraft,
 } from '@hsi/source-intelligence';
+import { buildSourceUpdate, type UpdateSourcePatch } from './source-update';
 import type {
   AppRole,
   HsinAlertSeverity,
@@ -228,7 +229,10 @@ export async function listSources(
     const client = db();
 
     let query = client.from('hsin_sources').select('*');
+    // Phase 41B: hide archived sources from the active list unless explicitly
+    // requested (existing signals/history are preserved; the source is soft-deleted).
     if (filters?.status) query = query.eq('status', filters.status);
+    else query = query.neq('status', 'archived');
     if (filters?.sourceType) query = query.eq('source_type', filters.sourceType);
     if (filters?.monitoringEnabled !== undefined) {
       query = query.eq('monitoring_enabled', filters.monitoringEnabled);
@@ -536,19 +540,15 @@ export async function createSource(
   }
 }
 
-export interface UpdateSourcePatch {
-  name?: string;
-  description?: string;
-  platform?: string;
-  homepageUrl?: string;
-  rssUrl?: string;
-  riskLevel?: number;
-  status?: string;
-  monitoringEnabled?: boolean;
-  config?: Record<string, unknown>;
-}
+/** Re-export so actions/UI import the patch type from the DAL as before. */
+export type { UpdateSourcePatch };
 
-/** Update a source (researcher+; owner or reviewer+ authorized by RLS). */
+/**
+ * Update a source (researcher+; owner or reviewer+ authorized by RLS).
+ * Phase 41B: writes EVERY editable field via buildSourceUpdate — including
+ * source_type, status, monitoring_enabled, and config — which previously did
+ * not persist (beta bug D).
+ */
 export async function updateSource(
   id: string,
   patch: UpdateSourcePatch,
@@ -558,19 +558,7 @@ export async function updateSource(
     const gate = await requireRole(client, 'researcher');
     if (!gate.ok) return gate;
 
-    const update: JsonRecord = {};
-    if (patch.name !== undefined) update.name = patch.name;
-    if (patch.description !== undefined) update.description = patch.description;
-    if (patch.platform !== undefined) update.platform = patch.platform;
-    if (patch.homepageUrl !== undefined) update.homepage_url = patch.homepageUrl;
-    if (patch.rssUrl !== undefined) update.rss_url = patch.rssUrl;
-    if (patch.riskLevel !== undefined) update.risk_level = patch.riskLevel;
-    if (patch.status !== undefined) update.status = patch.status;
-    if (patch.monitoringEnabled !== undefined) {
-      update.monitoring_enabled = patch.monitoringEnabled;
-    }
-    if (patch.config !== undefined) update.config = patch.config;
-
+    const update = buildSourceUpdate(patch);
     const { data, error } = await client
       .from('hsin_sources')
       .update(update)
@@ -589,6 +577,44 @@ export async function disableSource(
   id: string,
 ): Promise<DbResult<HsinSourceRecord>> {
   return updateSource(id, { status: 'disabled', monitoringEnabled: false });
+}
+
+/**
+ * Archive a source (Phase 41B / beta bug C) — ADMIN-ONLY + audited. Soft delete:
+ * sets status='archived' + monitoring_enabled=false. Existing signals, snapshots,
+ * and capture events are PRESERVED; archived sources hide from the active list.
+ */
+export async function archiveSource(id: string): Promise<DbResult<HsinSourceRecord>> {
+  try {
+    const client = db();
+    const gate = await requireRole(client, 'admin');
+    if (!gate.ok) return gate;
+
+    const { data, error } = await client
+      .from('hsin_sources')
+      .update(buildSourceUpdate({ status: 'archived', monitoringEnabled: false }))
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) return fail(error);
+
+    // Audit (best-effort) — never blocks the archive.
+    await client
+      .from('security_audit_events')
+      .insert({
+        user_id: gate.user.id,
+        event_type: 'source.archived',
+        severity: 'info',
+        route: '/dashboard/sources',
+        message: `Source ${id} archived (signals + history preserved).`,
+        metadata: { source_id: id },
+      })
+      .then(() => undefined, () => undefined);
+
+    return { ok: true, data: data as HsinSourceRecord };
+  } catch (e) {
+    return fail(e);
+  }
 }
 
 /**

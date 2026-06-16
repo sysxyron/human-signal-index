@@ -53,6 +53,9 @@ export function SourceForm({
   const [contentSelector, setContentSelector] = useState<string>(String((existingConfig.contentSelector as string) ?? ''));
   const [apiMethod, setApiMethod] = useState<string>(String((existingConfig.apiMethod as string) ?? 'GET'));
   const [riskLevel, setRiskLevel] = useState<string>(existing?.risk_level != null ? String(existing.risk_level) : '3');
+  // Phase 41B (beta bug D): status + monitoring are now editable and persisted.
+  const [status, setStatus] = useState<string>(String(existing?.status ?? 'active'));
+  const [monitoringEnabled, setMonitoringEnabled] = useState<boolean>(existing?.monitoring_enabled ?? true);
 
   const triggerLabel = mode === 'edit' ? 'Edit' : 'Add source';
   const TriggerIcon = mode === 'edit' ? Pencil : Plus;
@@ -82,14 +85,16 @@ export function SourceForm({
       return;
     }
     const n = validation.normalized!;
-    const input = {
+    const base = {
       name: name.trim(), description: description.trim() || undefined, sourceType,
       platform: platform.trim() || undefined,
       homepageUrl: n.homepageUrl ?? undefined, rssUrl: n.rssUrl ?? undefined,
       riskLevel: Number(riskLevel), config: n.config as Record<string, unknown>,
     };
     startTransition(async () => {
-      const res = mode === 'edit' && existing ? await updateSourceAction(existing.id, input) : await createSourceAction(input);
+      const res = mode === 'edit' && existing
+        ? await updateSourceAction(existing.id, { ...base, status, monitoringEnabled })
+        : await createSourceAction(base);
       if (res.ok) {
         setDone(true); router.refresh();
         if (mode === 'create') { setName(''); setDescription(''); }
@@ -168,6 +173,17 @@ export function SourceForm({
 
           <Input label="Platform (optional)" value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="e.g. Web, YouTube" />
           <Select label="Baseline risk (1–5)" value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)}>{[1, 2, 3, 4, 5].map((n) => (<option key={n} value={n}>{n}</option>))}</Select>
+          {mode === 'edit' ? (
+            <>
+              <Select label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                {['active', 'paused', 'disabled'].map((s) => (<option key={s} value={s}>{s}</option>))}
+              </Select>
+              <label className="flex items-center gap-2 self-end pb-2 text-body-sm text-text-secondary">
+                <input type="checkbox" checked={monitoringEnabled} onChange={(e) => setMonitoringEnabled(e.target.checked)} className="accent-electric" />
+                Monitoring enabled
+              </label>
+            </>
+          ) : null}
           <div className="sm:col-span-2">
             <Textarea label="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
           </div>

@@ -32,6 +32,7 @@ import { SourceForm } from './SourceForm';
 import {
   AssignWatchlistControl,
   DisableSourceButton,
+  ArchiveSourceButton,
 } from './SourceRowActions';
 import { EmptyState } from './states';
 
@@ -52,12 +53,14 @@ export function SourceTable({
   watchlists,
   canManage,
   canCapture,
+  canArchive = false,
   demo = false,
 }: {
   sources: SourceWithStats[];
   watchlists: HsinWatchlistRecord[];
   canManage: boolean;
   canCapture: boolean;
+  canArchive?: boolean;
   demo?: boolean;
 }) {
   const [typeFilter, setTypeFilter] = useState('');
@@ -243,6 +246,12 @@ export function SourceTable({
                               canManage={canManage}
                               demo={demo}
                               disabled={source.status === 'disabled'}
+                            />
+                            <ArchiveSourceButton
+                              sourceId={source.id}
+                              canArchive={canArchive}
+                              demo={demo}
+                              archived={source.status === 'archived'}
                             />
                           </div>
                           <AssignWatchlistControl

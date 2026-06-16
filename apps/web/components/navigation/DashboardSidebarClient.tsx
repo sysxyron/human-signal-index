@@ -11,7 +11,14 @@
 import { usePathname } from 'next/navigation';
 import { DashboardSidebar } from '@hsi/ui';
 
-export function DashboardSidebarClient({ role }: { role: string | null }) {
+export function DashboardSidebarClient({
+  role,
+  orgMember,
+}: {
+  role: string | null;
+  /** Phase 41B.1: hide org pages for users with no org membership. */
+  orgMember?: boolean;
+}) {
   const pathname = usePathname();
-  return <DashboardSidebar activeHref={pathname} role={role} />;
+  return <DashboardSidebar activeHref={pathname} role={role} orgMember={orgMember} />;
 }

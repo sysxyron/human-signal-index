@@ -1152,7 +1152,7 @@ export type HsinSourceType =
   | 'intelligence_feed';
 
 /** Lifecycle status of a monitored source. Mirrors hsin_sources.status. */
-export type HsinSourceStatus = 'active' | 'paused' | 'disabled' | 'error';
+export type HsinSourceStatus = 'active' | 'paused' | 'disabled' | 'error' | 'archived';
 
 /** Kind of captured signal. Mirrors hsin_signals.signal_type. */
 export type HsinSignalType =

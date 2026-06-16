@@ -60,7 +60,7 @@ import {
 } from 'lucide-react';
 import { cn } from './utils';
 import { Button } from './primitives';
-import { filterNavGroups } from './nav-roles';
+import { filterNavGroups, roleLabel } from './nav-roles';
 
 /* -------------------------------------------------------------------------- */
 /* Brand mark                                                                   */
@@ -258,8 +258,10 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Operations',
     items: [
       { label: 'Mission Control', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'Source Registry', href: '/dashboard/source-registry', icon: Database },
-      { label: 'Signal Submission', href: '/dashboard/signal-intake', icon: Inbox },
+      { label: 'Source Registry', href: '/dashboard/sources', icon: Database },
+      { label: 'Submit a Signal', href: '/submit-a-signal', icon: Send },
+      { label: 'Signal Intake', href: '/dashboard/signal-intake', icon: Inbox },
+      { label: 'Submission Queue', href: '/dashboard/signal-submission', icon: ClipboardCheck },
       { label: 'Evidence Vault', href: '/dashboard/evidence-vault', icon: Archive },
       { label: 'Operations Center', href: '/dashboard/operations', icon: Activity },
     ],
@@ -384,7 +386,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Launch & Beta',
     items: [
       { label: 'Launch Center', href: '/dashboard/launch', icon: Rocket },
-      { label: 'Beta Issues', href: '/dashboard/launch/issues', icon: Bug },
+      { label: 'Beta Issues Queue', href: '/dashboard/launch/issues', icon: Bug },
       { label: 'Beta Tester', href: '/dashboard/tester', icon: Rocket },
       { label: 'Tester Onboarding', href: '/dashboard/tester-onboarding', icon: GraduationCap },
     ],
@@ -420,6 +422,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Account',
     items: [
       { label: 'My Profile', href: '/dashboard/profile', icon: UserCog },
+      { label: 'Apply for a Role', href: '/dashboard/apply-role', icon: ShieldCheck },
     ],
   },
   {
@@ -437,8 +440,19 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
  * menus that role should see are rendered. This is UX only — RBAC + middleware
  * still protect every route, so a hidden menu is never the security boundary.
  */
-export function DashboardSidebar({ activeHref, role }: { activeHref?: string; role?: string | null }) {
-  const groups = filterNavGroups(dashboardNavGroups, role);
+export function DashboardSidebar({
+  activeHref,
+  role,
+  orgMember,
+  canCreateOrg = true,
+}: {
+  activeHref?: string;
+  role?: string | null;
+  /** Phase 41B.1: whether the user belongs to an org (hides org pages when false). */
+  orgMember?: boolean;
+  canCreateOrg?: boolean;
+}) {
+  const groups = filterNavGroups(dashboardNavGroups, role, { orgMember, selfServeOrg: canCreateOrg });
   return (
     <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-background-deep lg:sticky lg:top-0 lg:flex">
       <div className="flex h-[57px] items-center border-b border-border px-5">
@@ -476,7 +490,17 @@ export function DashboardSidebar({ activeHref, role }: { activeHref?: string; ro
           </div>
         ))}
       </nav>
-      <div className="border-t border-border p-4">
+      <div className="space-y-2 border-t border-border p-4">
+        <div className="flex items-center justify-between rounded-card border border-border bg-surface/60 px-3 py-2">
+          <span className="text-caption text-text-muted">Role</span>
+          <a
+            href="/dashboard/apply-role"
+            className="rounded-full bg-primary/15 px-2 py-0.5 text-label font-semibold text-electric transition hover:text-white"
+            title="View your role and apply for advanced roles"
+          >
+            {roleLabel(role)}
+          </a>
+        </div>
         <div className="rounded-card border border-border bg-surface/60 p-3">
           <div className="flex items-center gap-2 text-caption text-text-secondary">
             <span className="h-2 w-2 rounded-full bg-verified shadow-[0_0_8px_#10B981]" />
