@@ -74,7 +74,7 @@ const features = [
 ];
 
 const whyPoints = [
-  'Narratives move faster than facts — we restore the evidence trail.',
+  'Narratives move faster than facts, so we restore the evidence trail.',
   'Every claim is traceable back to a verifiable source passage.',
   'Human reviewers stay in the loop on every published conclusion.',
   'Risk scoring is explainable, not a black box.',
@@ -124,7 +124,7 @@ export default async function HomePage() {
             <p className="text-body-lg text-text-secondary">
               Human Signal Index tracks, analyzes, and explains the ideas,
               ideologies, movements, and signals influencing human behavior and
-              civilization — with traceability, transparency, and context.
+              civilization, with traceability, transparency, and context.
             </p>
             <div className="flex flex-wrap gap-3">
               <a href={appHref('/dashboard')}>
@@ -203,7 +203,7 @@ export default async function HomePage() {
             </h2>
             <p className="text-body text-text-secondary">
               The narratives that move populations rarely arrive with their
-              evidence attached. HSI rebuilds that chain — so the public can see
+              evidence attached. HSI rebuilds that chain so the public can see
               not just what is being said, but where it came from and why it
               matters.
             </p>

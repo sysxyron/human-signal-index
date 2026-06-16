@@ -15,7 +15,13 @@ import {
 } from '@hsi/ui';
 import { Search } from 'lucide-react';
 
-export const metadata = { title: 'Signal Library' };
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Signal Library',
+  description:
+    'A public catalog of analyzed narratives. Each record includes a risk level, category, and a verifiable evidence chain.',
+  alternates: { canonical: '/signal-library' },
+};
 
 const featured: {
   title: string;
@@ -64,7 +70,7 @@ export default function SignalLibraryPage() {
       <PageHeader
         eyebrow="Signal Library"
         title="Browse structured, traceable signal records."
-        description="A public catalog of analyzed narratives — each with a risk level, category, and a verifiable evidence chain."
+        description="A public catalog of analyzed narratives. Each record includes a risk level, category, and a verifiable evidence chain."
       />
 
       <Section>

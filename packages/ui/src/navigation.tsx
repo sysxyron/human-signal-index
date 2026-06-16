@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ComponentType } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Database,
@@ -98,22 +99,39 @@ export const publicNavLinks = [
   { label: 'Contact', href: '/contact' },
 ];
 
+/** Active when the path equals the link, or is nested under it (non-home). */
+function navIsActive(pathname: string | null, href: string): boolean {
+  if (!pathname) return false;
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function PublicNav({ dashboardHref = '/dashboard' }: { dashboardHref?: string } = {}) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-6 py-3.5">
         <BrandMark />
         <nav className="hidden items-center gap-5 xl:flex">
-          {publicNavLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-[13px] font-medium text-text-secondary transition hover:text-text-primary"
-            >
-              {link.label}
-            </a>
-          ))}
+          {publicNavLinks.map((link) => {
+            const active = navIsActive(pathname, link.href);
+            return (
+              <a
+                key={link.href}
+                href={link.href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'text-[13px] font-medium transition',
+                  active
+                    ? 'font-semibold text-electric [text-shadow:0_0_12px_rgba(59,130,246,0.45)]'
+                    : 'text-text-secondary hover:text-text-primary',
+                )}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </nav>
         <div className="hidden items-center gap-3 xl:flex">
           <a href={dashboardHref}>
@@ -133,16 +151,23 @@ export function PublicNav({ dashboardHref = '/dashboard' }: { dashboardHref?: st
       {open ? (
         <div className="border-t border-border bg-surface px-6 py-4 xl:hidden">
           <nav className="grid gap-1">
-            {publicNavLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="rounded-lg px-3 py-2 text-sm text-text-secondary transition hover:bg-surface-2 hover:text-text-primary"
-                onClick={() => setOpen(false)}
-              >
-                {link.label}
-              </a>
-            ))}
+            {publicNavLinks.map((link) => {
+              const active = navIsActive(pathname, link.href);
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'rounded-lg px-3 py-2 text-sm transition',
+                    active ? 'bg-primary/15 font-semibold text-electric' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary',
+                  )}
+                  onClick={() => setOpen(false)}
+                >
+                  {link.label}
+                </a>
+              );
+            })}
             <a href={dashboardHref} className="mt-2">
               <Button variant="primary" size="sm" className="w-full">
                 Explore Dashboard
@@ -173,7 +198,8 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
     {
       title: 'About',
       links: [
-        { label: 'Our Mission', href: '/about' },
+        { label: 'Our Mission', href: '/mission' },
+        { label: 'About HSI', href: '/about' },
         { label: 'Methodology', href: '/methodology' },
         { label: 'Education Hub', href: '/education-hub' },
         { label: 'Contact', href: '/contact' },
@@ -185,7 +211,7 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
         { label: 'Trust & Transparency', href: '/trust' },
         { label: 'Transparency', href: '/transparency' },
         { label: 'Ethics', href: '/ethics' },
-        { label: 'Methodology', href: '/methodology' },
+        { label: 'Accessibility', href: '/accessibility' },
       ],
     },
     {
@@ -201,6 +227,7 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
   ];
 
 export function Footer({ dashboardHref = '/dashboard' }: { dashboardHref?: string } = {}) {
+  const pathname = usePathname();
   return (
     <footer className="border-t border-border bg-background-deep">
       <div className="mx-auto max-w-[1180px] px-6 py-14">
@@ -220,16 +247,23 @@ export function Footer({ dashboardHref = '/dashboard' }: { dashboardHref?: strin
             <div key={col.title}>
               <h5 className="text-label text-text-muted">{col.title}</h5>
               <ul className="mt-4 space-y-2.5">
-                {col.links.map((link) => (
-                  <li key={link.label + link.href}>
-                    <a
-                      href={link.href === '/dashboard' ? dashboardHref : link.href}
-                      className="text-body-sm text-text-secondary transition hover:text-text-primary"
-                    >
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
+                {col.links.map((link) => {
+                  const active = navIsActive(pathname, link.href);
+                  return (
+                    <li key={link.label + link.href}>
+                      <a
+                        href={link.href === '/dashboard' ? dashboardHref : link.href}
+                        aria-current={active ? 'page' : undefined}
+                        className={cn(
+                          'text-body-sm transition',
+                          active ? 'font-semibold text-electric' : 'text-text-secondary hover:text-text-primary',
+                        )}
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}

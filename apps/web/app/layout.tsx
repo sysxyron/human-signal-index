@@ -14,8 +14,19 @@ export const metadata: Metadata = {
     template: '%s · Human Signal Index',
   },
   description:
-    'A public-interest signal-intelligence observatory. HSI tracks, traces, and explains the narratives, ideologies, and movements shaping human behavior — with evidence-first traceability.',
-  metadataBase: new URL('https://humansignalindex.org'),
+    'A public-interest intelligence platform. HSI collects, traces, and explains the narratives shaping public life, with evidence and human review at every step.',
+  // Marketing pages live on the www origin; canonical + Open Graph URLs resolve
+  // here (the app lives on app.humansignalindex.org and is linked explicitly).
+  metadataBase: new URL('https://www.humansignalindex.org'),
+  openGraph: {
+    type: 'website',
+    siteName: 'Human Signal Index',
+    url: 'https://www.humansignalindex.org',
+    title: 'Human Signal Index',
+    description:
+      'A public-interest intelligence platform. HSI collects, traces, and explains the narratives shaping public life, with evidence and human review at every step.',
+  },
+  twitter: { card: 'summary_large_image', title: 'Human Signal Index' },
 };
 
 export default function RootLayout({

@@ -1,8 +1,14 @@
 import { PageHeader, Section } from '../../../components/page-header';
 import { Card, Button, Input, Select, Textarea } from '@hsi/ui';
+import type { Metadata } from 'next';
 import { Mail, Newspaper, Shield, GraduationCap } from 'lucide-react';
 
-export const metadata = { title: 'Contact' };
+export const metadata: Metadata = {
+  title: 'Contact',
+  description:
+    'Reach Human Signal Index: press and media, security disclosure, and research or education collaborations.',
+  alternates: { canonical: '/contact' },
+};
 
 const channels = [
   { icon: Newspaper, title: 'Press & media', body: 'For interviews, data requests, and editorial inquiries.', email: 'press@humansignalindex.org' },
@@ -20,7 +26,7 @@ export default async function ContactPage() {
       <PageHeader
         eyebrow="Contact"
         title="Get in touch with the observatory."
-        description="Whether you're a journalist, researcher, educator, or concerned citizen — we'd like to hear from you."
+        description="Journalists, researchers, educators, and members of the public are all welcome to reach out. Choose the channel that fits your request, or send a general message below."
       />
 
       <Section>

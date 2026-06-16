@@ -170,3 +170,56 @@ figure {
   outline: 2px solid #3b82f6;
   outline-offset: 1px;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Phase 41B.2 — native accessibility preferences (no third-party widget).     */
+/* Toggled by classes / a CSS var on <html> from the AccessibilityWidget.      */
+/* -------------------------------------------------------------------------- */
+
+/* Text scaling: root font-size drives rem-based (Tailwind) sizing. */
+html {
+  font-size: calc(16px * var(--a11y-font-scale, 1));
+}
+
+/* High-contrast mode: brighter text, harder borders + surfaces. */
+html.a11y-contrast {
+  --text-secondary: #e2e8f0;
+  --text-muted: #cbd5e1;
+  --border: #5b6b8c;
+  --surface: #0c1426;
+  --surface-2: #16213a;
+}
+html.a11y-contrast body {
+  background: #02040a;
+}
+html.a11y-contrast a {
+  text-decoration: underline;
+}
+
+/* Reduced motion: neutralize animations, transitions, smooth scroll. */
+html.a11y-reduce-motion {
+  scroll-behavior: auto;
+}
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Dyslexia-friendly: readable fonts + spacing (native fallbacks, no web fetch). */
+html.a11y-dyslexia body,
+html.a11y-dyslexia body * {
+  font-family: 'Atkinson Hyperlegible', Verdana, Tahoma, ui-sans-serif, sans-serif !important;
+  letter-spacing: 0.03em;
+  word-spacing: 0.08em;
+  line-height: 1.7;
+}
+
+/* Clear keyboard focus ring (always on; respects high contrast). */
+:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}

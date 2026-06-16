@@ -10,12 +10,12 @@ export const metadata = { title: 'Trust & Transparency' };
 const principles = [
   { icon: Users, title: 'People make the decisions', body: 'No finding is published, no account is restricted, and no enforcement happens automatically. A person reviews and decides every time.' },
   { icon: FileSearch, title: 'Everything can be traced', body: 'Each claim links back to the source it came from. You can follow a published finding all the way to the original evidence.' },
-  { icon: ScrollText, title: 'Decisions are recorded', body: 'Reviews, approvals, and changes are written to an audit log with who acted, when, and why — and they can be reversed.' },
+  { icon: ScrollText, title: 'Decisions are recorded', body: 'Reviews, approvals, and changes are written to an audit log with who acted, when, and why, and they can be reversed.' },
   { icon: BookCheck, title: 'Evidence comes first', body: 'We archive the underlying material and seal it with a hash so anyone can check it has not been altered.' },
 ];
 
 const commitments = [
-  { icon: BookCheck, title: 'Publication standards', body: 'A report stays a draft until a human reviewer approves it. We publish corrections — and the reason for them — when we get something wrong.' },
+  { icon: BookCheck, title: 'Publication standards', body: 'A report stays a draft until a human reviewer approves it. We publish corrections, and the reason for them, when we get something wrong.' },
   { icon: Lock, title: 'Security commitments', body: 'Access is limited by role, sessions are protected, and we run a vulnerability disclosure program so researchers can report problems safely.' },
   { icon: UserCheck, title: 'Your rights', body: 'You can ask what data we hold about you and request a correction. We do not sell your data.' },
   { icon: Eye, title: 'Transparency', body: 'We document how the platform works, which model versions produced a result, and where we have made mistakes.' },
@@ -27,7 +27,7 @@ export default function TrustPage() {
       <PageHeader
         eyebrow="Trust & Transparency"
         title="Built to be checked, not just believed."
-        description="The Human Signal Index maps narratives in the information environment. Because that work only matters if people can trust it, here is exactly how we operate — and how to hold us to it."
+        description="The Human Signal Index maps narratives in the information environment. Because that work only matters if people can trust it, here is exactly how we operate, and how to hold us to it."
       />
 
       <Section>

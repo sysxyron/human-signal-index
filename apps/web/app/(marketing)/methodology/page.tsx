@@ -22,7 +22,7 @@ const pipeline = [
     icon: Cpu,
     color: '#8B5CF6',
     title: 'AI extraction',
-    body: 'Models extract claims, entities, and rhetorical structures from raw material — always preserving a link to the exact source passage.',
+    body: 'Models extract claims, entities, and rhetorical structures from raw material, always preserving a link to the exact source passage.',
   },
   {
     icon: BrainCircuit,
@@ -40,7 +40,7 @@ const pipeline = [
     icon: Megaphone,
     color: '#EF4444',
     title: 'Public report',
-    body: 'Only verified, fully-traceable findings are published — with the evidence chain available for public inspection.',
+    body: 'Only verified, fully traceable findings are published, with the evidence chain available for public inspection.',
   },
 ];
 

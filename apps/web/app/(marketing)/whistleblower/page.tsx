@@ -3,7 +3,13 @@ import { PageHeader, Section } from '../../../components/page-header';
 import { Card } from '@hsi/ui';
 import { Megaphone, FileText, Lock, ShieldCheck, EyeOff, ArrowRight, AlertTriangle } from 'lucide-react';
 
-export const metadata = { title: 'Whistleblower Center' };
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Whistleblower Center',
+  description:
+    'Report wrongdoing safely to Human Signal Index: what you can report, how to protect yourself, and how we handle confidential submissions.',
+  alternates: { canonical: '/whistleblower' },
+};
 
 const reportable = [
   'Corruption or fraud',
@@ -42,7 +48,7 @@ export default function WhistleblowerPage() {
             <h3 className="flex items-center gap-2 text-h6 font-semibold text-text-primary"><FileText className="h-4 w-4 text-electric" /> Before you submit</h3>
             <ul className="ml-5 list-disc space-y-1 text-body-sm text-text-secondary">
               <li>Write down what happened, when, and who was involved.</li>
-              <li>Be specific — dates, places, and amounts help us act.</li>
+              <li>Be specific. Dates, places, and amounts help us act.</li>
               <li>Only include what you can share safely.</li>
             </ul>
           </Card>

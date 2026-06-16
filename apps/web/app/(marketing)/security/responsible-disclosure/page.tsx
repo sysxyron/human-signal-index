@@ -2,10 +2,16 @@ import { PageHeader, Section } from '../../../../components/page-header';
 import { Card } from '@hsi/ui';
 import { ListOrdered, Clock, MessagesSquare, Handshake, AlertTriangle } from 'lucide-react';
 
-export const metadata = { title: 'Responsible Disclosure' };
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Responsible Disclosure',
+  description:
+    'The step-by-step process for reporting vulnerabilities, security findings, abuse, and platform weaknesses to Human Signal Index, and what happens after you do.',
+  alternates: { canonical: '/security/responsible-disclosure' },
+};
 
 const steps = [
-  ['Report it', 'Send what you found to security@amenxlabs.com — a vulnerability, a security weakness, an abuse pattern, or platform misuse. Include enough detail for us to reproduce it.'],
+  ['Report it', 'Send what you found to security@humansignalindex.org. It might be a vulnerability, a security weakness, an abuse pattern, or platform misuse. Include enough detail for us to reproduce it.'],
   ['We confirm', 'We acknowledge your report within three business days and let you know we are looking into it.'],
   ['We investigate', 'We assess the severity and impact, reproduce the issue, and decide on a fix. We may ask you for more detail.'],
   ['We fix and verify', 'We ship a fix, verify it, and confirm with you that the issue is resolved.'],
@@ -18,7 +24,7 @@ export default function ResponsibleDisclosurePage() {
       <PageHeader
         eyebrow="Security"
         title="Responsible Disclosure"
-        description="A clear, predictable process for reporting vulnerabilities, security findings, abuse, and platform weaknesses — and what happens after you do."
+        description="A clear, predictable process for reporting vulnerabilities, security findings, abuse, and platform weaknesses, and what happens after you do."
       />
 
       <Section>

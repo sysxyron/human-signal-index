@@ -13,9 +13,15 @@ import { getPublicIntelligenceAction } from '@/lib/publishing/actions';
 import { demoPublicIntelligence } from '@/lib/publishing/view';
 import { PublicationCard } from '@/components/publishing/PublicationCard';
 
+import type { Metadata } from 'next';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-export const metadata = { title: 'Public Reports' };
+export const metadata: Metadata = {
+  title: 'Public Reports',
+  description:
+    'Published, human-approved intelligence reports from Human Signal Index, each with a verifiable evidence chain. Retractions remain visible.',
+  alternates: { canonical: '/public-reports' },
+};
 
 export default async function PublicReportsPage() {
   const res = await getPublicIntelligenceAction();

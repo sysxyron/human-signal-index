@@ -3,7 +3,13 @@ import { Card } from '@hsi/ui';
 import { ShieldCheck, Lock, Eye } from 'lucide-react';
 import { SignalSubmitForm } from '@/components/signals/SignalSubmitForm';
 
-export const metadata = { title: 'Submit a Signal' };
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Submit a Signal',
+  description:
+    'Share a public signal for review by Human Signal Index. Every submission is assessed by a trained reviewer.',
+  alternates: { canonical: '/submit-a-signal' },
+};
 
 const assurances = [
   { icon: ShieldCheck, title: 'Human-reviewed', body: 'Every submission is evaluated by a trained reviewer.' },

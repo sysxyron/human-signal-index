@@ -1,5 +1,6 @@
 import { PublicNav, Footer } from '@hsi/ui';
 import { appHref } from '@/lib/env/app-url';
+import { AccessibilityWidget } from '@/components/accessibility/AccessibilityWidget';
 
 export default function MarketingLayout({
   children,
@@ -14,6 +15,7 @@ export default function MarketingLayout({
       <PublicNav dashboardHref={dashboardHref} />
       <div className="flex-1">{children}</div>
       <Footer dashboardHref={dashboardHref} />
+      <AccessibilityWidget />
     </div>
   );
 }

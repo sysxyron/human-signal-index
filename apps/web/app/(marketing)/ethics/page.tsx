@@ -2,10 +2,16 @@ import { PageHeader, Section } from '../../../components/page-header';
 import { Card } from '@hsi/ui';
 import { Scale, UserX, ShieldOff, HeartHandshake, Ban, Eye } from 'lucide-react';
 
-export const metadata = { title: 'Ethics' };
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Ethics',
+  description:
+    'The ethical guardrails Human Signal Index works within: public-only analysis, no targeting of individuals, proportionality, and public accountability.',
+  alternates: { canonical: '/ethics' },
+};
 
 const principles = [
-  { icon: Eye, title: 'Public, not private', body: 'We analyze public narratives and patterns — never private communications or individuals.' },
+  { icon: Eye, title: 'Public, not private', body: 'We analyze public narratives and patterns, never private communications or individuals.' },
   { icon: UserX, title: 'No targeting of people', body: 'We do not build profiles of, dox, or facilitate harassment of any individual.' },
   { icon: ShieldOff, title: 'No amplification of harm', body: 'We never republish harmful content in ways that extend its reach.' },
   { icon: Scale, title: 'Proportionality', body: 'Our response is calibrated to genuine public-interest risk, not engagement.' },
@@ -23,7 +29,7 @@ export default async function EthicsPage() {
       <PageHeader
         eyebrow="Ethics"
         title="Powerful analysis demands strict guardrails."
-        description="Signal intelligence can be misused. These are the lines HSI does not cross — and how we hold ourselves accountable."
+        description="Signal intelligence can be misused. These are the lines HSI does not cross, and how we hold ourselves accountable."
       />
 
       <Section>
@@ -49,8 +55,8 @@ export default async function EthicsPage() {
           <p className="mt-2 text-body text-text-secondary">
             An independent ethics review board evaluates contested findings and
             policy decisions. Anyone can challenge a published conclusion, and we
-            commit to responding transparently — including issuing public
-            corrections when we are wrong.
+            commit to responding transparently, including public corrections when
+            we are wrong.
           </p>
         </Card>
       </Section>

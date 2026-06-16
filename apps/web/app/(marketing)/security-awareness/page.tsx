@@ -4,7 +4,13 @@ import {
   Fish, Users, KeyRound, Lock, UserCheck, Database, EyeOff, ShieldAlert,
 } from 'lucide-react';
 
-export const metadata = { title: 'Security Awareness' };
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Security Awareness',
+  description:
+    'Practical security habits for testers, researchers, and analysts: phishing, MFA, passwords, protecting sources, and handling data safely.',
+  alternates: { canonical: '/security-awareness' },
+};
 
 const topics = [
   {
@@ -45,7 +51,7 @@ const topics = [
     points: [
       'Sign out on shared devices.',
       'Review active sessions and revoke ones you do not recognize.',
-      'Report anything that looks off — better a false alarm than a missed breach.',
+      'Report anything that looks off. A false alarm beats a missed breach.',
     ],
   },
   {
@@ -69,7 +75,7 @@ const topics = [
     points: [
       'Keep your devices and browser up to date.',
       'Separate personal and research accounts.',
-      'Assume that anything online can be logged — plan accordingly.',
+      'Assume that anything online can be logged, and plan accordingly.',
     ],
   },
 ];
@@ -80,7 +86,7 @@ export default function SecurityAwarenessPage() {
       <PageHeader
         eyebrow="Security Awareness"
         title="Stay safe while you do the work."
-        description="Short, practical guidance for testers, researchers, and analysts. Most incidents start with a small mistake — these habits prevent the common ones."
+        description="Short, practical guidance for testers, researchers, and analysts. Most incidents start with a small mistake. These habits prevent the common ones."
       />
 
       <Section>
