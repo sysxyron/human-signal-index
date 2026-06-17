@@ -4,8 +4,15 @@ import { Card } from '@hsi/ui';
 import {
   ShieldCheck, Users, FileSearch, ScrollText, BookCheck, Lock, UserCheck, Eye, ArrowRight,
 } from 'lucide-react';
+import { getTrustData } from '@/lib/trust-intelligence';
+import {
+  TrustOverview, TransparencyScorecard, ReviewPipeline, CorrectionsCenter,
+  SourceAccountability, DecisionExplainability, PlatformHealth, AuditTimeline,
+} from '@/components/trust-center/panels';
+import { TraceabilityExplainer } from '@/components/trust-center/TraceabilityExplainer';
 
 export const metadata = { title: 'Trust & Transparency' };
+export const revalidate = 120;
 
 const principles = [
   { icon: Users, title: 'People make the decisions', body: 'No finding is published, no account is restricted, and no enforcement happens automatically. A person reviews and decides every time.' },
@@ -21,16 +28,56 @@ const commitments = [
   { icon: Eye, title: 'Transparency', body: 'We document how the platform works, which model versions produced a result, and where we have made mistakes.' },
 ];
 
-export default function TrustPage() {
+export default async function TrustPage() {
+  const trust = await getTrustData();
+
   return (
     <>
       <PageHeader
         eyebrow="Trust & Transparency"
         title="Built to be checked, not just believed."
-        description="The Human Signal Index maps narratives in the information environment. Because that work only matters if people can trust it, here is exactly how we operate, and how to hold us to it."
+        description="The Human Signal Index maps narratives in the information environment. Because that work only matters if people can trust it, here is exactly how we operate — with live evidence — and how to hold us to it."
       />
 
+      {/* ---- live trust center ---- */}
       <Section>
+        <h2 className="mb-5 text-h4 font-semibold text-text-primary">Trust at a glance</h2>
+        <TrustOverview data={trust.overview} />
+      </Section>
+
+      <Section className="pt-0">
+        <h2 className="mb-5 text-h5 font-semibold text-text-primary">Platform health</h2>
+        <PlatformHealth data={trust.health} />
+      </Section>
+
+      <Section className="pt-0">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TransparencyScorecard scores={trust.scorecard} />
+          <ReviewPipeline stages={trust.pipeline} />
+        </div>
+      </Section>
+
+      <Section className="pt-0">
+        <TraceabilityExplainer />
+      </Section>
+
+      <Section className="pt-0">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <CorrectionsCenter corrections={trust.corrections} />
+          <SourceAccountability data={trust.sourceAccountability} />
+        </div>
+      </Section>
+
+      <Section className="pt-0">
+        <DecisionExplainability />
+      </Section>
+
+      <Section className="pt-0">
+        <AuditTimeline items={trust.audit} />
+      </Section>
+
+      {/* ---- principles & commitments (narrative) ---- */}
+      <Section className="pt-0">
         <h2 className="mb-5 text-h4 font-semibold text-text-primary">How we work</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {principles.map((p) => {
