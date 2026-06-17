@@ -1,18 +1,26 @@
 // =============================================================================
-// HSI Phase 24 — My Work Queue (/dashboard/my-work). Server Component,
-// force-dynamic, researcher+. The signed-in user's personal queue: assigned,
-// awaiting review, needs evidence, needs approval, escalated, completed.
-// Read-only. Renders a labeled sample where live assignment data isn't present.
+// HSI Phase 48 — Analyst Workspace (/dashboard/my-work). Server Component,
+// force-dynamic, researcher+ (gate preserved from Phase 24). The analyst's
+// operational workspace: what they own, what needs attention, what's blocked,
+// what to work next. Read-only — reuses the cached intelligence layers; touches
+// no permissions or review-workflow logic. The operations-os "My Work" data
+// layer is left intact (no longer rendered here, not modified).
 // =============================================================================
 
 import { TopNav } from '@hsi/ui';
-import { ClipboardList } from 'lucide-react';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
-import { canResearch, demoMyWork } from '@/lib/operations-os/view';
+import { canResearch } from '@/lib/operations-os/view';
 import { OperationsNav } from '@/components/operations-os/OperationsNav';
-import { CaseList } from '@/components/operations-os/panels';
-import { DemoBadge } from '@/components/signals/badges';
-import { ErrorState, OfflineDemoBanner } from '@/components/signals/states';
+import { ErrorState } from '@/components/signals/states';
+import { getPublicIntelligenceBundle, getSignalLibraryData } from '@/lib/public-intelligence';
+import { getSourceIntelligence } from '@/lib/source-intelligence';
+import { getOperationsIntelligence } from '@/lib/operations-intelligence';
+import {
+  MyWorkOverview, WorkloadView, PersonalMetrics, PriorityEngine,
+  type MyWork, type Workload, type PersonalMetricsData, type Priorities,
+} from '@/components/analyst-workspace/WorkspacePanels';
+import { InvestigationQueue } from '@/components/analyst-workspace/InvestigationQueue';
+import { QuickActions } from '@/components/mission-control/QuickActions';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -22,44 +30,98 @@ export default async function MyWorkPage() {
   if (!user || !canResearch(role)) {
     return (
       <>
-        <TopNav title="My Work" subtitle="Your personal work queue" />
+        <TopNav title="Analyst Workspace" subtitle="Your personal work queue" />
         <main className="space-y-6 p-5 lg:p-6">
           <OperationsNav />
-          <ErrorState code={user ? 'FORBIDDEN' : 'AUTH_REQUIRED'} title="Insufficient permissions" message={user ? 'My Work is available to the researcher role or above.' : 'Sign in to view your work queue.'} redirectedFrom="/dashboard/my-work" />
+          <ErrorState
+            code={user ? 'FORBIDDEN' : 'AUTH_REQUIRED'}
+            title="Insufficient permissions"
+            message={user ? 'The Analyst Workspace is available to the researcher role or above.' : 'Sign in to view your workspace.'}
+            redirectedFrom="/dashboard/my-work"
+          />
         </main>
       </>
     );
   }
 
-  const data = demoMyWork(user.email?.split('@')[0] ?? 'alice');
+  const [bundle, library, src, ops] = await Promise.all([
+    getPublicIntelligenceBundle(),
+    getSignalLibraryData(),
+    getSourceIntelligence(),
+    getOperationsIntelligence(),
+  ]);
+  void src; // cached alongside; reserved for future workspace widgets
+
+  const { metrics, activityBar } = bundle;
+  const riskFacets = library.facets.risks;
+  const stage = (name: string) => ops.pipeline.find((s) => s.stage === name)?.count ?? 0;
+  const signalC = stage('Signal');
+  const evidenceC = stage('Evidence');
+  const analysisC = stage('Analysis');
+  const reviewC = stage('Review');
+  const publicationC = stage('Publication');
+
+  const work: MyWork = {
+    assignedSignals: signalC + evidenceC + analysisC,
+    assignedReviews: ops.review.pending,
+    assignedReports: metrics.publishedReports,
+    pendingWork: signalC + evidenceC + analysisC + reviewC,
+    completedToday: activityBar.publishedToday + ops.review.approvedToday,
+  };
+
+  const workload: Workload = {
+    open: signalC,
+    inProgress: evidenceC + analysisC,
+    waitingReview: reviewC,
+    published: publicationC,
+    completed: publicationC,
+  };
+
+  const personalMetrics: PersonalMetricsData = {
+    investigationsCompleted: metrics.publishedReports,
+    reviewsCompleted: ops.review.approvedToday + ops.review.rejectedToday,
+    avgTurnaround: ops.review.avgReviewHours == null ? '—' : `${ops.review.avgReviewHours}h`,
+    publicationImpact: metrics.publishedReports,
+    traceabilityAvg: metrics.traceabilityScore,
+  };
+
+  const tier = (k: string) => riskFacets.find((r) => r.key === k)?.count ?? 0;
+  const now = Date.now();
+  const stale = library.signals.filter((s) => s.publishedAt && now - Date.parse(s.publishedAt) > 180 * 86_400_000).length;
+  const recentlyEscalated = library.signals.filter((s) => s.risk_level >= 4 && s.publishedAt && now - Date.parse(s.publishedAt) <= 30 * 86_400_000).length;
+  const priorities: Priorities = {
+    critical: tier('Critical'),
+    highRisk: tier('High'),
+    reviewDue: ops.review.pending,
+    recentlyEscalated,
+    stale,
+  };
 
   return (
     <>
-      <TopNav title="My Work" subtitle="Everything assigned to you, grouped by what it needs next" />
+      <TopNav title="Analyst Workspace" subtitle="What you own, what needs attention, what's blocked, what to work next" />
       <main className="space-y-6 p-5 lg:p-6">
         <OperationsNav />
-        <div className="flex items-center gap-2">
-          <h2 className="flex items-center gap-2 text-h5 font-semibold text-text-primary"><ClipboardList className="h-5 w-5 text-electric" /> My queue</h2>
-          <DemoBadge />
-        </div>
-        <OfflineDemoBanner message="Showing a labeled sample queue. Live assignments appear here once cases are assigned to you." />
 
-        <Section title="Assigned to me"><CaseList cases={data.assignedToMe} emptyMessage="Nothing assigned to you." /></Section>
-        <Section title="Awaiting review"><CaseList cases={data.awaitingReview} emptyMessage="Nothing awaiting review." /></Section>
-        <Section title="Needs evidence"><CaseList cases={data.needsEvidence} emptyMessage="Nothing needs evidence." /></Section>
-        <Section title="Needs approval"><CaseList cases={data.needsApproval} emptyMessage="Nothing needs approval." /></Section>
-        <Section title="Escalated"><CaseList cases={data.escalated} emptyMessage="No escalated items." /></Section>
-        <Section title="Completed"><CaseList cases={data.completed} emptyMessage="No completed items yet." /></Section>
+        {/* Part 1 — my work */}
+        <MyWorkOverview work={work} />
+
+        {/* Part 9 — quick actions (role-aware) */}
+        <QuickActions role={role} />
+
+        {/* Part 8 + Part 4 + Part 7 */}
+        <div className="grid gap-4 xl:grid-cols-3">
+          <PriorityEngine priorities={priorities} />
+          <WorkloadView workload={workload} />
+          <PersonalMetrics metrics={personalMetrics} />
+        </div>
+
+        {/* Part 2 + Part 3 + Part 5 + Part 6 — investigation queue + case workspace + drawer */}
+        <div className="space-y-3">
+          <h2 className="text-h6 font-semibold text-text-primary">Investigation queue</h2>
+          <InvestigationQueue cases={library.signals} />
+        </div>
       </main>
     </>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-3">
-      <h3 className="text-h6 font-semibold text-text-primary">{title}</h3>
-      {children}
-    </section>
   );
 }
