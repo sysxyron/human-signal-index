@@ -6,14 +6,22 @@ import {
   UserCheck, FileText, Users, Gavel, ArrowRight,
 } from 'lucide-react';
 import { getPublishedPage as cmsGet } from '@/lib/cms/cms';
-import { CmsBlocks as CmsBlocksView } from '@/components/cms/CmsBlocks';
+import { resolveBespokeContent } from '@/lib/cms/bespoke';
+import { cmsSeoToMetadata, type CmsSeo } from '@/lib/cms/seo';
 
-export const metadata: Metadata = {
+const ABOUT_SEO_FALLBACK = {
   title: 'About',
   description:
     'Human Signal Index is a public-interest intelligence platform that collects public signals, reviews evidence, and publishes traceable, human-reviewed analysis built by a recognized contributor network.',
-  alternates: { canonical: '/about' },
+  path: '/about',
 };
+
+// Phase 41B.3 (E): CMS SEO (when the About page is published in the CMS) overrides
+// these defaults; otherwise the hardcoded fallback metadata is used.
+export async function generateMetadata(): Promise<Metadata> {
+  const cms = await cmsGet('about');
+  return cmsSeoToMetadata(cms?.seo as CmsSeo | undefined, ABOUT_SEO_FALLBACK);
+}
 
 const pipeline = [
   { icon: Database, title: 'Collect', body: 'Public signals are gathered and preserved, with their source and capture time recorded.' },
@@ -36,24 +44,26 @@ const audiences = [
 ];
 
 const principles = [
-  ['Accuracy over speed', 'We would rather be right than first.'],
-  ['Evidence over opinion', 'Claims are weighed against sources, not volume.'],
+  ['Evidence over assertion', 'Claims are weighed against sources, not volume or confidence.'],
   ['Transparency over opacity', 'How we reach a conclusion is part of the conclusion.'],
-  ['Accountability over anonymity', 'Findings carry the names of the people who stand behind them.'],
-  ['Human judgment over blind automation', 'Automation surfaces patterns; humans make the calls.'],
+  ['Accountability over authority', 'A finding stands on its evidence, not on who stated it.'],
+  ['Human review over automation', 'Automation surfaces patterns; people make the published call.'],
+  ['Correction over permanence', 'When we are wrong, we correct the record and keep the change visible.'],
 ];
 
 const ladder = ['Viewer', 'Contributor', 'Researcher', 'Reviewer', 'Curator'];
 
 export default async function AboutPage() {
+  // Platform-owned page: the template ALWAYS renders. CMS may only fill approved
+  // slots (hero heading/subheading); generic blocks never replace this layout.
   const cms = await cmsGet('about');
-  if (cms) return <CmsBlocksView blocks={cms.blocks} />;
+  const { slots } = resolveBespokeContent('about', cms);
   return (
     <>
       <PageHeader
         eyebrow="About HSI"
-        title="A public-interest intelligence platform."
-        description="Human Signal Index helps researchers, journalists, and the public understand the narratives shaping society, with evidence and human review at every step."
+        title={slots.heroHeading ?? 'A public-interest intelligence platform.'}
+        description={slots.heroSubheading ?? 'Human Signal Index helps researchers, journalists, and the public understand the narratives shaping society, with evidence and human review at every step.'}
       />
 
       {/* 1. What HSI Is */}

@@ -96,18 +96,30 @@ const CONTENT_PAGES: SeedPage[] = [
 export const SEED_PAGES: SeedPage[] = [HOMEPAGE, ...CONTENT_PAGES];
 
 // ---- Navigation (Deliverable 4) -------------------------------------------
-export interface SeedNav { location: 'header' | 'footer' | 'dashboard_help'; label: string; href: string; position: number }
+export interface SeedNav { location: 'header' | 'footer' | 'dashboard_help'; label: string; href: string; position: number; group?: string }
 export const SEED_NAV: SeedNav[] = [
   { location: 'header', label: 'About', href: '/about', position: 0 },
   { location: 'header', label: 'Methodology', href: '/methodology', position: 1 },
   { location: 'header', label: 'Research Reports', href: '/research-reports', position: 2 },
   { location: 'header', label: 'Signal Library', href: '/signal-library', position: 3 },
   { location: 'header', label: 'Education Hub', href: '/education-hub', position: 4 },
-  { location: 'footer', label: 'Trust & Transparency', href: '/trust', position: 0 },
-  { location: 'footer', label: 'Security', href: '/security', position: 1 },
-  { location: 'footer', label: 'Ethics', href: '/ethics', position: 2 },
-  { location: 'footer', label: 'Whistleblower Center', href: '/whistleblower', position: 3 },
-  { location: 'footer', label: 'Vulnerability Disclosure', href: '/security/vulnerability-disclosure', position: 4 },
+  // Footer — grouped (Phase 41B.3 D). "Trust" not "Trust & Transparency" (J).
+  { location: 'footer', group: 'Platform', label: 'Dashboard', href: '/dashboard', position: 0 },
+  { location: 'footer', group: 'Platform', label: 'Signal Library', href: '/signal-library', position: 1 },
+  { location: 'footer', group: 'Platform', label: 'Research Reports', href: '/research-reports', position: 2 },
+  { location: 'footer', group: 'Platform', label: 'Submit a Signal', href: '/submit-a-signal', position: 3 },
+  { location: 'footer', group: 'About', label: 'Our Mission', href: '/mission', position: 4 },
+  { location: 'footer', group: 'About', label: 'About HSI', href: '/about', position: 5 },
+  { location: 'footer', group: 'About', label: 'Methodology', href: '/methodology', position: 6 },
+  { location: 'footer', group: 'About', label: 'Contact', href: '/contact', position: 7 },
+  { location: 'footer', group: 'Trust', label: 'Trust', href: '/trust', position: 8 },
+  { location: 'footer', group: 'Trust', label: 'Transparency', href: '/transparency', position: 9 },
+  { location: 'footer', group: 'Trust', label: 'Ethics', href: '/ethics', position: 10 },
+  { location: 'footer', group: 'Trust', label: 'Accessibility', href: '/accessibility', position: 11 },
+  { location: 'footer', group: 'Security & Reporting', label: 'Vulnerability Disclosure', href: '/security/vulnerability-disclosure', position: 12 },
+  { location: 'footer', group: 'Security & Reporting', label: 'Responsible Disclosure', href: '/security/responsible-disclosure', position: 13 },
+  { location: 'footer', group: 'Security & Reporting', label: 'Whistleblower Center', href: '/whistleblower', position: 14 },
+  { location: 'footer', group: 'Security & Reporting', label: 'Report Confidentially', href: '/report-confidentially', position: 15 },
   { location: 'dashboard_help', label: 'FAQ', href: '/faq', position: 0 },
   { location: 'dashboard_help', label: 'Education Hub', href: '/education-hub', position: 1 },
 ];

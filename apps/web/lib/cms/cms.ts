@@ -167,7 +167,7 @@ export async function rollbackToRevision(pageId: string, revisionId: string): Pr
 }
 
 // ---- navigation + media (Deliverables 13, 14) -----------------------------
-export interface NavItem { id: string; location: string; label: string; href: string; position: number; active: boolean }
+export interface NavItem { id: string; location: string; label: string; href: string; position: number; active: boolean; group?: string | null }
 export interface MediaItem { id: string; filename: string; mimeType: string | null; sizeBytes: number | null; url: string; uploadedAt: string }
 
 const DEMO_NAV: NavItem[] = [
@@ -187,7 +187,7 @@ export async function listNavigation(): Promise<DbResult<NavItem[]> & { demo?: b
   try {
     const { data, error } = await gate.ctx.db.from('cms_navigation').select('*').order('location').order('position');
     if (error) return adminFail(error);
-    return { ok: true, data: (data ?? []).map((r) => { const x = r as Record<string, unknown>; return { id: String(x.id), location: String(x.location), label: String(x.label), href: String(x.href), position: Number(x.position ?? 0), active: Boolean(x.active) }; }) };
+    return { ok: true, data: (data ?? []).map((r) => { const x = r as Record<string, unknown>; return { id: String(x.id), location: String(x.location), label: String(x.label), href: String(x.href), position: Number(x.position ?? 0), active: Boolean(x.active), group: (x.nav_group as string) ?? null }; }) };
   } catch (e) { return adminFail(e); }
 }
 
@@ -204,24 +204,27 @@ export async function listMedia(): Promise<DbResult<MediaItem[]> & { demo?: bool
 }
 
 // ---- navigation CRUD (Deliverable 12) — admin only, audited ---------------
-export async function createNavItem(input: { location: string; label: string; href: string; position?: number }): Promise<DbResult<{ id: string }>> {
+export async function createNavItem(input: { location: string; label: string; href: string; position?: number; group?: string }): Promise<DbResult<{ id: string }>> {
   if (!supabaseConfigured()) return notConfigured();
   const gate = await requireAdmin();
   if (!gate.ok) return gate;
   try {
-    const { data, error } = await gate.ctx.db.from('cms_navigation').insert({ location: input.location, label: input.label, href: input.href, position: input.position ?? 0, active: true }).select('id').single();
+    const { data, error } = await gate.ctx.db.from('cms_navigation').insert({ location: input.location, label: input.label, href: input.href, position: input.position ?? 0, active: true, nav_group: input.group ?? null }).select('id').single();
     if (error) return adminFail(error);
     await audit(gate.ctx.db, gate.ctx.user.id, 'nav_create', 'cms_navigation', String((data as { id: string }).id));
     return { ok: true, data: { id: String((data as { id: string }).id) } };
   } catch (e) { return adminFail(e); }
 }
 
-export async function updateNavItem(id: string, patch: { label?: string; href?: string; position?: number; active?: boolean }): Promise<DbResult<{ id: string }>> {
+export async function updateNavItem(id: string, patch: { label?: string; href?: string; position?: number; active?: boolean; group?: string }): Promise<DbResult<{ id: string }>> {
   if (!supabaseConfigured()) return notConfigured();
   const gate = await requireAdmin();
   if (!gate.ok) return gate;
   try {
-    const { error } = await gate.ctx.db.from('cms_navigation').update(patch).eq('id', id);
+    const { group, ...rest } = patch;
+    const dbPatch: Record<string, unknown> = { ...rest };
+    if (group !== undefined) dbPatch.nav_group = group;
+    const { error } = await gate.ctx.db.from('cms_navigation').update(dbPatch).eq('id', id);
     if (error) return adminFail(error);
     await audit(gate.ctx.db, gate.ctx.user.id, 'nav_update', 'cms_navigation', id, patch);
     return { ok: true, data: { id } };
@@ -238,6 +241,32 @@ export async function deleteNavItem(id: string): Promise<DbResult<{ id: string }
     await audit(gate.ctx.db, gate.ctx.user.id, 'nav_delete', 'cms_navigation', id);
     return { ok: true, data: { id } };
   } catch (e) { return adminFail(e); }
+}
+
+// ---- public footer navigation (Phase 41B.3 D) -----------------------------
+export interface PublicFooterGroup { title: string; links: { label: string; href: string }[] }
+
+/**
+ * Public: CMS-managed footer navigation, grouped + ordered, ACTIVE only. Returns
+ * null when none are configured (the hardcoded Footer columns then render). RLS
+ * allows anonymous read of active nav (migration 0047). Never throws.
+ */
+export async function getPublicFooterGroups(): Promise<PublicFooterGroup[] | null> {
+  if (!supabaseConfigured()) return null;
+  try {
+    const db = createClient();
+    const { data } = await db.from('cms_navigation').select('label, href, position, nav_group').eq('location', 'footer').eq('active', true).order('position', { ascending: true });
+    const rows = (data ?? []) as Array<{ label: string; href: string; position: number; nav_group?: string | null }>;
+    if (rows.length === 0) return null;
+    const byGroup = new Map<string, { label: string; href: string }[]>();
+    for (const r of rows) {
+      const g = (r.nav_group && r.nav_group.trim()) || 'More';
+      const arr = byGroup.get(g) ?? [];
+      arr.push({ label: r.label, href: r.href });
+      byGroup.set(g, arr);
+    }
+    return Array.from(byGroup.entries()).map(([title, links]) => ({ title, links }));
+  } catch { return null; }
 }
 
 // ---- public read (marketing/dashboard render; falls back to hardcoded) -----

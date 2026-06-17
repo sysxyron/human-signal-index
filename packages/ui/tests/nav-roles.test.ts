@@ -13,6 +13,7 @@ import {
   ROLE_LADDER,
   roleLabel,
   nextRole,
+  publicHeaderState,
 } from '../src/nav-roles';
 
 // ---- invariants ------------------------------------------------------------
@@ -38,11 +39,13 @@ test('admin sees every restricted route', () => {
 // ---- viewer (Phase 41B.1 policy) -------------------------------------------
 
 const VIEWER_VISIBLE = [
-  '/dashboard', '/dashboard/sources', '/submit-a-signal',
+  '/dashboard', '/submit-a-signal',
   '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/tester', '/dashboard/tester-onboarding', '/dashboard/profile', '/dashboard/apply-role',
 ];
 const VIEWER_HIDDEN = [
+  // Phase 41B.3 (C): Source Registry is researcher+ — must not appear for viewers.
+  '/dashboard/sources',
   // intelligence / forecasting / collective / trust / worldforge / public reports
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine',
   '/dashboard/alerts', '/dashboard/public-reports',
@@ -66,7 +69,7 @@ test('viewer does NOT see analysis/forecast/collective/trust/worldforge/admin/qu
 // ---- researcher ------------------------------------------------------------
 
 test('researcher sees research surfaces but not reviewer/admin queues', () => {
-  for (const href of ['/dashboard/forecasts', '/dashboard/worldforge', '/dashboard/trust', '/dashboard/consensus', '/dashboard/public-reports', '/dashboard/signal-intake', '/dashboard/evidence-vault', '/dashboard/investigations']) {
+  for (const href of ['/dashboard/sources', '/dashboard/forecasts', '/dashboard/worldforge', '/dashboard/trust', '/dashboard/consensus', '/dashboard/public-reports', '/dashboard/signal-intake', '/dashboard/evidence-vault', '/dashboard/investigations']) {
     assert.equal(canSeeRoute(href, 'researcher'), true, href);
   }
   for (const href of ['/dashboard/review', '/dashboard/signal-submission', '/dashboard/launch/issues', '/dashboard/admin/users', '/dashboard/settings']) {
@@ -166,6 +169,21 @@ test('isRestrictedRoute flags gated routes', () => {
 });
 
 // ---- role ladder helpers (J/M) ---------------------------------------------
+
+test('admin sees Source Registry; viewer does not (C)', () => {
+  assert.equal(canSeeRoute('/dashboard/sources', 'admin'), true);
+  assert.equal(canSeeRoute('/dashboard/sources', 'researcher'), true);
+  assert.equal(canSeeRoute('/dashboard/sources', 'viewer'), false);
+});
+
+test('publicHeaderState: anon shows Sign in; authed hides it + shows Dashboard (A)', () => {
+  const anon = publicHeaderState(false);
+  assert.equal(anon.showSignIn, true);
+  assert.equal(anon.dashboardLabel, 'Explore Dashboard');
+  const authed = publicHeaderState(true);
+  assert.equal(authed.showSignIn, false);
+  assert.equal(authed.dashboardLabel, 'Dashboard');
+});
 
 test('role ladder + labels + next role', () => {
   assert.deepEqual([...ROLE_LADDER], ['viewer', 'contributor', 'researcher', 'reviewer', 'curator', 'admin']);

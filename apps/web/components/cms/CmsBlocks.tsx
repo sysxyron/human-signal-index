@@ -38,6 +38,10 @@ export function CmsBlock({ block }: { block: CmsBlock }) {
       const cards = Array.isArray(c.cards) ? (c.cards as Array<{ title?: string; body?: string }>) : [];
       return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cards.map((cd, i) => <div key={i} className="rounded-card border border-border p-4"><div className="font-semibold text-text-primary">{s(cd.title)}</div><div className="mt-1 text-caption text-text-secondary">{s(cd.body)}</div></div>)}</div>;
     }
+    default:
+      // Unknown/unsupported block type: render nothing rather than crashing the
+      // page (defensive — publish validation should reject these first).
+      return null;
   }
 }
 

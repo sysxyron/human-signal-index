@@ -25,7 +25,7 @@ import {
 import { appHref } from '@/lib/env/app-url';
 import { AuthHashForwarder } from '@/components/auth/AuthHashForwarder';
 import { getPublishedPage } from '@/lib/cms/cms';
-import { CmsBlocks } from '@/components/cms/CmsBlocks';
+import { resolveBespokeContent } from '@/lib/cms/bespoke';
 
 const heroMetrics = [
   { label: 'Active Sources', value: '24,781', accent: '#3B82F6', spark: [12, 18, 15, 22, 28, 26, 34] },
@@ -101,10 +101,11 @@ const heatRows = Array.from({ length: 5 }, (_, r) =>
 );
 
 export default async function HomePage() {
-  // Phase 31B — CMS-first: if an admin has PUBLISHED a 'home' page, render it.
-  // Otherwise fall back to this flagship hardcoded homepage (never breaks).
+  // Platform-owned page (41B.3A): the flagship template ALWAYS renders. CMS may
+  // only fill approved hero slots — generic blocks never replace this layout, so
+  // publishing a 'home' CMS page can no longer corrupt it (no refresh needed).
   const cms = await getPublishedPage('home');
-  if (cms) return <CmsBlocks blocks={cms.blocks} />;
+  const { slots } = resolveBespokeContent('home', cms);
 
   return (
     <main className="text-text-primary">
@@ -118,13 +119,16 @@ export default async function HomePage() {
           <div className="max-w-xl space-y-6 animate-fade-up">
             <SectionEyebrow>A Public-Interest Observatory</SectionEyebrow>
             <h1 className="text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[44px] lg:text-h1">
-              Mapping the Narratives That Shape{' '}
-              <span className="text-electric">Humanity.</span>
+              {slots.heroHeading ?? (
+                <>
+                  Mapping the Narratives That Shape{' '}
+                  <span className="text-electric">Humanity.</span>
+                </>
+              )}
             </h1>
             <p className="text-body-lg text-text-secondary">
-              Human Signal Index tracks, analyzes, and explains the ideas,
-              ideologies, movements, and signals influencing human behavior and
-              civilization, with traceability, transparency, and context.
+              {slots.heroSubheading ??
+                'Human Signal Index tracks, analyzes, and explains the ideas, ideologies, movements, and signals influencing human behavior and civilization, with traceability, transparency, and context.'}
             </p>
             <div className="flex flex-wrap gap-3">
               <a href={appHref('/dashboard')}>
@@ -215,7 +219,7 @@ export default async function HomePage() {
                 </li>
               ))}
             </ul>
-            <a href="/about">
+            <a href="/mission">
               <Button variant="secondary">
                 Read our mission <ArrowRight className="h-4 w-4" />
               </Button>

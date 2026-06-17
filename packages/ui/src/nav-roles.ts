@@ -22,6 +22,10 @@ export type NavRole = 'viewer' | 'researcher' | 'reviewer' | 'curator' | 'admin'
  */
 export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   // Operations
+  // Phase 41B.3 (C): Source Registry is researcher+ only — middleware/RLS gate the
+  // page, so viewers must not see a menu item that leads to "Access requires a
+  // higher role". Source management permissions are unchanged.
+  '/dashboard/sources': ['researcher', 'reviewer', 'curator'],
   '/dashboard/signal-intake': ['researcher', 'reviewer'],
   '/dashboard/signal-submission': ['reviewer', 'curator'], // submission review queue (41B)
   '/dashboard/evidence-vault': ['researcher', 'reviewer', 'curator'],
@@ -221,6 +225,15 @@ export const ROLE_LADDER = ['viewer', 'contributor', 'researcher', 'reviewer', '
 export function roleLabel(role: string | null | undefined): string {
   if (!role) return 'Viewer';
   return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+/**
+ * Phase 41B.3 (A) — public header state from auth. Anonymous visitors see a
+ * Sign-in link + "Explore Dashboard"; authenticated visitors never see Sign in
+ * and get a "Dashboard" action. PURE. (Auth is detected server-side.)
+ */
+export function publicHeaderState(authed: boolean): { showSignIn: boolean; dashboardLabel: string } {
+  return { showSignIn: !authed, dashboardLabel: authed ? 'Dashboard' : 'Explore Dashboard' };
 }
 
 /** The next role a user could apply toward (null at the top / admin). */

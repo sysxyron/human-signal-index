@@ -42,7 +42,7 @@ export async function seedCmsContentAction(): Promise<DbResult<SeedResult>> {
       try { const { data } = await db.from('cms_navigation').select('location, href'); return new Set(((data ?? []) as Array<{ location: string; href: string }>).map((r) => `${r.location}:${r.href}`)); } catch { return new Set<string>(); }
     })();
     const missingNav = selectMissing(SEED_NAV, haveNav, (n) => `${n.location}:${n.href}`);
-    if (missingNav.length) { await db.from('cms_navigation').insert(missingNav.map((n) => ({ location: n.location, label: n.label, href: n.href, position: n.position, active: true }))); result.navItems = missingNav.length; }
+    if (missingNav.length) { await db.from('cms_navigation').insert(missingNav.map((n) => ({ location: n.location, label: n.label, href: n.href, position: n.position, active: true, nav_group: n.group ?? null }))); result.navItems = missingNav.length; }
 
     // 3. Role content (PK role).
     const haveRoles = await existingKeys('cms_role_content', 'role');

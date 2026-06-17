@@ -61,7 +61,7 @@ import {
 } from 'lucide-react';
 import { cn } from './utils';
 import { Button } from './primitives';
-import { filterNavGroups, roleLabel } from './nav-roles';
+import { filterNavGroups, roleLabel, publicHeaderState } from './nav-roles';
 
 /* -------------------------------------------------------------------------- */
 /* Brand mark                                                                   */
@@ -110,15 +110,19 @@ export function PublicNav({
   dashboardHref = '/dashboard',
   siteBase = '',
   signInHref,
+  authed = false,
 }: {
   dashboardHref?: string;
   /** Marketing origin base (absolute www in prod, '' in dev → relative). */
   siteBase?: string;
-  /** App-domain sign-in URL; when set, a Sign-in link is shown. */
+  /** App-domain sign-in URL; shown only to anonymous visitors. */
   signInHref?: string;
+  /** Phase 41B.3 (A): when true, hide Sign in and show a Dashboard action. */
+  authed?: boolean;
 } = {}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const header = publicHeaderState(authed);
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-6 py-3.5">
@@ -144,14 +148,14 @@ export function PublicNav({
           })}
         </nav>
         <div className="hidden items-center gap-3 xl:flex">
-          {signInHref ? (
+          {header.showSignIn && signInHref ? (
             <a href={signInHref} className="text-[13px] font-medium text-text-secondary transition hover:text-text-primary">
               Sign in
             </a>
           ) : null}
           <a href={dashboardHref}>
             <Button variant="primary" size="sm">
-              Explore Dashboard
+              {header.dashboardLabel}
             </Button>
           </a>
         </div>
@@ -183,14 +187,14 @@ export function PublicNav({
                 </a>
               );
             })}
-            {signInHref ? (
+            {header.showSignIn && signInHref ? (
               <a href={signInHref} className="rounded-lg px-3 py-2 text-sm text-text-secondary transition hover:bg-surface-2 hover:text-text-primary" onClick={() => setOpen(false)}>
                 Sign in
               </a>
             ) : null}
             <a href={dashboardHref} className="mt-2">
               <Button variant="primary" size="sm" className="w-full">
-                Explore Dashboard
+                {header.dashboardLabel}
               </Button>
             </a>
           </nav>
@@ -249,11 +253,15 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
 export function Footer({
   dashboardHref = '/dashboard',
   siteBase = '',
+  groups,
 }: {
   dashboardHref?: string;
   siteBase?: string;
+  /** Phase 41B.3 (D): CMS-managed footer groups; falls back to hardcoded columns. */
+  groups?: { title: string; links: { label: string; href: string }[] }[];
 } = {}) {
   const pathname = usePathname();
+  const columns = groups && groups.length ? groups : footerColumns;
   return (
     <footer className="border-t border-border bg-background-deep">
       <div className="mx-auto max-w-[1180px] px-6 py-14">
@@ -269,7 +277,7 @@ export function Footer({
               Evidence first. Traceability always. Humanity above all.
             </p>
           </div>
-          {footerColumns.map((col) => (
+          {columns.map((col) => (
             <div key={col.title}>
               <h5 className="text-label text-text-muted">{col.title}</h5>
               <ul className="mt-4 space-y-2.5">
