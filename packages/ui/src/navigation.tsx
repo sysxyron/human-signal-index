@@ -74,7 +74,7 @@ export function BrandMark({ compact = false, homeHref = '/' }: { compact?: boole
         <Activity className="h-4 w-4 text-white" />
       </span>
       {!compact ? (
-        <span className="text-[13px] font-bold uppercase tracking-[0.18em] text-text-primary">
+        <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-primary sm:text-[13px] sm:tracking-[0.18em]">
           Human Signal Index
         </span>
       ) : null}
@@ -136,10 +136,12 @@ export function PublicNav({
                 href={`${siteBase}${link.href}`}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'text-[13px] font-medium transition',
+                  // animated underline via an absolute pseudo-element → no layout shift
+                  'relative inline-flex pb-1 text-[13px] font-medium transition-colors',
+                  'after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-electric after:transition-transform after:duration-300 after:ease-out',
                   active
-                    ? 'font-semibold text-electric [text-shadow:0_0_12px_rgba(59,130,246,0.45)]'
-                    : 'text-text-secondary hover:text-text-primary',
+                    ? 'font-semibold text-electric [text-shadow:0_0_12px_rgba(59,130,246,0.45)] after:scale-x-100'
+                    : 'text-text-secondary after:scale-x-0 hover:text-text-primary hover:after:scale-x-100',
                 )}
               >
                 {link.label}

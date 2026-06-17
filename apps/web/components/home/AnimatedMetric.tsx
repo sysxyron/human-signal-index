@@ -68,9 +68,9 @@ export function AnimatedMetric({ spec }: { spec: MetricSpec }) {
         </span>
       </div>
       <div className="mt-1.5 flex items-end justify-between gap-2">
-        <span className="text-h4 font-bold tabular-nums text-text-primary" style={{ textShadow: `0 0 18px ${spec.accent}40` }}>{display}</span>
+        <span className="text-h5 font-bold tabular-nums text-text-primary sm:text-h4" style={{ textShadow: `0 0 18px ${spec.accent}40` }}>{display}</span>
         {spec.spark && spec.spark.length > 1 ? (
-          <svg width="56" height="20" viewBox="0 0 56 20" className="shrink-0" aria-hidden>
+          <svg width="56" height="20" viewBox="0 0 56 20" className="hidden shrink-0 min-[360px]:block" aria-hidden>
             <path d={sparkPath(spec.spark, 56, 20)} fill="none" stroke={spec.accent} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
           </svg>
         ) : null}

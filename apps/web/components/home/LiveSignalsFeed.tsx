@@ -9,6 +9,7 @@
 import { RiskBadge, CategoryTag, type RiskLevel, type CategoryTone } from '@hsi/ui';
 import { Radio } from 'lucide-react';
 import { RevealGroup, RevealItem } from './motion';
+import { LiveActivityPulse } from './LiveActivityPulse';
 
 export interface FeedItem {
   title: string;
@@ -21,7 +22,7 @@ export interface FeedItem {
 
 export function LiveSignalsFeed({ items }: { items: FeedItem[] }) {
   return (
-    <div className="rounded-card border border-border bg-surface/60 p-5">
+    <div className="h-full rounded-card border border-border bg-surface/60 p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-h6 font-semibold text-text-primary">
           <span className="relative flex h-2.5 w-2.5">
@@ -47,6 +48,7 @@ export function LiveSignalsFeed({ items }: { items: FeedItem[] }) {
           </RevealItem>
         ))}
       </RevealGroup>
+      <LiveActivityPulse />
     </div>
   );
 }

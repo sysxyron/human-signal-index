@@ -9,12 +9,14 @@ import { getPublishedPage } from '@/lib/cms/cms';
 import { resolveBespokeContent } from '@/lib/cms/bespoke';
 import { getPublicIntelligenceAction } from '@/lib/publishing/actions';
 import { formatDate } from '@/lib/signals/view';
-import { SignalNetwork } from '@/components/home/SignalNetwork';
+import { HeroNetworkGlobe } from '@/components/home/HeroNetworkGlobe';
+import { SignalTicker } from '@/components/home/SignalTicker';
 import { AnimatedMetric, type MetricSpec } from '@/components/home/AnimatedMetric';
 import { LiveSignalsFeed, type FeedItem } from '@/components/home/LiveSignalsFeed';
 import { MissionControlPreview, type MissionControlData } from '@/components/home/MissionControlPreview';
 import { TraceabilityPipeline } from '@/components/home/TraceabilityPipeline';
 import { HumanInLoop } from '@/components/home/HumanInLoop';
+import { EvidenceChain } from '@/components/home/EvidenceChain';
 import { PlatformActivity } from '@/components/home/PlatformActivity';
 import { Reveal, RevealGroup, RevealItem } from '@/components/home/motion';
 
@@ -40,6 +42,13 @@ const WHY = [
   'Every claim is traceable back to a verifiable source passage.',
   'Human reviewers stay in the loop on every published conclusion.',
   'Risk scoring is explainable, not a black box.',
+];
+
+// Proof-point chips for the "Why It Matters" panel (keeps the column intentional).
+const PROOF = [
+  { value: '96.3%', label: 'Traceable', color: '#10B981' },
+  { value: '100%', label: 'Human Reviewed', color: '#3B82F6' },
+  { value: '24.7k', label: 'Sources', color: '#8B5CF6' },
 ];
 
 const TRUSTED = [
@@ -111,8 +120,8 @@ export default async function HomePage() {
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 grid-bg opacity-60" />
-        <div className="relative mx-auto grid max-w-page items-center gap-10 px-6 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:py-24">
-          <div className="max-w-xl space-y-6 animate-fade-up">
+        <div className="relative mx-auto grid max-w-page items-center gap-8 px-5 py-10 sm:px-6 sm:py-14 lg:grid-cols-[1fr_1.08fr] lg:gap-12 lg:py-28">
+          <div className="max-w-xl space-y-5 animate-fade-up sm:space-y-6">
             <SectionEyebrow>A Live Public-Interest Intelligence Network</SectionEyebrow>
             <h1 className="text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[44px] lg:text-h1">
               {slots.heroHeading ?? (
@@ -132,13 +141,14 @@ export default async function HomePage() {
             </div>
             <p className="text-body-sm text-text-muted">Evidence first. Traceability always. Humanity above all.</p>
           </div>
-          <div className="relative flex justify-center lg:justify-end">
-            <SignalNetwork />
+          <div className="relative flex min-h-[260px] items-center justify-center sm:min-h-[360px] lg:min-h-[540px] lg:justify-center">
+            <HeroNetworkGlobe className="mx-auto w-full max-w-[330px] sm:max-w-[440px] lg:max-w-none" />
           </div>
         </div>
 
-        {/* animated metric strip */}
-        <div className="relative mx-auto max-w-page px-6 pb-16">
+        {/* live signal ticker + animated metric strip */}
+        <div className="relative mx-auto max-w-page space-y-4 px-5 pb-12 sm:px-6 sm:pb-16">
+          <SignalTicker items={feed} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {METRICS.map((m) => <AnimatedMetric key={m.label} spec={m} />)}
           </div>
@@ -169,12 +179,14 @@ export default async function HomePage() {
 
       {/* LIVE SIGNALS + WHY */}
       <section className="mx-auto max-w-section px-6 py-8 lg:py-12">
-        <div className="grid items-start gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <Reveal><LiveSignalsFeed items={feed} /></Reveal>
-          <Reveal delay={0.1}>
-            <div className="space-y-4">
-              <SectionEyebrow>Why It Matters</SectionEyebrow>
-              <h2 className="text-h3 font-bold">Ideas shape reality. <span className="text-gradient">Signals reveal the truth.</span></h2>
+        <div className="grid items-stretch gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <Reveal className="h-full"><LiveSignalsFeed items={feed} /></Reveal>
+          <Reveal delay={0.1} className="h-full">
+            <div className="flex h-full flex-col gap-5 rounded-card border border-border bg-surface/40 p-5 sm:p-6">
+              <div className="space-y-3">
+                <SectionEyebrow>Why It Matters</SectionEyebrow>
+                <h2 className="text-h3 font-bold">Ideas shape reality. <span className="text-gradient">Signals reveal the truth.</span></h2>
+              </div>
               <ul className="space-y-3">
                 {WHY.map((p) => (
                   <li key={p} className="flex items-start gap-3">
@@ -183,7 +195,18 @@ export default async function HomePage() {
                   </li>
                 ))}
               </ul>
-              <a href="/mission"><Button variant="secondary">Read our mission <ArrowRight className="h-4 w-4" /></Button></a>
+              {/* proof points */}
+              <div className="grid grid-cols-3 gap-2">
+                {PROOF.map((p) => (
+                  <div key={p.label} className="rounded-card border border-border bg-background-deep/40 px-2.5 py-2 text-center">
+                    <div className="text-h6 font-bold tabular-nums" style={{ color: p.color }}>{p.value}</div>
+                    <div className="text-[10px] font-medium uppercase tracking-wide text-text-muted">{p.label}</div>
+                  </div>
+                ))}
+              </div>
+              {/* traceability evidence chain — fills the column intentionally */}
+              <EvidenceChain />
+              <a href="/mission" className="mt-auto"><Button variant="secondary" className="w-full sm:w-auto">Read our mission <ArrowRight className="h-4 w-4" /></Button></a>
             </div>
           </Reveal>
         </div>

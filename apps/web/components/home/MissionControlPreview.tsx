@@ -40,7 +40,7 @@ export function MissionControlPreview({ data }: { data: MissionControlData }) {
           </span>
         </div>
 
-        <div className="grid gap-4 p-4 lg:grid-cols-3">
+        <div className="grid gap-3 p-3 sm:gap-4 sm:p-4 lg:grid-cols-3">
           {/* signal activity */}
           <div className="rounded-card border border-border bg-surface/50 p-3 lg:col-span-2">
             <div className="mb-2 flex items-center justify-between">
@@ -65,8 +65,8 @@ export function MissionControlPreview({ data }: { data: MissionControlData }) {
             </div>
           </div>
 
-          {/* narrative heatmap */}
-          <div className="lg:col-span-2">
+          {/* narrative heatmap — hidden on the smallest screens to reduce density */}
+          <div className="hidden sm:block lg:col-span-2">
             <HeatmapCard title="Narrative heatmap" subtitle="topic intensity by day" matrix={data.heat} colLabels={data.heatCols} color="#8B5CF6" />
           </div>
 
