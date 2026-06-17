@@ -25,6 +25,12 @@ import {
   OfflineDemoBanner,
   type DbErrorCode,
 } from '@/components/signals/states';
+import { getAlertsIntelligence } from '@/lib/alerts-intelligence';
+import { WatchlistRegistry } from '@/components/alerts/WatchlistRegistry';
+import {
+  ExecutiveAlertSummary, AlertHealthPanel, SeverityPanel, AlertFeed, EmergingNarratives,
+  SourceAlertsPanel, ReviewAlertsPanel, NotificationPrep,
+} from '@/components/alerts/panels';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,9 +39,10 @@ export const revalidate = 0;
 type WatchlistRow = HsinWatchlistRecord & { sourceCount?: number };
 
 export default async function WatchlistsPage() {
-  const [res, role] = await Promise.all([
+  const [res, role, alertsIntel] = await Promise.all([
     listWatchlistsAction(),
     getSessionRole(),
+    getAlertsIntelligence(),
   ]);
 
   const manage = canResearch(role);
@@ -58,14 +65,38 @@ export default async function WatchlistsPage() {
 
   return (
     <>
-      <TopNav title="Watchlists" subtitle="Neutral, research-oriented term sets" />
+      <TopNav title="Alerts & Watchlists" subtitle="What changed, what needs attention, what to watch" />
       <main className="space-y-6 p-5 lg:p-6">
         <IntelNav />
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* ---- Phase 51: intelligence alerting surface (read-only) ---- */}
+        <ExecutiveAlertSummary summary={alertsIntel.summary} />
+        <AlertHealthPanel health={alertsIntel.health} />
+
+        <div>
+          <h2 className="mb-4 text-h5 font-semibold text-text-primary">Watchlist registry</h2>
+          <WatchlistRegistry watchlists={alertsIntel.watchlists} alerts={alertsIntel.alerts} />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+          <AlertFeed alerts={alertsIntel.alerts} />
+          <SeverityPanel distribution={alertsIntel.severityDistribution} trend={alertsIntel.severityTrend} />
+        </div>
+
+        <EmergingNarratives emerging={alertsIntel.emerging} />
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <SourceAlertsPanel data={alertsIntel.sourceAlerts} />
+          <ReviewAlertsPanel data={alertsIntel.reviewAlerts} />
+        </div>
+
+        <NotificationPrep channels={alertsIntel.notificationChannels} />
+
+        {/* ---- existing Phase 7 custom watchlists (preserved) ---- */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
           <div className="flex items-center gap-2">
             <h2 className="flex items-center gap-2 text-h5 font-semibold text-text-primary">
-              <ListChecks className="h-5 w-5 text-electric" /> Watchlists
+              <ListChecks className="h-5 w-5 text-electric" /> Custom watchlists
             </h2>
             {isDemo ? <DemoBadge /> : null}
           </div>
