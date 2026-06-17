@@ -57,8 +57,8 @@ export default async function ApplyRolePage() {
             )}
           </div>
           <p className="text-caption text-text-secondary">
-            Earn trust and apply for advanced roles. Badges and reputation may unlock eligibility, but
-            researcher, reviewer, and curator roles are always granted by admin approval — never automatically.
+            Advanced research roles are granted by approval. Administrative access is reserved for platform
+            operators. Badges and reputation may unlock eligibility, but roles are never granted automatically.
           </p>
           {/* Progression ladder */}
           <div className="flex flex-wrap items-center gap-1.5 pt-1">

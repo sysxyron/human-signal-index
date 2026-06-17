@@ -186,10 +186,17 @@ test('publicHeaderState: anon shows Sign in; authed hides it + shows Dashboard (
 });
 
 test('role ladder + labels + next role', () => {
-  assert.deepEqual([...ROLE_LADDER], ['viewer', 'contributor', 'researcher', 'reviewer', 'curator', 'admin']);
   assert.equal(roleLabel('researcher'), 'Researcher');
   assert.equal(roleLabel(null), 'Viewer');
   assert.equal(nextRole('viewer'), 'contributor');
   assert.equal(nextRole('reviewer'), 'curator');
+});
+
+test('public role ladder is Viewer→Curator and NEVER includes Admin (41B.3B)', () => {
+  assert.deepEqual([...ROLE_LADDER], ['viewer', 'contributor', 'researcher', 'reviewer', 'curator']);
+  assert.equal((ROLE_LADDER as readonly string[]).includes('admin'), false);
+  // Curator is the top of the public ladder; there is no advancement beyond it.
+  assert.equal(nextRole('curator'), null);
+  // Admin is not on the ladder, so it offers no next step either.
   assert.equal(nextRole('admin'), null);
 });

@@ -218,8 +218,12 @@ export function filterNavGroups<I extends NavItemLike, G extends NavGroupLike<I>
 // -----------------------------------------------------------------------------
 // Role progression (Phase 41B.1) — display-only guidance. Advancement is by
 // APPROVAL via the role-application workflow; badges/XP never auto-grant a role.
+//
+// Phase 41B.3B: the PUBLIC ladder stops at Curator. Admin is an internal operator
+// role assigned only through admin-controlled IAM — it never appears as a public
+// advancement path and can never be applied for.
 // -----------------------------------------------------------------------------
-export const ROLE_LADDER = ['viewer', 'contributor', 'researcher', 'reviewer', 'curator', 'admin'] as const;
+export const ROLE_LADDER = ['viewer', 'contributor', 'researcher', 'reviewer', 'curator'] as const;
 
 /** Human label for a role (display indicator). */
 export function roleLabel(role: string | null | undefined): string {
