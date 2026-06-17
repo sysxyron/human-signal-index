@@ -28,9 +28,13 @@ import { createServiceRoleClient, createServerClient } from '@hsi/database';
 import {
   bucketOf,
   riskForBucket,
+  riskTier,
   normalizeCategoryActivity,
+  CATEGORY_BUCKETS,
+  RISK_TIERS,
   type CategoryActivity,
   type CategoryBucket,
+  type RiskTier,
 } from './public-intelligence-mapping';
 
 // ---- public types -----------------------------------------------------------
@@ -378,4 +382,201 @@ export async function getPublicActivityFeed(): Promise<PublicActivityItem[]> {
 /** Narrative category frequencies for the globe (six public buckets). */
 export async function getPublicCategoryActivity(): Promise<CategoryActivity[]> {
   return (await getPublicIntelligenceBundle()).categoryActivity;
+}
+
+// =============================================================================
+// Phase 44 — Signal Library Intelligence Explorer data layer.
+//
+// Reuses the same read client, category mapping, and caching as the homepage
+// (no duplicate query infrastructure). Reads the public, RLS-safe published
+// intelligence (publications: PUBLISHED + ARCHIVED/RETRACTED) once, then derives
+// the rich explorer cards, facet counts, category heatmap, and trend series.
+// Public-safe: only published/aggregate fields; no raw signals, sources, or PII.
+// =============================================================================
+
+export type LibraryStatus = 'Published' | 'Archived';
+
+export interface PublicLibrarySignal {
+  id: string;
+  title: string;
+  summary: string;
+  category: CategoryBucket;
+  risk_level: 1 | 2 | 3 | 4 | 5;
+  status: LibraryStatus;
+  /** ISO publication date (or created fallback); undefined when unknown. */
+  publishedAt?: string;
+  /** Pre-formatted on the server (no client Date → no hydration drift). */
+  dateLabel: string;
+  evidenceCount: number;
+  sourceCount: number;
+  /** 0–100 traceability (publication trust score); undefined when unknown. */
+  traceabilityScore?: number;
+  confidence?: number;
+  reviewStatus?: string;
+}
+
+export interface LibraryFacet<T extends string> {
+  key: T;
+  count: number;
+}
+
+export interface TrendPoint {
+  label: string;
+  value: number;
+}
+
+export interface SignalLibraryTrends {
+  signalsOverTime: TrendPoint[];
+  riskOverTime: TrendPoint[];
+  publicationsOverTime: TrendPoint[];
+}
+
+export interface SignalLibraryData {
+  signals: PublicLibrarySignal[];
+  total: number;
+  facets: {
+    categories: LibraryFacet<CategoryBucket>[];
+    risks: LibraryFacet<RiskTier>[];
+    statuses: LibraryFacet<LibraryStatus>[];
+  };
+  categoryActivity: CategoryActivity[];
+  trends: SignalLibraryTrends;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function fmtDate(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+function monthLabel(key: string): string {
+  const m = Number(key.slice(5, 7));
+  return MONTHS[Math.max(0, Math.min(11, m - 1))] ?? key;
+}
+
+/** Per-month counts from a list of ISO timestamps (last 8 months, ascending). */
+function monthCountSeries(isos: Array<string | null | undefined>): TrendPoint[] {
+  const m = new Map<string, number>();
+  for (const iso of isos) {
+    if (!iso) continue;
+    const k = iso.slice(0, 7);
+    m.set(k, (m.get(k) ?? 0) + 1);
+  }
+  return Array.from(m.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-8)
+    .map(([k, v]) => ({ label: monthLabel(k), value: v }));
+}
+
+function emptyLibrary(): SignalLibraryData {
+  return {
+    signals: [],
+    total: 0,
+    facets: {
+      categories: CATEGORY_BUCKETS.map((key) => ({ key, count: 0 })),
+      risks: RISK_TIERS.map((key) => ({ key, count: 0 })),
+      statuses: [{ key: 'Published', count: 0 }, { key: 'Archived', count: 0 }],
+    },
+    categoryActivity: [],
+    trends: { signalsOverTime: [], riskOverTime: [], publicationsOverTime: [] },
+  };
+}
+
+async function loadLibrary(): Promise<SignalLibraryData> {
+  const c = readClient();
+  if (!c) return emptyLibrary();
+
+  let signals: PublicLibrarySignal[] = [];
+  try {
+    const { data } = await c
+      .from('hsin_publications')
+      .select('id, slug, title, summary, categories, trust_score, confidence, evidence_count, source_count, review_status, state, published_at, created_at')
+      .in('state', ['PUBLISHED', 'ARCHIVED', 'RETRACTED'])
+      .order('published_at', { ascending: false, nullsFirst: false })
+      .limit(300);
+    const rows = (data ?? []) as Array<{
+      id: string; slug: string | null; title: string | null; summary: string | null; categories: unknown;
+      trust_score: number | null; confidence: number | null; evidence_count: number | null; source_count: number | null;
+      review_status: string | null; state: string | null; published_at: string | null; created_at: string;
+    }>;
+    signals = rows.map((r) => {
+      const category = bucketOf(listFromJson(r.categories)[0]);
+      const publishedAt = r.published_at ?? r.created_at;
+      return {
+        id: r.slug ?? r.id,
+        title: r.title ?? 'Untitled',
+        summary: r.summary ?? '',
+        category,
+        risk_level: riskForBucket(category),
+        status: (r.state === 'PUBLISHED' ? 'Published' : 'Archived') as LibraryStatus,
+        publishedAt,
+        dateLabel: fmtDate(publishedAt),
+        evidenceCount: r.evidence_count ?? 0,
+        sourceCount: r.source_count ?? 0,
+        ...(typeof r.trust_score === 'number' ? { traceabilityScore: r.trust_score } : {}),
+        ...(typeof r.confidence === 'number' ? { confidence: r.confidence } : {}),
+        ...(r.review_status ? { reviewStatus: r.review_status } : {}),
+      };
+    });
+  } catch {
+    return emptyLibrary();
+  }
+
+  // Facets (derived in-memory — no extra queries).
+  const categories = CATEGORY_BUCKETS.map((key) => ({ key, count: signals.filter((s) => s.category === key).length }));
+  const risks = RISK_TIERS.map((key) => ({ key, count: signals.filter((s) => riskTier(s.risk_level) === key).length }));
+  const statuses: LibraryFacet<LibraryStatus>[] = [
+    { key: 'Published', count: signals.filter((s) => s.status === 'Published').length },
+    { key: 'Archived', count: signals.filter((s) => s.status === 'Archived').length },
+  ];
+  const categoryActivity: CategoryActivity[] = categories.map(({ key, count }) => ({ category: key, count }));
+
+  // Trends.
+  const publicationsOverTime = monthCountSeries(signals.map((s) => s.publishedAt));
+  const riskOverTime = (() => {
+    const sum = new Map<string, { s: number; n: number }>();
+    for (const s of signals) {
+      if (!s.publishedAt) continue;
+      const k = s.publishedAt.slice(0, 7);
+      const e = sum.get(k) ?? { s: 0, n: 0 };
+      e.s += s.risk_level; e.n += 1; sum.set(k, e);
+    }
+    return Array.from(sum.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-8)
+      .map(([k, e]) => ({ label: monthLabel(k), value: Math.round((e.s / e.n) * 10) / 10 }));
+  })();
+  let signalsOverTime: TrendPoint[] = [];
+  try {
+    const { data } = await c.from('hsin_signals').select('created_at').order('created_at', { ascending: false }).limit(2000);
+    const isos = ((data ?? []) as Array<{ created_at: string }>).map((r) => r.created_at);
+    signalsOverTime = monthCountSeries(isos);
+  } catch { /* ignore */ }
+  if (signalsOverTime.length === 0) signalsOverTime = publicationsOverTime;
+
+  return {
+    signals,
+    total: signals.length,
+    facets: { categories, risks, statuses },
+    categoryActivity,
+    trends: { signalsOverTime, riskOverTime, publicationsOverTime },
+  };
+}
+
+const loadLibraryCached = unstable_cache(
+  async (): Promise<SignalLibraryData> => loadLibrary(),
+  ['public-signal-library:v1'],
+  { revalidate: 120, tags: ['public-intelligence'] },
+);
+
+/** Cached, anonymous-safe, public-safe Signal Library dataset. Never throws. */
+export async function getSignalLibraryData(): Promise<SignalLibraryData> {
+  try {
+    return await loadLibraryCached();
+  } catch {
+    return emptyLibrary();
+  }
 }

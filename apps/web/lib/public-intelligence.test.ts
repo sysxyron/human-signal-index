@@ -7,7 +7,10 @@ import {
   colorForBucket,
   normalizeCategoryActivity,
   distributeNodes,
+  riskTier,
+  colorForRiskTier,
   CATEGORY_BUCKETS,
+  RISK_TIERS,
 } from './public-intelligence-mapping';
 import { rateLimit, __resetRateLimit, clientKeyFromHeaders } from './rate-limit';
 
@@ -77,6 +80,18 @@ test('distributeNodes falls back to an even spread with no activity', () => {
   assert.equal(nodes.length, 12);
   // even spread touches multiple buckets
   assert.ok(new Set(nodes).size >= 2);
+});
+
+test('riskTier maps 1–5 levels to the four public tiers', () => {
+  assert.equal(riskTier(5), 'Critical');
+  assert.equal(riskTier(4), 'High');
+  assert.equal(riskTier(3), 'Moderate');
+  assert.equal(riskTier(2), 'Low');
+  assert.equal(riskTier(1), 'Low');
+});
+
+test('colorForRiskTier returns a hex for every tier', () => {
+  for (const t of RISK_TIERS) assert.match(colorForRiskTier(t), /^#[0-9A-Fa-f]{6}$/);
 });
 
 // ---- rate limiter -----------------------------------------------------------

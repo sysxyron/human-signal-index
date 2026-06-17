@@ -78,6 +78,29 @@ export function colorForBucket(bucket: CategoryBucket): string {
   }
 }
 
+// ---- risk tiers (public facet labels) --------------------------------------
+
+export const RISK_TIERS = ['Critical', 'High', 'Moderate', 'Low'] as const;
+export type RiskTier = (typeof RISK_TIERS)[number];
+
+/** Map a 1–5 risk level to a public tier label. */
+export function riskTier(level: number): RiskTier {
+  if (level >= 5) return 'Critical';
+  if (level === 4) return 'High';
+  if (level === 3) return 'Moderate';
+  return 'Low';
+}
+
+/** Tier color (hex) for charts/heatmaps. */
+export function colorForRiskTier(tier: RiskTier): string {
+  switch (tier) {
+    case 'Critical': return '#B91C1C';
+    case 'High': return '#EF4444';
+    case 'Moderate': return '#F59E0B';
+    case 'Low': return '#3B82F6';
+  }
+}
+
 export interface CategoryActivity {
   category: CategoryBucket;
   count: number;
