@@ -102,7 +102,14 @@ function emptyBundle(): PublicIntelligenceBundle {
  * Best read client for public aggregates: service-role (RLS-bypassed counts)
  * when configured, else the anon server client (published-only). Returns null
  * when neither can be constructed (e.g. no env) so callers degrade gracefully.
+ *
+ * Exported as `readPublicClient` so sibling read-only intelligence modules
+ * (e.g. source-intelligence) reuse the exact same client strategy + fallbacks.
  */
+export function readPublicClient(): SupabaseClient | null {
+  return readClient();
+}
+
 function readClient(): SupabaseClient | null {
   try {
     return createServiceRoleClient();
