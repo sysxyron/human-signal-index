@@ -19,6 +19,7 @@
 // =============================================================================
 
 import { motion, useReducedMotion } from 'framer-motion';
+import { distributeNodes, colorForBucket, type CategoryActivity } from '@/lib/public-intelligence-mapping';
 
 const C = 240;
 const R = 185;
@@ -74,8 +75,16 @@ const LATS = [-130, -70, 0, 70, 130].map((dy) => {
 // Meridian ellipses at stepped longitudes.
 const MERIDIANS = [R, R * 0.66, R * 0.34, 3];
 
-export function HeroNetworkGlobe({ className }: { className?: string }) {
+export function HeroNetworkGlobe({ className, categoryActivity }: { className?: string; categoryActivity?: CategoryActivity[] }) {
   const reduce = useReducedMotion();
+
+  // When real narrative activity exists, color the network nodes by category
+  // frequency (the globe becomes a live visualization, not decoration). Falls
+  // back to the static category palette when there is no public activity.
+  const live = (categoryActivity ?? []).some((a) => a.count > 0)
+    ? distributeNodes(NODES.length, categoryActivity ?? [])
+    : null;
+  const nodeColor = (i: number) => (live ? colorForBucket(live[i % live.length]) : CATS[NODES[i].cat].color);
 
   return (
     <div className={`relative ${className ?? ''}`}>
@@ -204,7 +213,7 @@ export function HeroNetworkGlobe({ className }: { className?: string }) {
                   cx={NODES[n].x}
                   cy={NODES[n].y}
                   fill="none"
-                  stroke={CATS[NODES[n].cat].color}
+                  stroke={nodeColor(n)}
                   strokeWidth={1.4}
                   initial={{ r: 2, opacity: 0 }}
                   animate={{ r: [2, 34], opacity: [0.55, 0] }}
@@ -215,7 +224,7 @@ export function HeroNetworkGlobe({ className }: { className?: string }) {
 
           {/* midground nodes */}
           {NODES.map((n, i) => {
-            const color = CATS[n.cat].color;
+            const color = nodeColor(i);
             return (
               <g key={`n${i}`}>
                 <circle cx={n.x} cy={n.y} r={7} fill={color} opacity={0.18} filter="url(#hsi-globe-blur)" />

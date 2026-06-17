@@ -7,7 +7,8 @@ import { appHref } from '@/lib/env/app-url';
 import { AuthHashForwarder } from '@/components/auth/AuthHashForwarder';
 import { getPublishedPage } from '@/lib/cms/cms';
 import { resolveBespokeContent } from '@/lib/cms/bespoke';
-import { getPublicIntelligenceAction } from '@/lib/publishing/actions';
+import { getPublicIntelligenceBundle } from '@/lib/public-intelligence';
+import { toneForBucket } from '@/lib/public-intelligence-mapping';
 import { formatDate } from '@/lib/signals/view';
 import { HeroNetworkGlobe } from '@/components/home/HeroNetworkGlobe';
 import { SignalTicker } from '@/components/home/SignalTicker';
@@ -19,15 +20,6 @@ import { HumanInLoop } from '@/components/home/HumanInLoop';
 import { EvidenceChain } from '@/components/home/EvidenceChain';
 import { PlatformActivity } from '@/components/home/PlatformActivity';
 import { Reveal, RevealGroup, RevealItem } from '@/components/home/motion';
-
-// ---- Animated platform metrics (demo values; deltas drive the trend chips) ---
-const METRICS: MetricSpec[] = [
-  { label: 'Active Sources', value: 24781, format: 'count', accent: '#3B82F6', delta: 6.4, spark: [12, 18, 15, 22, 28, 26, 34] },
-  { label: 'Signals Analyzed', value: 152390, format: 'count', accent: '#8B5CF6', delta: 9.1, spark: [40, 38, 52, 60, 58, 72, 88] },
-  { label: 'Pending Reviews', value: 8432, format: 'count', accent: '#F59E0B', delta: -3.2, spark: [30, 28, 35, 32, 40, 38, 44] },
-  { label: 'High-Risk Signals', value: 312, format: 'count', accent: '#EF4444', delta: 4.8, spark: [8, 10, 9, 14, 12, 18, 22] },
-  { label: 'Traceability Score', value: 96.3, format: 'percent', accent: '#10B981', delta: 1.2, spark: [90, 91, 93, 92, 95, 95, 96] },
-];
 
 const FEATURES = [
   { icon: Radio, title: 'Collect Public Signals', description: 'Continuously capture public narratives, campaigns, and open-source evidence across platforms.', color: '#3B82F6' },
@@ -59,15 +51,6 @@ const TRUSTED = [
   { icon: Landmark, label: 'Policy Analysts' },
 ];
 
-const DEMO_FEED: FeedItem[] = [
-  { title: 'Coordinated recruitment narrative across 4 platforms', category: 'Recruitment', time: '2m ago', risk: 5, tone: 'orange', demo: true },
-  { title: 'Health misinformation cluster amplified by inauthentic accounts', category: 'Misinformation', time: '14m ago', risk: 4, tone: 'red', demo: true },
-  { title: 'State-aligned influence operation signature', category: 'Influence', time: '38m ago', risk: 4, tone: 'purple', demo: true },
-  { title: 'Election narrative seeding detected', category: 'Civic', time: '1h ago', risk: 3, tone: 'blue', demo: true },
-  { title: 'Astroturfed product campaign', category: 'Astroturf', time: '2h ago', risk: 2, tone: 'orange', demo: true },
-  { title: 'Benign viral trend flagged low-risk', category: 'Cultural', time: '3h ago', risk: 1, tone: 'green', demo: true },
-];
-
 const MISSION: MissionControlData = {
   series: [
     { name: 'Signals', color: '#3B82F6', data: [22, 30, 28, 42, 38, 55, 60, 72] },
@@ -92,26 +75,32 @@ const MISSION: MissionControlData = {
   traceability: 96.3,
 };
 
-const ACTIVITY: MetricSpec[] = [
-  METRICS[0], METRICS[1], METRICS[2], METRICS[4],
-];
-
 export default async function HomePage() {
   // Platform-owned page (41B.3A): the flagship template ALWAYS renders. CMS may
   // only fill approved hero slots — generic blocks never replace this layout.
   const cms = await getPublishedPage('home');
   const { slots } = resolveBespokeContent('home', cms);
 
-  // Live feed: real published intelligence when available, else seeded demo.
-  const intel = await getPublicIntelligenceAction();
-  const feed: FeedItem[] = intel.ok && intel.data.items.length > 0
-    ? intel.data.items.slice(0, 6).map((it) => ({
-        title: it.title,
-        category: it.categories?.[0] ?? it.topics?.[0] ?? 'Intelligence',
-        time: formatDate(it.publishedAt),
-        tone: 'green' as const,
-      }))
-    : DEMO_FEED;
+  // Phase 43 — live public intelligence: real platform activity (cached,
+  // anonymous-safe, public-safe). Empty/zero when the platform has no public
+  // data yet — no fabricated demo values.
+  const { metrics, latestSignals, activityFeed, categoryActivity, activityBar } = await getPublicIntelligenceBundle();
+
+  const feed: FeedItem[] = latestSignals.map((s) => ({
+    title: s.title,
+    category: s.category,
+    time: formatDate(s.created_at),
+    risk: s.risk_level,
+    tone: toneForBucket(s.category),
+  }));
+
+  const liveMetrics: MetricSpec[] = [
+    { label: 'Total Sources', value: metrics.totalSources, format: 'count', accent: '#3B82F6' },
+    { label: 'Total Signals', value: metrics.totalSignals, format: 'count', accent: '#8B5CF6' },
+    { label: 'Published Reports', value: metrics.publishedReports, format: 'count', accent: '#10B981' },
+    { label: 'Open Reviews', value: metrics.openReviews, format: 'count', accent: '#F59E0B' },
+    { label: 'Traceability Score', value: metrics.traceabilityScore, format: 'percent', accent: '#10B981' },
+  ];
 
   return (
     <main className="text-text-primary">
@@ -142,7 +131,7 @@ export default async function HomePage() {
             <p className="text-body-sm text-text-muted">Evidence first. Traceability always. Humanity above all.</p>
           </div>
           <div className="relative flex min-h-[260px] items-center justify-center sm:min-h-[360px] lg:min-h-[540px] lg:justify-center">
-            <HeroNetworkGlobe className="mx-auto w-full max-w-[330px] sm:max-w-[440px] lg:max-w-none" />
+            <HeroNetworkGlobe className="mx-auto w-full max-w-[330px] sm:max-w-[440px] lg:max-w-none" categoryActivity={categoryActivity} />
           </div>
         </div>
 
@@ -150,7 +139,7 @@ export default async function HomePage() {
         <div className="relative mx-auto max-w-page space-y-4 px-5 pb-12 sm:px-6 sm:pb-16">
           <SignalTicker items={feed} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {METRICS.map((m) => <AnimatedMetric key={m.label} spec={m} />)}
+            {liveMetrics.map((m) => <AnimatedMetric key={m.label} spec={m} />)}
           </div>
         </div>
       </section>
@@ -180,7 +169,7 @@ export default async function HomePage() {
       {/* LIVE SIGNALS + WHY */}
       <section className="mx-auto max-w-section px-6 py-8 lg:py-12">
         <div className="grid items-stretch gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <Reveal className="h-full"><LiveSignalsFeed items={feed} /></Reveal>
+          <Reveal className="h-full"><LiveSignalsFeed items={feed} activity={activityFeed} /></Reveal>
           <Reveal delay={0.1} className="h-full">
             <div className="flex h-full flex-col gap-5 rounded-card border border-border bg-surface/40 p-5 sm:p-6">
               <div className="space-y-3">
@@ -275,7 +264,7 @@ export default async function HomePage() {
 
       {/* CURRENT PLATFORM ACTIVITY (above footer) */}
       <section className="mx-auto max-w-section px-6 pb-16">
-        <PlatformActivity metrics={ACTIVITY} />
+        <PlatformActivity bar={activityBar} />
       </section>
     </main>
   );

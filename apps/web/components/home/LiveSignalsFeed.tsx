@@ -10,6 +10,7 @@ import { RiskBadge, CategoryTag, type RiskLevel, type CategoryTone } from '@hsi/
 import { Radio } from 'lucide-react';
 import { RevealGroup, RevealItem } from './motion';
 import { LiveActivityPulse } from './LiveActivityPulse';
+import type { PublicActivityItem } from '@/lib/public-intelligence';
 
 export interface FeedItem {
   title: string;
@@ -20,7 +21,7 @@ export interface FeedItem {
   demo?: boolean;
 }
 
-export function LiveSignalsFeed({ items }: { items: FeedItem[] }) {
+export function LiveSignalsFeed({ items, activity = [] }: { items: FeedItem[]; activity?: PublicActivityItem[] }) {
   return (
     <div className="h-full rounded-card border border-border bg-surface/60 p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -33,6 +34,12 @@ export function LiveSignalsFeed({ items }: { items: FeedItem[] }) {
         </h3>
         <Radio className="h-4 w-4 text-text-muted" />
       </div>
+      {items.length === 0 ? (
+        <div className="rounded-card border border-dashed border-border/70 bg-background-deep/30 px-4 py-8 text-center">
+          <p className="text-body-sm font-medium text-text-secondary">No public signals published yet.</p>
+          <p className="mt-1 text-caption text-text-muted">Published intelligence will appear here as it clears human review.</p>
+        </div>
+      ) : (
       <RevealGroup className="divide-y divide-border/60">
         {items.map((it, i) => {
           const badge = it.risk ? <RiskBadge level={it.risk} /> : <CategoryTag label="Published" tone="green" />;
@@ -61,7 +68,8 @@ export function LiveSignalsFeed({ items }: { items: FeedItem[] }) {
           );
         })}
       </RevealGroup>
-      <LiveActivityPulse />
+      )}
+      <LiveActivityPulse items={activity} />
     </div>
   );
 }
