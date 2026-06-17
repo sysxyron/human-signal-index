@@ -34,19 +34,32 @@ export function LiveSignalsFeed({ items }: { items: FeedItem[] }) {
         <Radio className="h-4 w-4 text-text-muted" />
       </div>
       <RevealGroup className="divide-y divide-border/60">
-        {items.map((it, i) => (
-          <RevealItem key={i} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-            <span className="shrink-0">
-              {it.risk ? <RiskBadge level={it.risk} /> : <CategoryTag label="Published" tone="green" />}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-body-sm font-medium text-text-primary">{it.title}</span>
-              <span className="text-caption text-text-muted">
-                <CategoryTag label={it.category} tone={it.tone ?? 'neutral'} /> <span className="ml-1">{it.time}</span>
-              </span>
-            </span>
-          </RevealItem>
-        ))}
+        {items.map((it, i) => {
+          const badge = it.risk ? <RiskBadge level={it.risk} /> : <CategoryTag label="Published" tone="green" />;
+          return (
+            <RevealItem
+              key={i}
+              className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3"
+            >
+              {/* leading badge — desktop only */}
+              <span className="hidden shrink-0 sm:inline-flex">{badge}</span>
+              <div className="min-w-0 flex-1">
+                {/* title first; clean 2-line clamp on mobile, single-line truncate on desktop */}
+                <span className="line-clamp-2 text-body-sm font-medium leading-snug text-text-primary sm:truncate">
+                  {it.title}
+                </span>
+                {/* meta row: badge (mobile only) + category + time */}
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-text-muted sm:mt-1">
+                  <span className="inline-flex origin-left scale-[0.85] sm:hidden">{badge}</span>
+                  <span className="inline-flex origin-left scale-90 sm:scale-100">
+                    <CategoryTag label={it.category} tone={it.tone ?? 'neutral'} />
+                  </span>
+                  <span>{it.time}</span>
+                </div>
+              </div>
+            </RevealItem>
+          );
+        })}
       </RevealGroup>
       <LiveActivityPulse />
     </div>

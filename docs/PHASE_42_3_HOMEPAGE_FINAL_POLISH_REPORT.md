@@ -57,3 +57,51 @@ Phase 42 homepage checkpoint.
 - `components/home/LiveActivityPulse.tsx` — **new**: ops-console live activity line.
 - `components/home/LiveSignalsFeed.tsx` — embeds the live activity console line.
 - `packages/ui/src/navigation.tsx` — animated underline on public desktop nav links.
+
+---
+
+# Phase 42.3A — Mobile Signal Sections Polish
+
+Homepage mobile CSS/layout only. No changes to RBAC, auth, CMS, DB, source
+ingestion, billing, Stripe, or compliance. Shared `@hsi/ui` badge components were
+**not** modified — badge sizing on the homepage is done with a transform wrapper
+(the `cn` helper is a plain join, not tailwind-merge, so padding overrides via
+className would be unreliable).
+
+## 1. Latest Public Signals card (mobile)
+- Each row now **stacks on mobile** (`flex-col`) and reverts to the original
+  horizontal layout at `sm+` (`sm:flex-row sm:items-center`): **title first**, then
+  a meta row with **badge + category + time** underneath. The leading badge is
+  desktop-only (`hidden sm:inline-flex`); the mobile badge lives in the meta row.
+- **Smaller badges on mobile** via an `origin-left scale-[0.85]` (risk/category)
+  and `scale-90` (category tag) wrapper — reverts to `sm:scale-100`. No change to
+  the shared badge component.
+- Titles wrap cleanly with `line-clamp-2` on mobile (no awkward mid-word wrap),
+  `sm:truncate` on desktop.
+- Row spacing increased (`py-2.5 → py-3`, `gap-2` stack gap); the leading `Radio`
+  icon keeps its place in the header (no longer floats next to a cramped row).
+- Footer console (`LiveActivityPulse`): added `gap-3` + `whitespace-nowrap` on the
+  `live · ops` tag so the activity label and the tag stay cleanly aligned and never
+  collide; the left label truncates.
+
+## 2. Why It Matters / Evidence Chain card (mobile)
+- **Proof chips**: `grid-cols-1` below 390px, `grid-cols-3` at `≥390px`. In the
+  1-col state each chip is a tidy `value ↔ label` row (`flex justify-between`),
+  switching to the stacked centered layout at `≥390px`.
+- **Evidence chain**: stays horizontally scrollable (`overflow-x-auto`); icon tiles
+  enlarged (`h-8 w-8 → h-9 w-9`, icon `h-4 → h-[18px]`) and spacing increased
+  (gap `1 → 1.5`, connectors `w-5 → w-6`), so it no longer feels cramped.
+- The **"end to end"** label is hidden on mobile (`hidden sm:block`).
+- **"Read our mission"** CTA is full-width on mobile — the anchor is now `block` so
+  the `w-full sm:w-auto` button actually fills the column.
+- No horizontal page overflow: the chain scrolls within its card; chips and rows
+  fit within the viewport at all target widths.
+
+## Verification (42.3A)
+- Typecheck (`apps/web`): **clean** (exit 0).
+- Full test suite (chunked, summed): **2655 / 2655 pass, 0 fail**.
+- `next build`: **exit 0, "Compiled successfully"**.
+- Target widths 320 / 360 / 375 / 390 / 414 / 430 — verify on a preview deploy
+  (browser screenshots aren't capturable here). Reduced-motion behavior preserved
+  (no animation logic changed; the live pulse + chain pulse remain gated on
+  `useReducedMotion`).

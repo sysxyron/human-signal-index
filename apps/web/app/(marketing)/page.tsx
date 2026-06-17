@@ -195,10 +195,10 @@ export default async function HomePage() {
                   </li>
                 ))}
               </ul>
-              {/* proof points */}
-              <div className="grid grid-cols-3 gap-2">
+              {/* proof points — 1 col below 390px, 3 cols at ≥390px */}
+              <div className="grid grid-cols-1 gap-2 min-[390px]:grid-cols-3">
                 {PROOF.map((p) => (
-                  <div key={p.label} className="rounded-card border border-border bg-background-deep/40 px-2.5 py-2 text-center">
+                  <div key={p.label} className="flex items-baseline justify-between gap-2 rounded-card border border-border bg-background-deep/40 px-3 py-2 min-[390px]:flex-col min-[390px]:items-center min-[390px]:gap-0.5 min-[390px]:px-2.5 min-[390px]:text-center">
                     <div className="text-h6 font-bold tabular-nums" style={{ color: p.color }}>{p.value}</div>
                     <div className="text-[10px] font-medium uppercase tracking-wide text-text-muted">{p.label}</div>
                   </div>
@@ -206,7 +206,7 @@ export default async function HomePage() {
               </div>
               {/* traceability evidence chain — fills the column intentionally */}
               <EvidenceChain />
-              <a href="/mission" className="mt-auto"><Button variant="secondary" className="w-full sm:w-auto">Read our mission <ArrowRight className="h-4 w-4" /></Button></a>
+              <a href="/mission" className="mt-auto block"><Button variant="secondary" className="w-full sm:w-auto">Read our mission <ArrowRight className="h-4 w-4" /></Button></a>
             </div>
           </Reveal>
         </div>

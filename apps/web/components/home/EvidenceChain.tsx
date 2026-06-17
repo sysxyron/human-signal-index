@@ -25,19 +25,19 @@ export function EvidenceChain() {
     <div className="rounded-card border border-border bg-background-deep/40 p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-label uppercase tracking-wide text-text-muted">Evidence chain</span>
-        <span className="text-[10px] font-medium text-text-muted">end to end</span>
+        <span className="hidden text-[10px] font-medium text-text-muted sm:block">end to end</span>
       </div>
-      <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:gap-2">
         {STAGES.map((s, i) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="flex shrink-0 items-center gap-1">
+            <div key={s.label} className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <div className="flex flex-col items-center gap-1">
                 <span
-                  className="relative flex h-8 w-8 items-center justify-center rounded-lg"
+                  className="relative flex h-9 w-9 items-center justify-center rounded-lg"
                   style={{ backgroundColor: `${s.color}1f`, color: s.color }}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-[18px] w-[18px]" />
                   {!reduce ? (
                     <motion.span
                       className="absolute inset-0 rounded-lg"
@@ -51,7 +51,7 @@ export function EvidenceChain() {
                 <span className="whitespace-nowrap text-[10px] font-medium text-text-secondary">{s.label}</span>
               </div>
               {i < STAGES.length - 1 ? (
-                <div className="relative h-px w-5 shrink-0 self-start mt-4 bg-border">
+                <div className="relative mt-[18px] h-px w-6 shrink-0 self-start bg-border sm:w-7">
                   {!reduce ? (
                     <motion.span
                       className="absolute top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-electric"

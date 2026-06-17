@@ -31,7 +31,7 @@ export function LiveActivityPulse() {
   const e = EVENTS[i];
 
   return (
-    <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
+    <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
       <div className="flex min-w-0 items-center gap-2">
         <span className="relative flex h-2 w-2 shrink-0">
           {!reduce ? <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: e.color }} /> : null}
@@ -54,7 +54,7 @@ export function LiveActivityPulse() {
           </AnimatePresence>
         )}
       </div>
-      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-muted">live · ops</span>
+      <span className="shrink-0 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-text-muted">live · ops</span>
     </div>
   );
 }
