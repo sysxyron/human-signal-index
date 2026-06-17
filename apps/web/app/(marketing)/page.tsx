@@ -1,86 +1,48 @@
+import { SectionEyebrow, Button, Card } from '@hsi/ui';
 import {
-  Button,
-  Card,
-  GlobeHero,
-  MetricCard,
-  SectionEyebrow,
-  LineChart,
-  DonutChart,
-  HeatmapCard,
-  DashboardPreviewCard,
-} from '@hsi/ui';
-import {
-  Radio,
-  Link2,
-  ScanText,
-  Gauge,
-  GraduationCap,
-  ArrowRight,
-  CheckCircle2,
-  Newspaper,
-  Microscope,
-  Users,
-  Landmark,
+  Radio, Link2, ScanText, Gauge, GraduationCap, ArrowRight, CheckCircle2,
+  Newspaper, Microscope, Users, Landmark,
 } from 'lucide-react';
 import { appHref } from '@/lib/env/app-url';
 import { AuthHashForwarder } from '@/components/auth/AuthHashForwarder';
 import { getPublishedPage } from '@/lib/cms/cms';
 import { resolveBespokeContent } from '@/lib/cms/bespoke';
+import { getPublicIntelligenceAction } from '@/lib/publishing/actions';
+import { formatDate } from '@/lib/signals/view';
+import { SignalNetwork } from '@/components/home/SignalNetwork';
+import { AnimatedMetric, type MetricSpec } from '@/components/home/AnimatedMetric';
+import { LiveSignalsFeed, type FeedItem } from '@/components/home/LiveSignalsFeed';
+import { MissionControlPreview, type MissionControlData } from '@/components/home/MissionControlPreview';
+import { TraceabilityPipeline } from '@/components/home/TraceabilityPipeline';
+import { HumanInLoop } from '@/components/home/HumanInLoop';
+import { PlatformActivity } from '@/components/home/PlatformActivity';
+import { Reveal, RevealGroup, RevealItem } from '@/components/home/motion';
 
-const heroMetrics = [
-  { label: 'Active Sources', value: '24,781', accent: '#3B82F6', spark: [12, 18, 15, 22, 28, 26, 34] },
-  { label: 'Signals Analyzed', value: '152,390', accent: '#8B5CF6', spark: [40, 38, 52, 60, 58, 72, 88] },
-  { label: 'Pending Reviews', value: '8,432', accent: '#F59E0B', spark: [30, 28, 35, 32, 40, 38, 44] },
-  { label: 'High-Risk Signals', value: '312', accent: '#EF4444', spark: [8, 10, 9, 14, 12, 18, 22] },
-  { label: 'Traceability Score', value: '96.3%', accent: '#10B981', spark: [90, 91, 93, 92, 95, 95, 96] },
+// ---- Animated platform metrics (demo values; deltas drive the trend chips) ---
+const METRICS: MetricSpec[] = [
+  { label: 'Active Sources', value: 24781, format: 'count', accent: '#3B82F6', delta: 6.4, spark: [12, 18, 15, 22, 28, 26, 34] },
+  { label: 'Signals Analyzed', value: 152390, format: 'count', accent: '#8B5CF6', delta: 9.1, spark: [40, 38, 52, 60, 58, 72, 88] },
+  { label: 'Pending Reviews', value: 8432, format: 'count', accent: '#F59E0B', delta: -3.2, spark: [30, 28, 35, 32, 40, 38, 44] },
+  { label: 'High-Risk Signals', value: 312, format: 'count', accent: '#EF4444', delta: 4.8, spark: [8, 10, 9, 14, 12, 18, 22] },
+  { label: 'Traceability Score', value: 96.3, format: 'percent', accent: '#10B981', delta: 1.2, spark: [90, 91, 93, 92, 95, 95, 96] },
 ];
 
-const features = [
-  {
-    icon: Radio,
-    title: 'Collect Public Signals',
-    description:
-      'Continuously capture public narratives, campaigns, and open-source evidence across platforms.',
-    color: '#3B82F6',
-  },
-  {
-    icon: Link2,
-    title: 'Trace Everything',
-    description:
-      'Link every finding back to the original passages and timestamps, with a record you can verify.',
-    color: '#10B981',
-  },
-  {
-    icon: ScanText,
-    title: 'Analyze Rhetoric',
-    description:
-      'Classify narratives with a structured taxonomy of rhetoric, framing, and influence.',
-    color: '#8B5CF6',
-  },
-  {
-    icon: Gauge,
-    title: 'Score & Prioritize Risk',
-    description:
-      'Assign clear risk levels that reviewers can act on, each with a plain explanation.',
-    color: '#F59E0B',
-  },
-  {
-    icon: GraduationCap,
-    title: 'Educate & Empower',
-    description:
-      'Produce reports, explainers, and counter-narratives the public can read and check.',
-    color: '#EF4444',
-  },
+const FEATURES = [
+  { icon: Radio, title: 'Collect Public Signals', description: 'Continuously capture public narratives, campaigns, and open-source evidence across platforms.', color: '#3B82F6' },
+  { icon: Link2, title: 'Trace Everything', description: 'Link every finding back to the original passages and timestamps, with a record you can verify.', color: '#10B981' },
+  { icon: ScanText, title: 'Analyze Rhetoric', description: 'Classify narratives with a structured taxonomy of rhetoric, framing, and influence.', color: '#8B5CF6' },
+  { icon: Gauge, title: 'Score & Prioritize Risk', description: 'Assign clear risk levels that reviewers can act on, each with a plain explanation.', color: '#F59E0B' },
+  { icon: GraduationCap, title: 'Educate & Empower', description: 'Produce reports, explainers, and counter-narratives the public can read and check.', color: '#EF4444' },
 ];
 
-const whyPoints = [
+const WHY = [
   'Narratives move faster than facts, so we restore the evidence trail.',
   'Every claim is traceable back to a verifiable source passage.',
   'Human reviewers stay in the loop on every published conclusion.',
   'Risk scoring is explainable, not a black box.',
 ];
 
-const trustedBy = [
+const TRUSTED = [
   { icon: Microscope, label: 'Researchers' },
   { icon: Newspaper, label: 'Journalists' },
   { icon: GraduationCap, label: 'Educators' },
@@ -88,36 +50,70 @@ const trustedBy = [
   { icon: Landmark, label: 'Policy Analysts' },
 ];
 
-const trendSeries = [
-  { name: 'Signals', color: '#3B82F6', data: [22, 30, 28, 42, 38, 55, 60, 72] },
-  { name: 'High-risk', color: '#EF4444', data: [6, 9, 7, 14, 11, 18, 16, 24] },
+const DEMO_FEED: FeedItem[] = [
+  { title: 'Coordinated recruitment narrative across 4 platforms', category: 'Recruitment', time: '2m ago', risk: 5, tone: 'orange', demo: true },
+  { title: 'Health misinformation cluster amplified by inauthentic accounts', category: 'Misinformation', time: '14m ago', risk: 4, tone: 'red', demo: true },
+  { title: 'State-aligned influence operation signature', category: 'Influence', time: '38m ago', risk: 4, tone: 'purple', demo: true },
+  { title: 'Election narrative seeding detected', category: 'Civic', time: '1h ago', risk: 3, tone: 'blue', demo: true },
+  { title: 'Astroturfed product campaign', category: 'Astroturf', time: '2h ago', risk: 2, tone: 'orange', demo: true },
+  { title: 'Benign viral trend flagged low-risk', category: 'Cultural', time: '3h ago', risk: 1, tone: 'green', demo: true },
 ];
 
-// deterministic pseudo-random heatmap (avoids hydration mismatch)
-const heatRows = Array.from({ length: 5 }, (_, r) =>
-  Array.from({ length: 12 }, (_, c) =>
-    Math.abs(Math.sin((r + 1) * 1.7 + (c + 1) * 0.9)),
-  ),
-);
+const MISSION: MissionControlData = {
+  series: [
+    { name: 'Signals', color: '#3B82F6', data: [22, 30, 28, 42, 38, 55, 60, 72] },
+    { name: 'High-risk', color: '#EF4444', data: [6, 9, 7, 14, 11, 18, 16, 24] },
+  ],
+  xLabels: ['8w', '7w', '6w', '5w', '4w', '3w', '2w', '1w'],
+  donut: [
+    { label: 'Low', value: 120, color: '#3B82F6' },
+    { label: 'Moderate', value: 64, color: '#F59E0B' },
+    { label: 'High', value: 28, color: '#EF4444' },
+    { label: 'Critical', value: 6, color: '#B91C1C' },
+  ],
+  // Deterministic intensity matrix (no Math.random → no hydration drift).
+  heat: Array.from({ length: 5 }, (_, r) => Array.from({ length: 12 }, (_, c) => Math.abs(Math.sin((r + 1) * 1.7 + (c + 1) * 0.9)))),
+  heatCols: [],
+  alerts: [
+    { title: 'Narrative shift detected on a monitored source', severity: 'high' },
+    { title: 'New high-risk recruitment cluster', severity: 'critical' },
+    { title: 'Source health degraded: 2 feeds failing', severity: 'medium' },
+    { title: 'Watchlist match: election integrity', severity: 'low' },
+  ],
+  traceability: 96.3,
+};
+
+const ACTIVITY: MetricSpec[] = [
+  METRICS[0], METRICS[1], METRICS[2], METRICS[4],
+];
 
 export default async function HomePage() {
   // Platform-owned page (41B.3A): the flagship template ALWAYS renders. CMS may
-  // only fill approved hero slots — generic blocks never replace this layout, so
-  // publishing a 'home' CMS page can no longer corrupt it (no refresh needed).
+  // only fill approved hero slots — generic blocks never replace this layout.
   const cms = await getPublishedPage('home');
   const { slots } = resolveBespokeContent('home', cms);
 
+  // Live feed: real published intelligence when available, else seeded demo.
+  const intel = await getPublicIntelligenceAction();
+  const feed: FeedItem[] = intel.ok && intel.data.items.length > 0
+    ? intel.data.items.slice(0, 6).map((it) => ({
+        title: it.title,
+        category: it.categories?.[0] ?? it.topics?.[0] ?? 'Intelligence',
+        time: formatDate(it.publishedAt),
+        tone: 'green' as const,
+      }))
+    : DEMO_FEED;
+
   return (
     <main className="text-text-primary">
-      {/* Defensive: forward any Supabase auth hash that lands here to the
-          verified /auth/callback handler (preserves the hash exactly). */}
       <AuthHashForwarder />
+
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 grid-bg opacity-60" />
         <div className="relative mx-auto grid max-w-page items-center gap-10 px-6 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:py-24">
           <div className="max-w-xl space-y-6 animate-fade-up">
-            <SectionEyebrow>A Public-Interest Observatory</SectionEyebrow>
+            <SectionEyebrow>A Live Public-Interest Intelligence Network</SectionEyebrow>
             <h1 className="text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[44px] lg:text-h1">
               {slots.heroHeading ?? (
                 <>
@@ -128,195 +124,135 @@ export default async function HomePage() {
             </h1>
             <p className="text-body-lg text-text-secondary">
               {slots.heroSubheading ??
-                'Human Signal Index tracks, analyzes, and explains the ideas, ideologies, movements, and signals influencing human behavior and civilization, with traceability, transparency, and context.'}
+                'Human Signal Index captures public signals, traces the evidence, and publishes human-reviewed intelligence in real time, with traceability and transparency at every step.'}
             </p>
             <div className="flex flex-wrap gap-3">
-              <a href={appHref('/dashboard')}>
-                <Button variant="primary" size="lg">
-                  Explore Live Signals <ArrowRight className="h-4 w-4" />
-                </Button>
-              </a>
-              <a href="/methodology">
-                <Button variant="secondary" size="lg">
-                  Learn Our Methodology
-                </Button>
-              </a>
+              <a href={appHref('/dashboard')}><Button variant="primary" size="lg">Explore Live Signals <ArrowRight className="h-4 w-4" /></Button></a>
+              <a href="/methodology"><Button variant="secondary" size="lg">Learn Our Methodology</Button></a>
             </div>
-            <p className="text-body-sm text-text-muted">
-              Evidence first. Traceability always. Humanity above all.
-            </p>
+            <p className="text-body-sm text-text-muted">Evidence first. Traceability always. Humanity above all.</p>
           </div>
-
           <div className="relative flex justify-center lg:justify-end">
-            <GlobeHero />
+            <SignalNetwork />
           </div>
         </div>
 
-        {/* metric strip */}
+        {/* animated metric strip */}
         <div className="relative mx-auto max-w-page px-6 pb-16">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {heroMetrics.map((m) => (
-              <MetricCard
-                key={m.label}
-                label={m.label}
-                value={m.value}
-                accent={m.accent}
-                sparkline={m.spark}
-                sparklineColor={m.accent}
-              />
-            ))}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {METRICS.map((m) => <AnimatedMetric key={m.label} spec={m} />)}
           </div>
         </div>
       </section>
 
-      {/* FEATURES */}
+      {/* HOW IT WORKS */}
       <section className="mx-auto max-w-section px-6 py-16 lg:py-20">
-        <div className="mb-10 max-w-2xl space-y-3">
-          <SectionEyebrow>How It Works</SectionEyebrow>
-          <h2 className="text-h3 font-bold lg:text-h2">
-            From raw signal to traceable public insight.
-          </h2>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
-          {features.map((f) => {
+        <Reveal>
+          <div className="mb-10 max-w-2xl space-y-3">
+            <SectionEyebrow>How It Works</SectionEyebrow>
+            <h2 className="text-h3 font-bold lg:text-h2">From raw signal to traceable public insight.</h2>
+          </div>
+        </Reveal>
+        <RevealGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+          {FEATURES.map((f) => {
             const Icon = f.icon;
             return (
-              <Card key={f.title} interactive className="space-y-3">
-                <span
-                  className="flex h-11 w-11 items-center justify-center rounded-xl"
-                  style={{ backgroundColor: `${f.color}1f`, color: f.color }}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
+              <RevealItem key={f.title} className="space-y-3 rounded-card border border-border bg-surface/60 p-5 transition hover:-translate-y-0.5 hover:border-electric/60">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: `${f.color}1f`, color: f.color }}><Icon className="h-5 w-5" /></span>
                 <h3 className="text-h6 font-semibold">{f.title}</h3>
                 <p className="text-body-sm text-text-secondary">{f.description}</p>
-              </Card>
+              </RevealItem>
             );
           })}
+        </RevealGroup>
+      </section>
+
+      {/* LIVE SIGNALS + WHY */}
+      <section className="mx-auto max-w-section px-6 py-8 lg:py-12">
+        <div className="grid items-start gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <Reveal><LiveSignalsFeed items={feed} /></Reveal>
+          <Reveal delay={0.1}>
+            <div className="space-y-4">
+              <SectionEyebrow>Why It Matters</SectionEyebrow>
+              <h2 className="text-h3 font-bold">Ideas shape reality. <span className="text-gradient">Signals reveal the truth.</span></h2>
+              <ul className="space-y-3">
+                {WHY.map((p) => (
+                  <li key={p} className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-verified" />
+                    <span className="text-body-sm text-text-secondary">{p}</span>
+                  </li>
+                ))}
+              </ul>
+              <a href="/mission"><Button variant="secondary">Read our mission <ArrowRight className="h-4 w-4" /></Button></a>
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* WHY IT MATTERS + dashboard preview */}
-      <section className="mx-auto max-w-section px-6 py-16 lg:py-20">
-        <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-6">
-            <SectionEyebrow>Why It Matters</SectionEyebrow>
-            <h2 className="text-h3 font-bold lg:text-h2">
-              Ideas Shape Reality.{' '}
-              <span className="text-gradient">Signals Reveal the Truth.</span>
-            </h2>
-            <p className="text-body text-text-secondary">
-              The narratives that move populations rarely arrive with their
-              evidence attached. HSI rebuilds that chain so the public can see
-              not just what is being said, but where it came from and why it
-              matters.
-            </p>
-            <ul className="space-y-3">
-              {whyPoints.map((p) => (
-                <li key={p} className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-verified" />
-                  <span className="text-body-sm text-text-secondary">{p}</span>
-                </li>
-              ))}
-            </ul>
-            <a href="/mission">
-              <Button variant="secondary">
-                Read our mission <ArrowRight className="h-4 w-4" />
-              </Button>
-            </a>
+      {/* MISSION CONTROL PREVIEW */}
+      <section className="mx-auto max-w-section px-6 py-12 lg:py-16">
+        <Reveal>
+          <div className="mb-6 max-w-2xl space-y-3">
+            <SectionEyebrow>Mission Control</SectionEyebrow>
+            <h2 className="text-h3 font-bold lg:text-h2">An operational view of the signal landscape.</h2>
           </div>
+        </Reveal>
+        <MissionControlPreview data={MISSION} />
+      </section>
 
-          <DashboardPreviewCard>
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <MetricCard label="Signals / 24h" value="1,284" accent="#3B82F6" delta={{ value: '+12.4%', trend: 'up' }} />
-                <MetricCard label="Risk Index" value="34.8" accent="#EF4444" delta={{ value: '+3.1%', trend: 'up' }} deltaTone="negative" />
-                <MetricCard label="Verified" value="96.3%" accent="#10B981" delta={{ value: '+0.6%', trend: 'up' }} />
-              </div>
-              <Card className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-h6 font-semibold">Signal volume trend</h4>
-                  <span className="text-caption text-text-muted">Last 8 weeks</span>
-                </div>
-                <LineChart series={trendSeries} height={150} xLabels={['W1', 'W4', 'W8']} />
-              </Card>
-              <div className="grid grid-cols-2 gap-3">
-                <HeatmapCard
-                  title="Narrative heatmap"
-                  matrix={heatRows}
-                  color="#EF4444"
-                />
-                <Card className="flex items-center justify-center">
-                  <DonutChart
-                    size={130}
-                    thickness={16}
-                    centerValue="5"
-                    centerLabel="categories"
-                    segments={[
-                      { label: 'Misinfo', value: 34, color: '#EF4444' },
-                      { label: 'Influence', value: 26, color: '#8B5CF6' },
-                      { label: 'Recruit', value: 22, color: '#F59E0B' },
-                      { label: 'Other', value: 18, color: '#3B82F6' },
-                    ]}
-                  />
-                </Card>
-              </div>
-            </div>
-          </DashboardPreviewCard>
-        </div>
+      {/* TRACEABILITY PIPELINE */}
+      <section className="mx-auto max-w-section px-6 py-12 lg:py-16">
+        <Reveal>
+          <div className="mb-6 max-w-2xl space-y-3">
+            <SectionEyebrow>Traceability</SectionEyebrow>
+            <h2 className="text-h3 font-bold lg:text-h2">Every conclusion, traceable end to end.</h2>
+          </div>
+        </Reveal>
+        <TraceabilityPipeline />
+      </section>
+
+      {/* HUMAN IN THE LOOP */}
+      <section className="mx-auto max-w-section px-6 py-12 lg:py-16">
+        <HumanInLoop />
       </section>
 
       {/* TRUSTED BY */}
-      <section className="border-y border-border bg-background-deep/60">
-        <div className="mx-auto max-w-section px-6 py-12 text-center">
-          <p className="text-label text-text-muted">
-            Trusted by Researchers, Journalists, Educators &amp; Concerned Citizens
-          </p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-x-10 gap-y-5">
-            {trustedBy.map((t) => {
+      <section className="mx-auto max-w-section px-6 py-10">
+        <Reveal>
+          <p className="mb-5 text-center text-label uppercase tracking-wide text-text-muted">Built for the people who hold narratives to account</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+            {TRUSTED.map((t) => {
               const Icon = t.icon;
               return (
-                <span
-                  key={t.label}
-                  className="flex items-center gap-2 text-text-secondary"
-                >
+                <span key={t.label} className="flex items-center gap-2 text-text-secondary">
                   <Icon className="h-5 w-5 text-text-muted" />
                   <span className="text-body-sm font-medium">{t.label}</span>
                 </span>
               );
             })}
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-section px-6 py-16 lg:py-20">
-        <Card className="relative overflow-hidden p-10 text-center lg:p-14">
-          <div className="pointer-events-none absolute inset-0 -z-10 grid-bg opacity-40" />
-          <div
-            className="pointer-events-none absolute left-1/2 top-0 -z-10 h-64 w-[600px] -translate-x-1/2 rounded-full opacity-40 blur-3xl"
-            style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.5), transparent 70%)' }}
-          />
-          <h2 className="mx-auto max-w-2xl text-h3 font-bold lg:text-h2">
-            See the signals before they shape the story.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-body text-text-secondary">
-            Explore the live command center, browse the public signal library, or
-            submit a signal for review.
-          </p>
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <a href={appHref('/dashboard')}>
-              <Button variant="primary" size="lg">
-                Explore Dashboard <ArrowRight className="h-4 w-4" />
-              </Button>
-            </a>
-            <a href="/submit-a-signal">
-              <Button variant="secondary" size="lg">
-                Submit a Signal
-              </Button>
-            </a>
-          </div>
-        </Card>
+      <section className="mx-auto max-w-section px-6 py-12 lg:py-16">
+        <Reveal>
+          <Card className="relative overflow-hidden p-10 text-center lg:p-14">
+            <div className="pointer-events-none absolute inset-0 -z-10 grid-bg opacity-40" />
+            <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-64 w-[600px] -translate-x-1/2 rounded-full opacity-40 blur-3xl" style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.5), transparent 70%)' }} />
+            <h2 className="mx-auto max-w-2xl text-h3 font-bold lg:text-h2">See the signals before they shape the story.</h2>
+            <p className="mx-auto mt-4 max-w-xl text-body text-text-secondary">Explore the live command center, browse the public signal library, or submit a signal for review.</p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <a href={appHref('/dashboard')}><Button variant="primary" size="lg">Explore Dashboard <ArrowRight className="h-4 w-4" /></Button></a>
+              <a href="/submit-a-signal"><Button variant="secondary" size="lg">Submit a Signal</Button></a>
+            </div>
+          </Card>
+        </Reveal>
+      </section>
+
+      {/* CURRENT PLATFORM ACTIVITY (above footer) */}
+      <section className="mx-auto max-w-section px-6 pb-16">
+        <PlatformActivity metrics={ACTIVITY} />
       </section>
     </main>
   );
