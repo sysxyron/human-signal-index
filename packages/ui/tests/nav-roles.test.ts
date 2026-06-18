@@ -54,6 +54,13 @@ test('Phase 58.1 wired surfaces: nav visibility matches route gates', () => {
   assert.equal(canSeeRoute('/dashboard/beta-operations', 'admin'), true);
 });
 
+test('Phase 60 beta-launch console is admin-only and a real menu item', () => {
+  assert.ok(ALL_NAV_HREFS.includes('/dashboard/beta-launch'));
+  assert.equal(canSeeRoute('/dashboard/beta-launch', 'curator'), false);
+  assert.equal(canSeeRoute('/dashboard/beta-launch', 'reviewer'), false);
+  assert.equal(canSeeRoute('/dashboard/beta-launch', 'admin'), true);
+});
+
 // ---- viewer (Phase 41B.1 policy) -------------------------------------------
 
 const VIEWER_VISIBLE = [
