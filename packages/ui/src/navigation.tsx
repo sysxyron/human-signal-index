@@ -505,6 +505,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
   {
     group: 'Account',
     items: [
+      // Phase 62 — personal notification center (viewer+; RLS owner-scoped).
+      { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
       { label: 'My Profile', href: '/dashboard/profile', icon: UserCog },
       { label: 'Apply for a Role', href: '/dashboard/apply-role', icon: ShieldCheck },
     ],
