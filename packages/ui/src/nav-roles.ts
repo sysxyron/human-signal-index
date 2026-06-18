@@ -101,6 +101,9 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/admin/system-health': ['admin'],
   '/dashboard/admin/testers': ['admin'],
   '/dashboard/admin/access-logs': ['admin'],
+  // Account — Phase 62 notification center: every signed-in role (viewer+). Listed
+  // explicitly so the gate is documented + tested; RLS owner-scopes the data.
+  '/dashboard/notifications': ['viewer', 'researcher', 'reviewer', 'curator', 'admin'],
   // System (admin)
   '/dashboard/security-monitor': ['admin'],
   '/dashboard/security': ['admin'],
@@ -162,7 +165,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/worldforge', '/dashboard/simulation', '/dashboard/worldforge/simulations', '/dashboard/worldforge/scenarios', '/dashboard/worldforge/timelines', '/dashboard/worldforge/dependency-graph', '/dashboard/worldforge/counterfactuals', '/dashboard/worldforge/provenance', '/dashboard/worldforge/universes',
   '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/collaboration', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
   '/dashboard/launch', '/dashboard/beta-launch', '/dashboard/release-candidate', '/dashboard/launch/issues', '/dashboard/tester', '/dashboard/tester-onboarding',
-  '/dashboard/profile', '/dashboard/apply-role',
+  '/dashboard/notifications', '/dashboard/profile', '/dashboard/apply-role',
   '/dashboard/admin/users', '/dashboard/admin/organizations', '/dashboard/admin/plans', '/dashboard/admin/subscriptions', '/dashboard/admin/revenue', '/dashboard/admin/subscription-health', '/dashboard/admin/billing-ops', '/dashboard/admin/webhooks', '/dashboard/admin/site-ops', '/dashboard/admin/cms', '/dashboard/admin/site-settings', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/beta-operations', '/dashboard/admin/tester-ops', '/dashboard/admin/system-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',
 ];

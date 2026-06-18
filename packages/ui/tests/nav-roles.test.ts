@@ -54,6 +54,15 @@ test('Phase 58.1 wired surfaces: nav visibility matches route gates', () => {
   assert.equal(canSeeRoute('/dashboard/beta-operations', 'admin'), true);
 });
 
+test('Phase 62 notifications is viewer+ (every signed-in role) and a real menu item', () => {
+  assert.ok(ALL_NAV_HREFS.includes('/dashboard/notifications'));
+  for (const r of ['viewer', 'researcher', 'reviewer', 'curator', 'admin'] as const) {
+    assert.equal(canSeeRoute('/dashboard/notifications', r), true, `${r} should see notifications`);
+  }
+  // anonymous (no role) must not see it — it is a personal, owner-scoped surface.
+  assert.equal(canSeeRoute('/dashboard/notifications', null), false);
+});
+
 test('Phase 61 source-reliability is reviewer+ and a real menu item', () => {
   assert.ok(ALL_NAV_HREFS.includes('/dashboard/source-reliability'));
   assert.equal(canSeeRoute('/dashboard/source-reliability', 'researcher'), false);
