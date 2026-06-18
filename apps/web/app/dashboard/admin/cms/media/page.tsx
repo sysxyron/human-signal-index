@@ -6,8 +6,9 @@
 
 import { TopNav, Card } from '@hsi/ui';
 import Link from 'next/link';
-import { ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Image as ImageIcon, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { listMedia, type MediaItem } from '@/lib/cms/cms';
+import { probeStorage } from '@/lib/health/probes';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/security/view';
 import { AdminNav } from '@/components/admin/AdminNav';
@@ -23,9 +24,19 @@ export default async function CmsMediaPage() {
   if (!user || !isAdmin(role)) {
     return (<><TopNav title="Media" subtitle="CMS — admin only" /><main className="space-y-6 p-5 lg:p-6"><AdminNav /><ErrorState code={user ? 'FORBIDDEN' : 'AUTH_REQUIRED'} title="Insufficient permissions" message={user ? 'Restricted to administrators.' : 'Sign in as an administrator.'} redirectedFrom="/dashboard/admin/cms/media" /></main></>);
   }
-  const res = await listMedia();
+  // Storage status comes from the SAME source of truth as /api/health/storage
+  // (probeStorage) so this page and the security health page can never disagree.
+  const [res, storage] = await Promise.all([listMedia(), probeStorage()]);
   const items: MediaItem[] = res.ok ? res.data : [];
   const isDemo = res.ok && Boolean(res.demo);
+
+  const det = (storage.details ?? {}) as {
+    bucket?: string; public?: boolean | null; allowedMimeTypes?: string[] | null; code?: string;
+  };
+  const bucketName = det.bucket ?? (process.env.CMS_MEDIA_BUCKET || 'cms_media');
+  const bucketMissing = !storage.ok && det.code === 'storage.bucket_missing';
+  const isPublic = det.public === true;
+  const mimeConfigured = Array.isArray(det.allowedMimeTypes) && det.allowedMimeTypes.length > 0;
 
   return (
     <>
@@ -53,10 +64,29 @@ export default async function CmsMediaPage() {
             </table>
           </Card>
         )}
-        <Card className="flex items-start gap-2.5 border-warning/30 bg-warning/5" padded>
-          <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-          <p className="text-caption text-text-secondary">Media upload requires a Supabase Storage bucket <code className="text-text-primary">cms_media</code>. Until it is provisioned, uploads are disabled (no dead controls); media records are admin-managed in <code className="text-text-primary">cms_media</code> and world-readable for use in published content.</p>
-        </Card>
+        {storage.ok ? (
+          <Card className="flex items-start gap-2.5 border-verified/30 bg-verified/5" padded>
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-verified" />
+            <p className="text-caption text-text-secondary">
+              <span className="font-semibold text-text-primary">Storage status: Operational.</span>{' '}
+              Bucket <code className="text-text-primary">{bucketName}</code> is reachable{isPublic ? ' and public' : ''}{mimeConfigured ? ', with allowed MIME types configured' : ''}.{' '}
+              Upload controls are not enabled yet in this build; media records are admin-managed and world-readable for use in published content.
+            </p>
+          </Card>
+        ) : bucketMissing ? (
+          <Card className="flex items-start gap-2.5 border-warning/30 bg-warning/5" padded>
+            <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <p className="text-caption text-text-secondary">Media upload requires a Supabase Storage bucket <code className="text-text-primary">{bucketName}</code>. Until it is provisioned, uploads are disabled (no dead controls); media records are admin-managed and world-readable for use in published content.</p>
+          </Card>
+        ) : (
+          <Card className="flex items-start gap-2.5 border-warning/30 bg-warning/5" padded>
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <p className="text-caption text-text-secondary">
+              <span className="font-semibold text-text-primary">Storage status: {storage.status}.</span>{' '}
+              {storage.message} Resolve storage configuration before enabling uploads; media records are admin-managed and world-readable for use in published content.
+            </p>
+          </Card>
+        )}
       </main>
     </>
   );

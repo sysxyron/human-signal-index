@@ -1,5 +1,6 @@
 // =============================================================================
-// HSI Phase 23 — MigrationStatusPanel. Renders the migration audit (0001→0026):
+// HSI Phase 23 — MigrationStatusPanel. Renders the migration audit (range is
+// derived from the audit rows, currently 0001→0048):
 // applied / missing / out-of-order / failed / unknown, with a compact grid and a
 // summary. Server-safe presentational. Used by both /dashboard/launch and
 // /dashboard/security.
@@ -11,6 +12,8 @@ import type { MigrationAuditResult } from '@/lib/launch/migration-audit';
 import { migrationStateColor } from '@/lib/launch/view';
 
 export function MigrationStatusPanel({ audit, demo = false }: { audit: MigrationAuditResult; demo?: boolean }) {
+  const firstId = audit.rows[0]?.id ?? '0001';
+  const lastId = audit.rows[audit.rows.length - 1]?.id ?? firstId;
   const summaryIcon = audit.ok ? (
     <CheckCircle2 className="h-4 w-4 text-verified" />
   ) : !audit.verifiable ? (
@@ -23,7 +26,7 @@ export function MigrationStatusPanel({ audit, demo = false }: { audit: Migration
     <Card className="space-y-3 border-border" padded>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-h6 font-semibold text-text-primary">
-          <Database className="h-4 w-4 text-electric" /> Database migrations (0001→0026)
+          <Database className="h-4 w-4 text-electric" /> Database migrations ({firstId}→{lastId})
           {demo ? <span className="rounded-full bg-surface-2 px-2 py-0.5 text-label text-text-muted">demo</span> : null}
         </h3>
         <span className="inline-flex items-center gap-1.5 text-caption text-text-secondary">
@@ -53,8 +56,10 @@ export function MigrationStatusPanel({ audit, demo = false }: { audit: Migration
         <p className="text-label text-warning">Drift: {audit.extra.length} applied migration(s) not in the committed set ({audit.extra.join(', ')}).</p>
       ) : null}
       <p className="text-label text-text-muted">
-        Source: <span className="font-mono">supabase_migrations.schema_migrations</span>. Unverifiable simply means the ledger
-        isn’t exposed to this client — verify with the Supabase CLI (<span className="font-mono">supabase migration list</span>).
+        Known migration files in repo: <span className="font-mono">{firstId}–{lastId}</span> ({audit.total} total).{' '}
+        {audit.verifiable
+          ? <>Applied status read from <span className="font-mono">supabase_migrations.schema_migrations</span>.</>
+          : <>Applied status: not verifiable from this environment — the ledger isn’t exposed to this client. Verify with the Supabase CLI (<span className="font-mono">supabase migration list</span>) or the <span className="font-mono">schema_migrations</span> table. Files present in the repo are <em>not</em> implied to be applied.</>}
       </p>
     </Card>
   );

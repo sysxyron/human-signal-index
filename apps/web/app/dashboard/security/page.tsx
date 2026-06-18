@@ -179,7 +179,7 @@ export default async function SecurityPage() {
         {/* Startup environment validation (required/optional). */}
         {d.env ? <EnvStatusPanel env={d.env} /> : null}
 
-        {/* Phase 23 — database migration audit (0001→0026). */}
+        {/* Phase 23 — database migration audit (0001→latest committed migration). */}
         <MigrationStatusPanel audit={migrationAudit} demo={migrationDemo} />
 
         {/* Connection / health panel — one card per service. */}
