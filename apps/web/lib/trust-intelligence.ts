@@ -40,7 +40,8 @@ export interface TrustCorrection {
 export interface TrustOverviewData {
   publishedSignals: number;
   publishedReports: number;
-  humanReviewedPct: number;
+  /** % of published items with an approving review status; null when not measurable. */
+  humanReviewedPct: number | null;
   traceabilityPct: number;
   correctionsIssued: number;
   sourcesActive: number;
@@ -48,7 +49,8 @@ export interface TrustOverviewData {
 
 export interface TransparencyScore {
   label: string;
-  pct: number;
+  /** Percentage 0–100, or null when there isn't enough data to measure it. */
+  pct: number | null;
 }
 
 export interface PlatformHealthData {
@@ -152,26 +154,41 @@ export async function getTrustData(): Promise<TrustData> {
 
   const { metrics, activityBar, activityFeed } = bundle;
   const published = library.signals.filter((s) => s.status === 'Published');
+  const archived = library.signals.filter((s) => s.status === 'Archived');
   const pubN = published.length;
+
+  // Phase 56.1 — trust metrics computed from real data (no hardcoded 100%).
+  // Human review is measured from the publications' review_status field: a
+  // publication counts as human-reviewed when its status indicates approval. If
+  // no published item carries a review_status, the metric is null ("Not enough
+  // data yet") rather than an unsupported 100%.
+  const withReviewStatus = published.filter((s) => Boolean(s.reviewStatus));
+  const reviewedCount = withReviewStatus.filter((s) => /approv|review|clear|publish|pass|accept/i.test(s.reviewStatus ?? '')).length;
+  const humanReviewedPct: number | null = withReviewStatus.length > 0 ? pct(reviewedCount, withReviewStatus.length) : null;
+
+  // Corrections logged: of items pulled back (archived/retracted), the share that
+  // have a public correction entry. Null when nothing has been pulled back.
+  const correctionsLoggedPct: number | null = archived.length > 0 ? Math.min(100, pct(corrections.length, archived.length)) : null;
 
   const overview: TrustOverviewData = {
     publishedSignals: library.total,
     publishedReports: metrics.publishedReports,
-    humanReviewedPct: pubN > 0 ? 100 : 0,
+    humanReviewedPct,
     traceabilityPct: metrics.traceabilityScore,
     correctionsIssued: corrections.length,
     sourcesActive: source.health.active,
   };
 
-  const evidenceLinked = pct(published.filter((s) => s.evidenceCount > 0).length, pubN);
-  const traceable = pct(published.filter((s) => typeof s.traceabilityScore === 'number').length, pubN);
-  const sourceVerifiedPct = pct(source.health.active, source.health.total);
+  const evidenceLinked = pubN > 0 ? pct(published.filter((s) => s.evidenceCount > 0).length, pubN) : null;
+  const traceable = pubN > 0 ? pct(published.filter((s) => typeof s.traceabilityScore === 'number').length, pubN) : null;
+  const sourceVerifiedPct = source.health.total > 0 ? pct(source.health.active, source.health.total) : null;
   const scorecard: TransparencyScore[] = [
     { label: 'Evidence Linked', pct: evidenceLinked },
-    { label: 'Human Reviewed', pct: pubN > 0 ? 100 : 0 },
+    { label: 'Human Reviewed', pct: humanReviewedPct },
     { label: 'Traceable', pct: traceable },
-    { label: 'Version Controlled', pct: pubN > 0 ? 100 : 0 },
-    { label: 'Corrections Logged', pct: pubN > 0 ? 100 : 0 },
+    // No per-publication version metadata is collected yet → not measurable.
+    { label: 'Version Controlled', pct: null },
+    { label: 'Corrections Logged', pct: correctionsLoggedPct },
     { label: 'Source Verified', pct: sourceVerifiedPct },
   ];
 
@@ -181,7 +198,7 @@ export async function getTrustData(): Promise<TrustData> {
   const sourceAccountability: SourceAccountabilityData = {
     coverage: source.coverage,
     reliabilityAvg,
-    validationRate: sourceVerifiedPct,
+    validationRate: sourceVerifiedPct ?? 0,
     totalSources: source.health.total,
   };
 

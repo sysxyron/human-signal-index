@@ -23,6 +23,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { EmailOtpType } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { rateLimit, clientKeyFromHeaders, pruneRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +58,14 @@ export async function GET(request: NextRequest) {
 
   const errorRedirect = (reason: string) =>
     NextResponse.redirect(`${origin}/auth/error?reason=${reason}`);
+
+  // Phase 56.1 — defense-in-depth rate limit on OTP verification (token brute
+  // force / enumeration), on top of Supabase GoTrue's own server-side limits.
+  pruneRateLimit();
+  const rl = rateLimit(`confirm:${clientKeyFromHeaders(request.headers)}`, { limit: 10, windowMs: 60_000 });
+  if (!rl.allowed) {
+    return errorRedirect('rate-limited');
+  }
 
   if (!tokenHash || !isEmailOtpType(type)) {
     return errorRedirect('missing-confirmation-token');

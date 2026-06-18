@@ -70,6 +70,7 @@ export async function getReleaseReadiness(role: string | null): Promise<ReleaseR
 
   const { metrics } = bundle;
   const adminCounts = network.overview.available ? network.overview : null;
+  const humanReviewLabel = trust.overview.humanReviewedPct == null ? 'Not enough data yet' : `${trust.overview.humanReviewedPct}%`;
 
   // ---- Part 2 — platform readiness ----
   const platformReadiness: MetricRow[] = [
@@ -81,7 +82,7 @@ export async function getReleaseReadiness(role: string | null): Promise<ReleaseR
     { label: 'Reviewers', value: adminCounts ? adminCounts.reviewers.toLocaleString('en-US') : '—' },
     { label: 'Admins', value: adminCounts ? adminCounts.admins.toLocaleString('en-US') : '—' },
     { label: 'Traceability', value: `${metrics.traceabilityScore.toFixed(1)}%` },
-    { label: 'Human review', value: `${trust.overview.humanReviewedPct}%` },
+    { label: 'Human review', value: humanReviewLabel },
     { label: 'Trust score', value: `${metrics.traceabilityScore.toFixed(1)}%` },
   ];
 
@@ -154,13 +155,18 @@ export async function getReleaseReadiness(role: string | null): Promise<ReleaseR
   };
 
   // ---- Part 8 — trust & governance ----
-  const sc = (label: string) => trust.scorecard.find((s) => s.label === label)?.pct ?? 0;
+  const sc = (label: string) => trust.scorecard.find((s) => s.label === label)?.pct ?? null;
+  const evidenceLinkedPct = sc('Evidence Linked');
+  // Transparency score = mean of the MEASURABLE scorecard items (null entries —
+  // e.g. "Version Controlled" when no data — are excluded, never counted as 0).
+  const measured = trust.scorecard.map((x) => x.pct).filter((p): p is number => p != null);
+  const transparencyScore = measured.length > 0 ? Math.round(measured.reduce((s, p) => s + p, 0) / measured.length) : null;
   const trustGovernance: MetricRow[] = [
-    { label: 'Human review', value: `${trust.overview.humanReviewedPct}%` },
-    { label: 'Evidence linked', value: `${sc('Evidence Linked')}%` },
+    { label: 'Human review', value: humanReviewLabel },
+    { label: 'Evidence linked', value: evidenceLinkedPct == null ? 'Not enough data yet' : `${evidenceLinkedPct}%` },
     { label: 'Traceability', value: `${trust.overview.traceabilityPct.toFixed(1)}%` },
     { label: 'Corrections logged', value: trust.overview.correctionsIssued.toLocaleString('en-US') },
-    { label: 'Transparency score', value: `${Math.round(trust.scorecard.reduce((s, x) => s + x.pct, 0) / Math.max(1, trust.scorecard.length))}%` },
+    { label: 'Transparency score', value: transparencyScore == null ? 'Not enough data yet' : `${transparencyScore}%` },
     { label: 'Audit readiness', value: trust.audit.length > 0 ? 'Audit trail active' : 'No events yet' },
   ];
 

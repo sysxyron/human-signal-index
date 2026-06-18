@@ -21,7 +21,7 @@ export function TrustOverview({ data }: { data: TrustOverviewData }) {
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <MetricCard label="Published signals" value={n(data.publishedSignals)} accent="#3B82F6" icon={Radio} />
       <MetricCard label="Published reports" value={n(data.publishedReports)} accent="#8B5CF6" icon={FileCheck2} />
-      <MetricCard label="Human reviewed" value={`${data.humanReviewedPct}%`} accent="#F59E0B" icon={UserCheck} />
+      <MetricCard label="Human reviewed" value={data.humanReviewedPct == null ? 'Not enough data yet' : `${data.humanReviewedPct}%`} accent="#F59E0B" icon={UserCheck} />
       <MetricCard label="Traceability" value={`${data.traceabilityPct.toFixed(1)}%`} accent="#10B981" icon={ShieldCheck} />
       <MetricCard label="Corrections issued" value={n(data.correctionsIssued)} accent="#06B6D4" icon={History} />
       <MetricCard label="Sources active" value={n(data.sourcesActive)} accent="#3B82F6" icon={Database} />
@@ -38,10 +38,14 @@ export function TransparencyScorecard({ scores }: { scores: TransparencyScore[] 
           <div key={s.label} className="space-y-1.5">
             <div className="flex items-center justify-between text-caption">
               <span className="font-medium text-text-secondary">{s.label}</span>
-              <span className="font-bold tabular-nums text-text-primary">{s.pct}%</span>
+              {s.pct == null ? (
+                <span className="text-[11px] font-medium text-text-muted">Not enough data yet</span>
+              ) : (
+                <span className="font-bold tabular-nums text-text-primary">{s.pct}%</span>
+              )}
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-              <div className="h-full rounded-full bg-verified" style={{ width: `${s.pct}%` }} />
+              <div className="h-full rounded-full bg-verified" style={{ width: `${s.pct ?? 0}%` }} />
             </div>
           </div>
         ))}

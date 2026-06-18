@@ -26,7 +26,10 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   // page, so viewers must not see a menu item that leads to "Access requires a
   // higher role". Source management permissions are unchanged.
   '/dashboard/sources': ['researcher', 'reviewer', 'curator'],
-  '/dashboard/signal-intake': ['researcher', 'reviewer'],
+  '/dashboard/signal-intake': ['researcher', 'reviewer', 'curator'],
+  // Phase 56.1 — gated to researcher+ to match PROTECTED_ROUTES (audit R1).
+  '/dashboard/forecasting': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/watchlists': ['researcher', 'reviewer', 'curator'],
   '/dashboard/signal-submission': ['reviewer', 'curator'], // submission review queue (41B)
   '/dashboard/evidence-vault': ['researcher', 'reviewer', 'curator'],
   '/dashboard/operations': ['reviewer', 'curator'],
@@ -139,8 +142,8 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/org', '/dashboard/org/members', '/dashboard/org/leaderboard', '/dashboard/org/analytics', '/dashboard/org/health', '/dashboard/org/settings', '/dashboard/org/branding', '/dashboard/org/billing', '/dashboard/org/create',
   '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',
-  '/dashboard/review', '/dashboard/governance-queue', '/dashboard/alerts', '/dashboard/counter-narrative', '/dashboard/public-reports',
-  '/dashboard/forecasts', '/dashboard/scenarios', '/dashboard/warnings',
+  '/dashboard/review', '/dashboard/governance-queue', '/dashboard/alerts', '/dashboard/watchlists', '/dashboard/counter-narrative', '/dashboard/public-reports',
+  '/dashboard/forecasts', '/dashboard/forecasting', '/dashboard/scenarios', '/dashboard/warnings',
   '/dashboard/investigations', '/dashboard/impact', '/dashboard/lineage', '/dashboard/consensus', '/dashboard/debates', '/dashboard/contributors',
   '/dashboard/outcomes', '/dashboard/governance', '/dashboard/trust', '/dashboard/calibration',
   '/dashboard/publishing', '/dashboard/publishing/review', '/dashboard/publishing/retractions',

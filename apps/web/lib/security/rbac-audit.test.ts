@@ -82,6 +82,15 @@ test('requiredRoleForRoute: unprotected / public route → null', () => {
   assert.equal(requiredRoleForRoute('/dashboard'), null);
 });
 
+test('requiredRoleForRoute: Phase 56.1 hardened read-only intelligence routes', () => {
+  assert.equal(requiredRoleForRoute('/dashboard/forecasting'), 'researcher');
+  assert.equal(requiredRoleForRoute('/dashboard/watchlists'), 'researcher');
+  assert.equal(requiredRoleForRoute('/dashboard/signal-intake'), 'researcher');
+  // A viewer/contributor is denied; researcher+ allowed.
+  assert.equal(auditRouteAccess('/dashboard/forecasting', 'viewer').allowed, false);
+  assert.equal(auditRouteAccess('/dashboard/watchlists', 'researcher').allowed, true);
+});
+
 test('auditRouteAccess: denies low role on admin route', () => {
   const out = auditRouteAccess('/dashboard/security-monitor', 'reviewer');
   assert.equal(out.allowed, false);

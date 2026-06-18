@@ -113,6 +113,12 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/intelligence/impacts', minRole: 'researcher' },
   { pattern: '/dashboard/decisions', minRole: 'researcher' },
   { pattern: '/dashboard/simulation', minRole: 'researcher' },
+  // Phase 56.1 — close audit finding R1: these read-only intelligence surfaces
+  // were reachable by any signed-in user (incl. viewer/contributor). Gate to
+  // researcher+ so middleware enforcement matches the nav visibility intent.
+  { pattern: '/dashboard/forecasting', minRole: 'researcher' },
+  { pattern: '/dashboard/watchlists', minRole: 'researcher' },
+  { pattern: '/dashboard/signal-intake', minRole: 'researcher' },
   // --- researcher (Phase 24 human-operations dashboards). Explicit entries for
   // operations-center / operations-alerts override the broader
   // '/dashboard/operations' (reviewer) prefix via longest-prefix-wins. ---
