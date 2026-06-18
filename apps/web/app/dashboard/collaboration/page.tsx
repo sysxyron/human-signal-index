@@ -16,6 +16,7 @@ import {
   ExecutiveCollabSummary, TeamOpsOverview, OwnershipPanel, WorkloadBalancing,
   EscalationCenter, CollaborationTimeline, CrossTeamIntelligence, InvestigationHealthPanel,
 } from '@/components/collaboration/panels';
+import { ReadOnlyNotice } from '@/components/navigation/ReadOnlyNotice';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -45,6 +46,16 @@ export default async function CollaborationPage() {
     <>
       <TopNav title="Collaboration Network" subtitle="Who's working on what, where the bottlenecks are, what's publication-ready" />
       <main className="space-y-6 p-5 lg:p-6">
+        <ReadOnlyNotice
+          title="About this view"
+          points={[
+            'Read-only operational coordination — who’s working on what and where the bottlenecks are. It is not chat and has no assignment actions.',
+            'Investigate cases in My Work.',
+            'Reviewers act in the Review Queue; publishing a report requires the curator role.',
+          ]}
+          actions={[{ label: 'My Work', href: '/dashboard/my-work' }]}
+        />
+
         {/* Part 9 — executive collaboration summary (role-aware) */}
         <ExecutiveCollabSummary summary={c.summary} role={c.role} />
 

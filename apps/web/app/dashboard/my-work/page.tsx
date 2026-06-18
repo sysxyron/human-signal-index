@@ -21,6 +21,7 @@ import {
 } from '@/components/analyst-workspace/WorkspacePanels';
 import { InvestigationQueue } from '@/components/analyst-workspace/InvestigationQueue';
 import { QuickActions } from '@/components/mission-control/QuickActions';
+import { ReadOnlyNotice } from '@/components/navigation/ReadOnlyNotice';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -102,6 +103,17 @@ export default async function MyWorkPage() {
       <TopNav title="Analyst Workspace" subtitle="What you own, what needs attention, what's blocked, what to work next" />
       <main className="space-y-6 p-5 lg:p-6">
         <OperationsNav />
+
+        <ReadOnlyNotice
+          title="What you can do here"
+          points={[
+            'This analyst workspace is read-only — it shows the cases moving through the pipeline and their evidence chains.',
+            'Submit new signals from “Submit a Signal”.',
+            'Reviewers act on items in the Review Queue; drafting and publishing a report requires the curator role (Publishing).',
+            'Open any case to inspect its evidence, traceability, and status.',
+          ]}
+          actions={[{ label: 'Submit a Signal', href: '/submit-a-signal' }]}
+        />
 
         {/* Part 1 — my work */}
         <MyWorkOverview work={work} />

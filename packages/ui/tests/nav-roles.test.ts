@@ -36,6 +36,24 @@ test('admin sees every restricted route', () => {
   for (const href of Object.keys(NAV_VISIBILITY)) assert.equal(canSeeRoute(href, 'admin'), true, href);
 });
 
+test('Phase 58.1 wired surfaces: nav visibility matches route gates', () => {
+  // All six are real menu items now.
+  for (const h of ['/dashboard/source-registry', '/dashboard/watchlists', '/dashboard/forecasting', '/dashboard/collaboration', '/dashboard/release-candidate', '/dashboard/beta-operations']) {
+    assert.ok(ALL_NAV_HREFS.includes(h), `${h} should be a menu item`);
+  }
+  // source-registry = reviewer+ (matches PROTECTED_ROUTES reviewer gate)
+  assert.equal(canSeeRoute('/dashboard/source-registry', 'researcher'), false);
+  assert.equal(canSeeRoute('/dashboard/source-registry', 'reviewer'), true);
+  // researcher+ surfaces
+  for (const h of ['/dashboard/watchlists', '/dashboard/forecasting', '/dashboard/collaboration', '/dashboard/release-candidate', '/dashboard/my-work']) {
+    assert.equal(canSeeRoute(h, 'viewer'), false, `${h} hidden from viewer`);
+    assert.equal(canSeeRoute(h, 'researcher'), true, `${h} visible to researcher`);
+  }
+  // beta-operations = admin only
+  assert.equal(canSeeRoute('/dashboard/beta-operations', 'reviewer'), false);
+  assert.equal(canSeeRoute('/dashboard/beta-operations', 'admin'), true);
+});
+
 // ---- viewer (Phase 41B.1 policy) -------------------------------------------
 
 const VIEWER_VISIBLE = [

@@ -207,6 +207,7 @@ export default async function HomePage() {
           <div className="mb-6 max-w-2xl space-y-3">
             <SectionEyebrow>Mission Control</SectionEyebrow>
             <h2 className="text-h3 font-bold lg:text-h2">An operational view of the signal landscape.</h2>
+            <p className="text-body-sm text-text-muted">An example of the analyst command center layout. Live platform figures appear in the metrics and signal feed above; this panel is an illustrative preview.</p>
           </div>
         </Reveal>
         <MissionControlPreview data={MISSION} />

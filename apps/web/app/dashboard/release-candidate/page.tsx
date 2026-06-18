@@ -15,6 +15,7 @@ import {
   ReleaseStatusBanner, MetricGrid, SystemHealthPanel, AlertsRisksPanel, NetworkReadinessPanel,
   LaunchBriefPanel, ReleaseChecklist, ICONS,
 } from '@/components/release-candidate/panels';
+import { ReadOnlyNotice } from '@/components/navigation/ReadOnlyNotice';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -44,6 +45,16 @@ export default async function ReleaseCandidatePage() {
     <>
       <TopNav title="Beta Release Candidate" subtitle="One screen: are we ready to launch beta?" />
       <main className="space-y-6 p-5 lg:p-6">
+        <ReadOnlyNotice
+          title="About this view"
+          points={[
+            'Read-only launch-readiness summary, composed from live platform data across every intelligence layer.',
+            'Operational actions live elsewhere: Mission Control (overview), the Review Queue (reviewers), and Publishing (curators).',
+            'Aggregate contributor / reviewer figures are shown to administrators only.',
+          ]}
+          actions={[{ label: 'Mission Control', href: '/dashboard' }]}
+        />
+
         {/* Part 1 + Part 3 — release command + overall status */}
         <ReleaseStatusBanner status={r.status} score={r.score} reasons={r.statusReasons} />
 

@@ -57,6 +57,7 @@ import {
   CreditCard,
   Palette,
   Layers,
+  Eye,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -327,7 +328,11 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Operations',
     items: [
       { label: 'Mission Control', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'Source Registry', href: '/dashboard/sources', icon: Database },
+      // Phase 58.1 (FIX 2): "Source Registry" now points to the Phase 46 source
+      // intelligence console; the legacy CRUD page is reachable via "Manage Sources".
+      { label: 'Source Registry', href: '/dashboard/source-registry', icon: Database },
+      { label: 'Manage Sources', href: '/dashboard/sources', icon: Database },
+      { label: 'Watchlists', href: '/dashboard/watchlists', icon: Eye },
       { label: 'Submit a Signal', href: '/submit-a-signal', icon: Send },
       { label: 'Signal Intake', href: '/dashboard/signal-intake', icon: Inbox },
       { label: 'Submission Queue', href: '/dashboard/signal-submission', icon: ClipboardCheck },
@@ -383,7 +388,10 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
   {
     group: 'Forecasting',
     items: [
-      { label: 'Forecasts', href: '/dashboard/forecasts', icon: TrendingUp },
+      // Phase 58.1 (FIX 1/5): the Phase 52 forecasting & early-warning surface.
+      { label: 'Forecasting', href: '/dashboard/forecasting', icon: TrendingUp },
+      // Phase 21 forecast workflow — relabelled to disambiguate from "Forecasting".
+      { label: 'Forecast Lab', href: '/dashboard/forecasts', icon: Beaker },
       { label: 'Scenarios', href: '/dashboard/scenarios', icon: GitBranch },
       { label: 'Early Warnings', href: '/dashboard/warnings', icon: Siren },
     ],
@@ -444,6 +452,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     items: [
       { label: 'Operations Center', href: '/dashboard/operations-center', icon: Activity },
       { label: 'My Work', href: '/dashboard/my-work', icon: ClipboardList },
+      { label: 'Collaboration', href: '/dashboard/collaboration', icon: Network },
       { label: 'Workloads', href: '/dashboard/workloads', icon: Gauge },
       { label: 'Teams', href: '/dashboard/teams', icon: Users },
       { label: 'Operational Alerts', href: '/dashboard/operations-alerts', icon: Bell },
@@ -455,6 +464,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Launch & Beta',
     items: [
       { label: 'Launch Center', href: '/dashboard/launch', icon: Rocket },
+      { label: 'Release Candidate', href: '/dashboard/release-candidate', icon: Rocket },
       { label: 'Beta Issues Queue', href: '/dashboard/launch/issues', icon: Bug },
       { label: 'Beta Tester', href: '/dashboard/tester', icon: Rocket },
       { label: 'Tester Onboarding', href: '/dashboard/tester-onboarding', icon: GraduationCap },
@@ -481,7 +491,10 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Outcome Monitoring', href: '/dashboard/admin/outcome-monitoring', icon: Target },
       { label: 'Graph Explorer', href: '/dashboard/admin/graph-explorer', icon: Network },
       { label: 'Graph Health', href: '/dashboard/admin/graph-health', icon: Activity },
-      { label: 'Beta Operations', href: '/dashboard/admin/tester-ops', icon: Rocket },
+      // Phase 58.1 (FIX 2): "Beta Operations" now points to the Phase 50 console;
+      // the legacy tester-ops admin page is reachable via "Tester Ops".
+      { label: 'Beta Operations', href: '/dashboard/beta-operations', icon: Rocket },
+      { label: 'Tester Ops', href: '/dashboard/admin/tester-ops', icon: Rocket },
       { label: 'System Health', href: '/dashboard/admin/system-health', icon: Activity },
       { label: 'Testers', href: '/dashboard/admin/testers', icon: GraduationCap },
       { label: 'Access Logs', href: '/dashboard/admin/access-logs', icon: ScrollText },

@@ -30,6 +30,13 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   // Phase 56.1 — gated to researcher+ to match PROTECTED_ROUTES (audit R1).
   '/dashboard/forecasting': ['researcher', 'reviewer', 'curator'],
   '/dashboard/watchlists': ['researcher', 'reviewer', 'curator'],
+  // Phase 58.1 — surfaces now wired into the sidebar; visibility mirrors each
+  // route's gate (source-registry = reviewer; my-work/collaboration/release-
+  // candidate = researcher+ page gate; beta-operations = admin).
+  '/dashboard/source-registry': ['reviewer', 'curator'],
+  '/dashboard/collaboration': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/release-candidate': ['researcher', 'reviewer', 'curator'],
+  '/dashboard/beta-operations': ['admin'],
   '/dashboard/signal-submission': ['reviewer', 'curator'], // submission review queue (41B)
   '/dashboard/evidence-vault': ['researcher', 'reviewer', 'curator'],
   '/dashboard/operations': ['reviewer', 'curator'],
@@ -138,7 +145,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
  * the client `dashboardNavGroups`. Keep in sync with navigation.tsx's sidebar.
  */
 export const ALL_NAV_HREFS: string[] = [
-  '/dashboard', '/dashboard/sources', '/submit-a-signal', '/dashboard/signal-intake', '/dashboard/signal-submission', '/dashboard/evidence-vault', '/dashboard/operations',
+  '/dashboard', '/dashboard/sources', '/dashboard/source-registry', '/submit-a-signal', '/dashboard/signal-intake', '/dashboard/signal-submission', '/dashboard/evidence-vault', '/dashboard/operations',
   '/dashboard/org', '/dashboard/org/members', '/dashboard/org/leaderboard', '/dashboard/org/analytics', '/dashboard/org/health', '/dashboard/org/settings', '/dashboard/org/branding', '/dashboard/org/billing', '/dashboard/org/create',
   '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',
@@ -149,10 +156,10 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/publishing', '/dashboard/publishing/review', '/dashboard/publishing/retractions',
   '/dashboard/executive', '/dashboard/priorities', '/dashboard/risks', '/dashboard/opportunities', '/dashboard/briefings', '/dashboard/exec-governance',
   '/dashboard/worldforge', '/dashboard/simulation', '/dashboard/worldforge/simulations', '/dashboard/worldforge/scenarios', '/dashboard/worldforge/timelines', '/dashboard/worldforge/dependency-graph', '/dashboard/worldforge/counterfactuals', '/dashboard/worldforge/provenance', '/dashboard/worldforge/universes',
-  '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
-  '/dashboard/launch', '/dashboard/launch/issues', '/dashboard/tester', '/dashboard/tester-onboarding',
+  '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/collaboration', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
+  '/dashboard/launch', '/dashboard/release-candidate', '/dashboard/launch/issues', '/dashboard/tester', '/dashboard/tester-onboarding',
   '/dashboard/profile', '/dashboard/apply-role',
-  '/dashboard/admin/users', '/dashboard/admin/organizations', '/dashboard/admin/plans', '/dashboard/admin/subscriptions', '/dashboard/admin/revenue', '/dashboard/admin/subscription-health', '/dashboard/admin/billing-ops', '/dashboard/admin/webhooks', '/dashboard/admin/site-ops', '/dashboard/admin/cms', '/dashboard/admin/site-settings', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/admin/tester-ops', '/dashboard/admin/system-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
+  '/dashboard/admin/users', '/dashboard/admin/organizations', '/dashboard/admin/plans', '/dashboard/admin/subscriptions', '/dashboard/admin/revenue', '/dashboard/admin/subscription-health', '/dashboard/admin/billing-ops', '/dashboard/admin/webhooks', '/dashboard/admin/site-ops', '/dashboard/admin/cms', '/dashboard/admin/site-settings', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/beta-operations', '/dashboard/admin/tester-ops', '/dashboard/admin/system-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',
 ];
 

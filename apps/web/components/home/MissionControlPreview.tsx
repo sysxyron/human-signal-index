@@ -34,9 +34,11 @@ export function MissionControlPreview({ data }: { data: MissionControlData }) {
             <span className="h-2.5 w-2.5 rounded-full bg-verified/70" />
             <span className="ml-3 text-caption font-medium text-text-secondary">Mission Control</span>
           </div>
-          <span className="inline-flex items-center gap-1.5 text-caption text-text-muted">
-            <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-verified opacity-70" /><span className="relative inline-flex h-2 w-2 rounded-full bg-verified" /></span>
-            live
+          {/* Phase 58.1 (FIX 3): this preview uses example layout data, not live
+              platform metrics — labelled explicitly so no fabricated numbers read
+              as live. Real live figures are in the metric strip + signal feed above. */}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            Illustrative preview
           </span>
         </div>
 
