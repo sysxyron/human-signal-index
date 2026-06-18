@@ -18,6 +18,11 @@ import { CollectiveNav } from '@/components/collective/CollectiveNav';
 import { ContributorRanking, TrustBreakdown } from '@/components/collective/ContributorRanking';
 import { DemoBadge } from '@/components/signals/badges';
 import { EmptyState, ErrorState, OfflineDemoBanner, type DbErrorCode } from '@/components/signals/states';
+import { getContributorNetwork } from '@/lib/contributor-network';
+import {
+  ContributorExecutiveSummary, ContributorOverviewPanel, ContributionHealthPanel, ContributorQualityPanel,
+  CategoryCoveragePanel, ReputationModelPanel, NetworkHealthPanel,
+} from '@/components/contributor-network/panels';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -25,6 +30,7 @@ export const revalidate = 0;
 export default async function ContributorsPage() {
   const [res, role, user] = await Promise.all([getContributorsBoardAction(), getSessionRole(), getUser()]);
   const mayView = canResearch(role) && Boolean(user);
+  const network = mayView ? await getContributorNetwork(role) : null;
 
   let data: ContributorsBoardData | null = null;
   let isDemo = false;
@@ -38,12 +44,29 @@ export default async function ContributorsPage() {
 
   return (
     <>
-      <TopNav title="Contributors" subtitle="Contributor reliability — accuracy, trust, review quality, consensus alignment, evidence" />
+      <TopNav title="Contributor Network" subtitle="Contribution intelligence — activity, quality, coverage, and network health" />
       <main className="space-y-6 p-5 lg:p-6">
         <CollectiveNav />
-        <div className="flex items-center gap-2">
+
+        {/* ---- Phase 54: contributor network & reputation intelligence ---- */}
+        {network ? (
+          <>
+            <ContributorExecutiveSummary summary={network.summary} role={network.role} />
+            <ContributorOverviewPanel overview={network.overview} />
+            <ContributionHealthPanel health={network.health} />
+            <div className="grid gap-4 xl:grid-cols-2">
+              <ContributorQualityPanel quality={network.quality} />
+              <ReputationModelPanel model={network.reputationModel} />
+            </div>
+            <CategoryCoveragePanel coverage={network.coverage} />
+            <NetworkHealthPanel health={network.networkHealth} />
+          </>
+        ) : null}
+
+        {/* ---- existing Phase 20 contributor reliability board (preserved — serves as the contributor explorer) ---- */}
+        <div className="flex items-center gap-2 border-t border-border pt-6">
           <h2 className="flex items-center gap-2 text-h5 font-semibold text-text-primary">
-            <Trophy className="h-5 w-5 text-electric" /> Contributor leaderboard
+            <Trophy className="h-5 w-5 text-electric" /> Contributor reliability board
           </h2>
           {isDemo ? <DemoBadge /> : null}
         </div>
