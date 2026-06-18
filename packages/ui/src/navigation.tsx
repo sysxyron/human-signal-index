@@ -331,6 +331,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       // Phase 58.1 (FIX 2): "Source Registry" now points to the Phase 46 source
       // intelligence console; the legacy CRUD page is reachable via "Manage Sources".
       { label: 'Source Registry', href: '/dashboard/source-registry', icon: Database },
+      { label: 'Source Reliability', href: '/dashboard/source-reliability', icon: Activity },
       { label: 'Manage Sources', href: '/dashboard/sources', icon: Database },
       { label: 'Watchlists', href: '/dashboard/watchlists', icon: Eye },
       { label: 'Submit a Signal', href: '/submit-a-signal', icon: Send },

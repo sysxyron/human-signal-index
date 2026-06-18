@@ -54,6 +54,14 @@ test('Phase 58.1 wired surfaces: nav visibility matches route gates', () => {
   assert.equal(canSeeRoute('/dashboard/beta-operations', 'admin'), true);
 });
 
+test('Phase 61 source-reliability is reviewer+ and a real menu item', () => {
+  assert.ok(ALL_NAV_HREFS.includes('/dashboard/source-reliability'));
+  assert.equal(canSeeRoute('/dashboard/source-reliability', 'researcher'), false);
+  assert.equal(canSeeRoute('/dashboard/source-reliability', 'reviewer'), true);
+  assert.equal(canSeeRoute('/dashboard/source-reliability', 'curator'), true);
+  assert.equal(canSeeRoute('/dashboard/source-reliability', 'admin'), true);
+});
+
 test('Phase 60 beta-launch console is admin-only and a real menu item', () => {
   assert.ok(ALL_NAV_HREFS.includes('/dashboard/beta-launch'));
   assert.equal(canSeeRoute('/dashboard/beta-launch', 'curator'), false);

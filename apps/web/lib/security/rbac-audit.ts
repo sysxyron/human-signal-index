@@ -106,6 +106,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/curation', minRole: 'reviewer' },
   { pattern: '/dashboard/sources', minRole: 'reviewer' },
   { pattern: '/dashboard/source-registry', minRole: 'reviewer' },
+  // Phase 61 — source reliability & crawl observability (read-only).
+  { pattern: '/dashboard/source-reliability', minRole: 'reviewer' },
   { pattern: '/dashboard/operations', minRole: 'reviewer' },
   // Phase 25 — governance queue (escalated/sensitive investigations).
   { pattern: '/dashboard/governance-queue', minRole: 'reviewer' },
