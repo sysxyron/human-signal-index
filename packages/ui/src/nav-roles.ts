@@ -37,6 +37,8 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/collaboration': ['researcher', 'reviewer', 'curator'],
   '/dashboard/release-candidate': ['researcher', 'reviewer', 'curator'],
   '/dashboard/beta-operations': ['admin'],
+  // Phase 60 — beta launch operations console (admin-only).
+  '/dashboard/beta-launch': ['admin'],
   '/dashboard/signal-submission': ['reviewer', 'curator'], // submission review queue (41B)
   '/dashboard/evidence-vault': ['researcher', 'reviewer', 'curator'],
   '/dashboard/operations': ['reviewer', 'curator'],
@@ -157,7 +159,7 @@ export const ALL_NAV_HREFS: string[] = [
   '/dashboard/executive', '/dashboard/priorities', '/dashboard/risks', '/dashboard/opportunities', '/dashboard/briefings', '/dashboard/exec-governance',
   '/dashboard/worldforge', '/dashboard/simulation', '/dashboard/worldforge/simulations', '/dashboard/worldforge/scenarios', '/dashboard/worldforge/timelines', '/dashboard/worldforge/dependency-graph', '/dashboard/worldforge/counterfactuals', '/dashboard/worldforge/provenance', '/dashboard/worldforge/universes',
   '/dashboard/operations-center', '/dashboard/my-work', '/dashboard/collaboration', '/dashboard/workloads', '/dashboard/teams', '/dashboard/operations-alerts', '/dashboard/executive-operations', '/dashboard/contributor-ops',
-  '/dashboard/launch', '/dashboard/release-candidate', '/dashboard/launch/issues', '/dashboard/tester', '/dashboard/tester-onboarding',
+  '/dashboard/launch', '/dashboard/beta-launch', '/dashboard/release-candidate', '/dashboard/launch/issues', '/dashboard/tester', '/dashboard/tester-onboarding',
   '/dashboard/profile', '/dashboard/apply-role',
   '/dashboard/admin/users', '/dashboard/admin/organizations', '/dashboard/admin/plans', '/dashboard/admin/subscriptions', '/dashboard/admin/revenue', '/dashboard/admin/subscription-health', '/dashboard/admin/billing-ops', '/dashboard/admin/webhooks', '/dashboard/admin/site-ops', '/dashboard/admin/cms', '/dashboard/admin/site-settings', '/dashboard/admin/teams', '/dashboard/admin/applications', '/dashboard/admin/contribution-monitoring', '/dashboard/admin/trust-monitoring', '/dashboard/admin/outcome-monitoring', '/dashboard/admin/graph-explorer', '/dashboard/admin/graph-health', '/dashboard/beta-operations', '/dashboard/admin/tester-ops', '/dashboard/admin/system-health', '/dashboard/admin/testers', '/dashboard/admin/access-logs',
   '/dashboard/security-monitor', '/dashboard/security', '/dashboard/settings',

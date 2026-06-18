@@ -464,6 +464,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     group: 'Launch & Beta',
     items: [
       { label: 'Launch Center', href: '/dashboard/launch', icon: Rocket },
+      { label: 'Beta Launch', href: '/dashboard/beta-launch', icon: Rocket },
       { label: 'Release Candidate', href: '/dashboard/release-candidate', icon: Rocket },
       { label: 'Beta Issues Queue', href: '/dashboard/launch/issues', icon: Bug },
       { label: 'Beta Tester', href: '/dashboard/tester', icon: Rocket },

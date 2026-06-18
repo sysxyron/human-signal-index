@@ -87,6 +87,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/security', minRole: 'admin' },
   { pattern: '/dashboard/admin', minRole: 'admin' },
   { pattern: '/dashboard/settings', minRole: 'admin' },
+  // Phase 60 — Beta Launch operations console (admin-only).
+  { pattern: '/dashboard/beta-launch', minRole: 'admin' },
   // Launch Operations Center is admin-only…
   { pattern: '/dashboard/launch', minRole: 'admin' },
   // …but the beta issue reporter (a longer prefix → wins) is open to ANY signed-in
