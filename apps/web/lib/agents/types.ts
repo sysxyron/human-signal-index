@@ -11,6 +11,8 @@ import type { NotificationSeverity } from '@/lib/notifications/types';
 export const AGENT_KEYS = [
   'SOURCE_HEALTH_AGENT', 'NARRATIVE_WATCH_AGENT', 'GRAPH_ANALYST_AGENT', 'REVIEW_QUEUE_AGENT',
   'PUBLICATION_MONITOR_AGENT', 'TRUST_ANOMALY_AGENT', 'EXECUTIVE_BRIEF_AGENT', 'FORECAST_PREP_AGENT',
+  // Phase 67 — forecast validation (validation only, no forecasting).
+  'FORECAST_VALIDATION_AGENT',
 ] as const;
 export type AgentKey = (typeof AGENT_KEYS)[number];
 

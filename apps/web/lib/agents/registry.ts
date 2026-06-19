@@ -24,6 +24,7 @@ export const AGENT_REGISTRY: AgentDefinition[] = [
   { key: 'TRUST_ANOMALY_AGENT', name: 'Trust Anomaly Agent', description: 'Flags unusual trust shifts, concentration, and evidence anomalies (flag only).', category: 'trust', defaultCadence: 'daily', consumes: ['Phase 64', 'Phase 65'] },
   { key: 'EXECUTIVE_BRIEF_AGENT', name: 'Executive Brief Agent', description: 'Produces explainable daily/weekly executive intelligence summaries.', category: 'executive', defaultCadence: 'daily', consumes: ['Phase 61', 'Phase 64', 'Phase 65'] },
   { key: 'FORECAST_PREP_AGENT', name: 'Forecast Prep Agent', description: 'Computes forecast-readiness indicators across Phases 61–65 (no forecasting).', category: 'forecast', defaultCadence: 'weekly', consumes: ['Phase 61', 'Phase 64', 'Phase 65'] },
+  { key: 'FORECAST_VALIDATION_AGENT', name: 'Forecast Validation Agent', description: 'Detects due forecasts, evaluates recorded outcomes, computes scores, and raises alerts (validation only — no forecasting).', category: 'forecast', defaultCadence: 'daily', consumes: ['Phase 67'] },
 ];
 
 export function getAgentDefinition(key: string): AgentDefinition | undefined {

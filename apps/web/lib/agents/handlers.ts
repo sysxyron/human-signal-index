@@ -10,6 +10,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSourceReliability } from '@/lib/source-reliability';
 import { getCountsDal, topConnectedDal } from '@/lib/evidence-graph/persistence';
 import { listNarrativesDal, latestSnapshotByNarrative, growthByNarrative } from '@/lib/narrative-intelligence/persistence';
+import { validateDueForecasts } from '@/lib/forecasts/engine';
+import { readEvalRecords } from '@/lib/forecasts/persistence';
+import { performanceMetrics } from '@/lib/forecasts/calibration';
 import type { AgentKey, AgentHandlerResult, Finding } from './types';
 
 type Handler = (writer: SupabaseClient) => Promise<AgentHandlerResult>;
@@ -194,6 +197,17 @@ const forecastPrep: Handler = async (writer) => {
   return { findings, actions };
 };
 
+// ---- Phase 67. Forecast Validation Agent (validation only, no forecasting) --
+const forecastValidation: Handler = async (writer) => {
+  const actions: string[] = ['Validated due forecasts (Phase 67)'];
+  const findings: Finding[] = [];
+  const summary = await validateDueForecasts(writer, new Date().toISOString(), null);
+  findings.push(f(`${summary.due} forecast(s) due — ${summary.evaluated} evaluated, ${summary.flagged} awaiting outcome`, summary.flagged > 0 ? 'NOTICE' : 'INFO', 'forecast_validation', 'forecasts', { ...summary }));
+  const perf = performanceMetrics(await readEvalRecords(writer));
+  if (perf.resolved > 0) findings.push(f(`Forecast accuracy ${perf.accuracy}% · calibration ${perf.calibrationScore}/100 (${perf.resolved} resolved)`, perf.calibrationScore < 50 ? 'WARNING' : 'INFO', 'forecast_performance', 'forecasts', { accuracy: perf.accuracy, calibration: perf.calibrationScore, resolved: perf.resolved }));
+  return { findings, actions };
+};
+
 export const HANDLERS: Record<AgentKey, Handler> = {
   SOURCE_HEALTH_AGENT: sourceHealth,
   NARRATIVE_WATCH_AGENT: narrativeWatch,
@@ -203,4 +217,5 @@ export const HANDLERS: Record<AgentKey, Handler> = {
   TRUST_ANOMALY_AGENT: trustAnomaly,
   EXECUTIVE_BRIEF_AGENT: executiveBrief,
   FORECAST_PREP_AGENT: forecastPrep,
+  FORECAST_VALIDATION_AGENT: forecastValidation,
 };

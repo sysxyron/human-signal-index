@@ -63,6 +63,16 @@ test('Phase 62 notifications is viewer+ (every signed-in role) and a real menu i
   assert.equal(canSeeRoute('/dashboard/notifications', null), false);
 });
 
+test('Phase 67 forecast-validation is reviewer+ and a real menu item', () => {
+  assert.ok(ALL_NAV_HREFS.includes('/dashboard/forecast-validation'));
+  assert.equal(canSeeRoute('/dashboard/forecast-validation', 'researcher'), false);
+  assert.equal(canSeeRoute('/dashboard/forecast-validation', 'reviewer'), true);
+  assert.equal(canSeeRoute('/dashboard/forecast-validation', 'curator'), true);
+  assert.equal(canSeeRoute('/dashboard/forecast-validation', 'admin'), true);
+  // existing Phase 21 /dashboard/forecasts is preserved (researcher+)
+  assert.equal(canSeeRoute('/dashboard/forecasts', 'researcher'), true);
+});
+
 test('Phase 66 agents is reviewer+ and a real menu item', () => {
   assert.ok(ALL_NAV_HREFS.includes('/dashboard/agents'));
   assert.equal(canSeeRoute('/dashboard/agents', 'researcher'), false);

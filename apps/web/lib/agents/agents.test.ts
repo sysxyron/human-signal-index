@@ -10,9 +10,10 @@ import { AGENT_REGISTRY, getAgentDefinition } from './registry';
 
 // ---- registry --------------------------------------------------------------
 
-test('8 agents registered, all keys valid + defined', () => {
-  assert.equal(AGENT_KEYS.length, 8);
-  assert.equal(AGENT_REGISTRY.length, 8);
+test('9 agents registered, all keys valid + defined', () => {
+  assert.equal(AGENT_KEYS.length, 9);
+  assert.equal(AGENT_REGISTRY.length, 9);
+  assert.ok(getAgentDefinition('FORECAST_VALIDATION_AGENT'));
   for (const def of AGENT_REGISTRY) {
     assert.ok(isAgentKey(def.key), def.key);
     assert.equal(getAgentDefinition(def.key)?.key, def.key);

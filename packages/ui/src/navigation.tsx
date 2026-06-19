@@ -382,6 +382,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Narratives', href: '/dashboard/narratives', icon: Layers },
       // Phase 66 — agent automation (reviewer+).
       { label: 'Agents', href: '/dashboard/agents', icon: Bot },
+      // Phase 67 — forecast validation (reviewer+).
+      { label: 'Forecast Validation', href: '/dashboard/forecast-validation', icon: Target },
       { label: 'Intelligence Ops', href: '/dashboard/intelligence/operations', icon: Workflow },
       { label: 'Decision Explorer', href: '/dashboard/decisions/explorer', icon: GitCompareArrows },
     ],
