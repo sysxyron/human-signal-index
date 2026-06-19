@@ -18,6 +18,7 @@ import {
   Settings,
   Activity,
   Radar,
+  GitFork,
   Menu,
   X,
   Search,
@@ -374,6 +375,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Rhetoric Analysis', href: '/dashboard/rhetoric-classifier', icon: ScanText },
       { label: 'Risk Assessment', href: '/dashboard/risk-scoring', icon: Gauge },
       { label: 'Evidence Trail', href: '/dashboard/traceability-engine', icon: Network },
+      // Phase 64 — connected intelligence graph (reviewer+).
+      { label: 'Evidence Graph', href: '/dashboard/evidence-graph', icon: GitFork },
       { label: 'Intelligence Ops', href: '/dashboard/intelligence/operations', icon: Workflow },
       { label: 'Decision Explorer', href: '/dashboard/decisions/explorer', icon: GitCompareArrows },
     ],
