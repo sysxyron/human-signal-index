@@ -19,6 +19,7 @@ import {
   Activity,
   Radar,
   GitFork,
+  Bot,
   Menu,
   X,
   Search,
@@ -379,6 +380,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Evidence Graph', href: '/dashboard/evidence-graph', icon: GitFork },
       // Phase 65 — narrative intelligence (reviewer+).
       { label: 'Narratives', href: '/dashboard/narratives', icon: Layers },
+      // Phase 66 — agent automation (reviewer+).
+      { label: 'Agents', href: '/dashboard/agents', icon: Bot },
       { label: 'Intelligence Ops', href: '/dashboard/intelligence/operations', icon: Workflow },
       { label: 'Decision Explorer', href: '/dashboard/decisions/explorer', icon: GitCompareArrows },
     ],
