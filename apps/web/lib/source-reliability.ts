@@ -59,6 +59,9 @@ export interface ReliabilitySource {
   retryStage: string;
   nextRetry: string;
   signals: number;
+  // Phase 63 — raw recency exposed for the monitoring engine (stale detection).
+  lastSuccessIso: string | null;
+  lastSuccessAgeDays: number | null;
 }
 
 export interface StatusBreakdown { total: number; active: number; healthy: number; warning: number; failed: number; blocked: number; loginRequired: number }
@@ -195,6 +198,8 @@ async function loadReliability(): Promise<SourceReliabilityData> {
       lastSuccessLabel: t?.lastSuccessAt ? fmtDate(t.lastSuccessAt) : 'never',
       retryStage: bo.stage, nextRetry: bo.nextRetry,
       signals: s.signals,
+      lastSuccessIso: t?.lastSuccessAt ?? null,
+      lastSuccessAgeDays,
     };
   });
 
