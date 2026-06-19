@@ -377,6 +377,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Evidence Trail', href: '/dashboard/traceability-engine', icon: Network },
       // Phase 64 — connected intelligence graph (reviewer+).
       { label: 'Evidence Graph', href: '/dashboard/evidence-graph', icon: GitFork },
+      // Phase 65 — narrative intelligence (reviewer+).
+      { label: 'Narratives', href: '/dashboard/narratives', icon: Layers },
       { label: 'Intelligence Ops', href: '/dashboard/intelligence/operations', icon: Workflow },
       { label: 'Decision Explorer', href: '/dashboard/decisions/explorer', icon: GitCompareArrows },
     ],
