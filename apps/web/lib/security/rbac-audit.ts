@@ -110,6 +110,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/source-reliability', minRole: 'reviewer' },
   // Phase 63 — automated source monitoring (reviewer+ read; admin run).
   { pattern: '/dashboard/source-monitoring', minRole: 'reviewer' },
+  // Phase 64 — evidence graph (reviewer+ read; admin manage).
+  { pattern: '/dashboard/evidence-graph', minRole: 'reviewer' },
   { pattern: '/dashboard/operations', minRole: 'reviewer' },
   // Phase 25 — governance queue (escalated/sensitive investigations).
   { pattern: '/dashboard/governance-queue', minRole: 'reviewer' },

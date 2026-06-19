@@ -1,7 +1,7 @@
 // =============================================================================
 // Migration verification (Phase 23) — PURE.
 //
-// Compares the EXPECTED migration set (0001 → 0050, the files committed under
+// Compares the EXPECTED migration set (0001 → 0051, the files committed under
 // supabase/migrations) against the APPLIED set (read from
 // supabase_migrations.schema_migrations by the DAL) and classifies each:
 //   applied | missing | out_of_order | failed | unknown
@@ -68,6 +68,7 @@ export const EXPECTED_MIGRATIONS: ExpectedMigration[] = [
   { id: '0048', name: 'beta_launch' },
   { id: '0049', name: 'notifications_framework' },
   { id: '0050', name: 'source_monitoring' },
+  { id: '0051', name: 'evidence_graph' },
 ];
 
 export type MigrationState = 'applied' | 'missing' | 'out_of_order' | 'failed' | 'unknown';
