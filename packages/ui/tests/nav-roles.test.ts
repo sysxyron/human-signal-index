@@ -63,6 +63,14 @@ test('Phase 62 notifications is viewer+ (every signed-in role) and a real menu i
   assert.equal(canSeeRoute('/dashboard/notifications', null), false);
 });
 
+test('Phase 66 agents is reviewer+ and a real menu item', () => {
+  assert.ok(ALL_NAV_HREFS.includes('/dashboard/agents'));
+  assert.equal(canSeeRoute('/dashboard/agents', 'researcher'), false);
+  assert.equal(canSeeRoute('/dashboard/agents', 'reviewer'), true);
+  assert.equal(canSeeRoute('/dashboard/agents', 'curator'), true);
+  assert.equal(canSeeRoute('/dashboard/agents', 'admin'), true);
+});
+
 test('Phase 65 narratives is reviewer+ and a real menu item', () => {
   assert.ok(ALL_NAV_HREFS.includes('/dashboard/narratives'));
   assert.equal(canSeeRoute('/dashboard/narratives', 'researcher'), false);

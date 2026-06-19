@@ -114,6 +114,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/evidence-graph', minRole: 'reviewer' },
   // Phase 65 — narrative intelligence (reviewer+ read; admin manage).
   { pattern: '/dashboard/narratives', minRole: 'reviewer' },
+  // Phase 66 — agent automation (reviewer+ read; admin run/schedule).
+  { pattern: '/dashboard/agents', minRole: 'reviewer' },
   { pattern: '/dashboard/operations', minRole: 'reviewer' },
   // Phase 25 — governance queue (escalated/sensitive investigations).
   { pattern: '/dashboard/governance-queue', minRole: 'reviewer' },
