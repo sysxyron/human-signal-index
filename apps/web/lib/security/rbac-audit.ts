@@ -118,6 +118,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/agents', minRole: 'reviewer' },
   // Phase 67 — forecast validation (reviewer+ read; admin manage).
   { pattern: '/dashboard/forecast-validation', minRole: 'reviewer' },
+  // Phase 69 — marketplace administration (admin; public catalog is /marketplace).
+  { pattern: '/dashboard/marketplace', minRole: 'admin' },
   { pattern: '/dashboard/operations', minRole: 'reviewer' },
   // Phase 25 — governance queue (escalated/sensitive investigations).
   { pattern: '/dashboard/governance-queue', minRole: 'reviewer' },

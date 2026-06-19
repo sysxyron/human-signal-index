@@ -20,6 +20,7 @@ import {
   Radar,
   GitFork,
   Bot,
+  Store,
   Menu,
   X,
   Search,
@@ -487,6 +488,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
   {
     group: 'Administration',
     items: [
+      // Phase 69 — marketplace administration (admin); public catalog is /marketplace.
+      { label: 'Marketplace', href: '/dashboard/marketplace', icon: Store },
       { label: 'Users', href: '/dashboard/admin/users', icon: UserCog },
       { label: 'Organizations', href: '/dashboard/admin/organizations', icon: Building2 },
       { label: 'Plans', href: '/dashboard/admin/plans', icon: Layers },
