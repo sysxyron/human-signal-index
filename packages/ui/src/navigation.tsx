@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Settings,
   Activity,
+  Radar,
   Menu,
   X,
   Search,
@@ -332,6 +333,7 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       // intelligence console; the legacy CRUD page is reachable via "Manage Sources".
       { label: 'Source Registry', href: '/dashboard/source-registry', icon: Database },
       { label: 'Source Reliability', href: '/dashboard/source-reliability', icon: Activity },
+      { label: 'Source Monitoring', href: '/dashboard/source-monitoring', icon: Radar },
       { label: 'Manage Sources', href: '/dashboard/sources', icon: Database },
       { label: 'Watchlists', href: '/dashboard/watchlists', icon: Eye },
       { label: 'Submit a Signal', href: '/submit-a-signal', icon: Send },

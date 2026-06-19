@@ -36,6 +36,8 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/source-registry': ['reviewer', 'curator'],
   // Phase 61 — source reliability observatory (reviewer+, mirrors source-registry).
   '/dashboard/source-reliability': ['reviewer', 'curator'],
+  // Phase 63 — automated source monitoring (reviewer+).
+  '/dashboard/source-monitoring': ['reviewer', 'curator'],
   '/dashboard/collaboration': ['researcher', 'reviewer', 'curator'],
   '/dashboard/release-candidate': ['researcher', 'reviewer', 'curator'],
   '/dashboard/beta-operations': ['admin'],
@@ -152,7 +154,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
  * the client `dashboardNavGroups`. Keep in sync with navigation.tsx's sidebar.
  */
 export const ALL_NAV_HREFS: string[] = [
-  '/dashboard', '/dashboard/sources', '/dashboard/source-registry', '/dashboard/source-reliability', '/submit-a-signal', '/dashboard/signal-intake', '/dashboard/signal-submission', '/dashboard/evidence-vault', '/dashboard/operations',
+  '/dashboard', '/dashboard/sources', '/dashboard/source-registry', '/dashboard/source-reliability', '/dashboard/source-monitoring', '/submit-a-signal', '/dashboard/signal-intake', '/dashboard/signal-submission', '/dashboard/evidence-vault', '/dashboard/operations',
   '/dashboard/org', '/dashboard/org/members', '/dashboard/org/leaderboard', '/dashboard/org/analytics', '/dashboard/org/health', '/dashboard/org/settings', '/dashboard/org/branding', '/dashboard/org/billing', '/dashboard/org/create',
   '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',
