@@ -1,59 +1,66 @@
-import type { Metadata } from 'next';
-import { PageHeader, Section } from '../../../components/page-header';
-import { Card } from '@hsi/ui';
-import { FileText, GitBranch, Database, CheckCircle2 } from 'lucide-react';
+// =============================================================================
+// HSI Phase 68 — Transparency Portal 2.0 overview (/transparency). PUBLIC,
+// read-only. Live aggregate metrics from the cached transparency services —
+// everything computed from real data, public-safe (no PII / internal / unpublished
+// data). The former static commitments now live at /transparency/methodology.
+// =============================================================================
 
+import type { Metadata } from 'next';
+import { PageHeader, Section } from '@/components/page-header';
+import { Card } from '@hsi/ui';
+import { getTransparencyOverview, getSourceTransparency } from '@/lib/transparency/data';
+import { TransparencyNav, MetricTiles, BarList } from '@/components/transparency/panels';
+
+export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: 'Transparency',
-  description:
-    'How Human Signal Index stays inspectable: open methodology, versioned models, hash-sealed evidence, and a public correction log.',
+  title: 'Transparency Portal',
+  description: 'Where information came from, how evidence was evaluated, which narratives emerged, which forecasts were correct, and how sources earn trust — all computed from real data.',
   alternates: { canonical: '/transparency' },
 };
 
-const commitments = [
-  { icon: FileText, title: 'Open methodology', body: 'Our full pipeline, from capture to publication, is documented and public.' },
-  { icon: GitBranch, title: 'Versioned models', body: 'Every classifier version is recorded so findings can be reproduced and audited.' },
-  { icon: Database, title: 'Auditable evidence', body: 'Archived evidence is hash-sealed, so its integrity can be verified independently.' },
-  { icon: CheckCircle2, title: 'Correction log', body: 'When we get something wrong, we publish the correction and the reason for it.' },
-];
+export default async function TransparencyPage() {
+  const [overview, sources] = await Promise.all([getTransparencyOverview(), getSourceTransparency()]);
 
-export default function TransparencyPage() {
   return (
     <>
       <PageHeader
         eyebrow="Transparency"
         title="If you cannot audit it, you should not trust it."
-        description="HSI is built to be inspected. We publish our methods, our model versions, how we protect evidence integrity, and the mistakes we correct."
+        description="A live, read-only view of the Human Signal Index intelligence pipeline: signals, evidence, narratives, forecasts, source reliability, and corrections — every number computed from real data, with no hidden calculations."
       />
-
       <Section>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {commitments.map((c) => {
-            const Icon = c.icon;
-            return (
-              <Card key={c.title} className="flex items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-electric/15 text-electric">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <div>
-                  <h2 className="text-h6 font-semibold text-text-primary">{c.title}</h2>
-                  <p className="mt-1 text-body-sm text-text-secondary">{c.body}</p>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <TransparencyNav active="/transparency" />
       </Section>
 
-      <Section className="pt-0">
-        <Card className="space-y-2">
-          <h2 className="text-h5 font-semibold text-text-primary">Traceability is measurable</h2>
-          <p className="text-body-sm text-text-secondary">
-            Each published finding carries a traceability indicator that reflects how completely its
-            conclusions link back to source evidence. We report it openly and hold our own work to it. When
-            a finding cannot meet the bar, it is not published.
-          </p>
-        </Card>
+      <Section className="pt-0 space-y-6">
+        <MetricTiles items={[
+          { label: 'Signals', value: overview.totalSignals },
+          { label: 'Evidence', value: overview.totalEvidence },
+          { label: 'Narratives', value: overview.totalNarratives },
+          { label: 'Forecasts', value: overview.totalForecasts },
+          { label: 'Forecast outcomes', value: overview.totalForecastOutcomes },
+          { label: 'Source coverage', value: `${overview.sourceCoverage} types` },
+          { label: 'Published reports', value: overview.publicationVolume },
+          { label: 'Corrections', value: overview.correctionVolume },
+        ]} />
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="space-y-3">
+            <h2 className="text-h6 font-semibold text-text-primary">Source network health</h2>
+            <p className="text-caption text-text-muted">{overview.activeSources} of {overview.totalSources} sources active · {overview.sourceHealthPct}% healthy · {sources.collectionSuccessPct}% collection success.</p>
+            <BarList rows={sources.reliabilityDistribution.map((d) => ({ label: d.tier, value: d.count }))} color="#10B981" />
+          </Card>
+          <Card className="space-y-3">
+            <h2 className="text-h6 font-semibold text-text-primary">What you can inspect</h2>
+            <ul className="space-y-1.5 text-body-sm text-text-secondary">
+              <li>• <a href="/transparency/forecasts" className="text-electric hover:underline">Forecast accountability</a> — which forecasts were right, which failed, and how calibrated we are.</li>
+              <li>• <a href="/transparency/narratives" className="text-electric hover:underline">Narrative evolution</a> — emerging, dominant, fragmenting storylines + their evidence.</li>
+              <li>• <a href="/transparency/sources" className="text-electric hover:underline">Source trust</a> — health, collection success, and reliability trends.</li>
+              <li>• <a href="/transparency/corrections" className="text-electric hover:underline">Correction ledger</a> — every retraction and revision, with reasons.</li>
+              <li>• <a href="/transparency/methodology" className="text-electric hover:underline">Methodology</a> — exactly how each score is calculated, and its limits.</li>
+            </ul>
+          </Card>
+        </div>
       </Section>
     </>
   );
