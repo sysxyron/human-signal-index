@@ -13,8 +13,10 @@ import type { MapPoint } from '@/lib/global-map/geo-model';
 const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
 const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
 
+// `glyphs` is REQUIRED for symbol layers that use `text-field` (cluster counts).
 const OSM_STYLE = {
   version: 8,
+  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
   sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 } as const;
@@ -61,7 +63,7 @@ export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: 
       map.on('load', () => {
         map.addSource('sources', { type: 'geojson', data: toGeoJSON(points), cluster: true, clusterRadius: 50, clusterMaxZoom: 12 });
         map.addLayer({ id: 'clusters', type: 'circle', source: 'sources', filter: ['has', 'point_count'], paint: { 'circle-color': '#3B82F6', 'circle-opacity': 0.65, 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 20, 50, 28] } });
-        map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'sources', filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 11 }, paint: { 'text-color': '#ffffff' } });
+        map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'sources', filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Noto Sans Regular'], 'text-size': 11 }, paint: { 'text-color': '#ffffff' } });
         map.addLayer({ id: 'unclustered', type: 'circle', source: 'sources', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': '#10B981', 'circle-radius': 6, 'circle-stroke-width': 1, 'circle-stroke-color': '#0b1220' } });
         readyRef.current = true; setStatus('ready');
 

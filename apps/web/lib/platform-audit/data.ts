@@ -12,8 +12,9 @@ import { PROTECTED_ROUTES } from '@/lib/security/rbac-audit';
 import { getInfrastructureHealth } from '@/lib/infra/probes';
 import { getMigrationAudit } from '@/lib/launch/persistence';
 import { listInfraEventsDal } from '@/lib/infra/persistence';
+import { getPhase72Readiness } from '@/lib/global-map/data';
 import {
-  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata,
+  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial,
 } from './checks';
 import { summarizeAudit, sortIssues, recommendations, isProblem } from './summary';
 import type { PlatformAuditReport, AuditIssue } from './types';
@@ -56,6 +57,14 @@ export async function getPlatformAuditReport(): Promise<PlatformAuditReport> {
     recentErrors = events.filter((e) => /error|critical/i.test(e.severity) || /error|crash|fail/i.test(e.eventType)).length;
   } catch { recentErrors = null; }
   issues.push(checkErrorEvents(recentErrors, nowIso));
+
+  // ---- geospatial health (Phase 73.3) --------------------------------------
+  const p72 = await getPhase72Readiness().catch(() => null);
+  issues.push(...checkGeospatial({
+    glyphsConfigured: true, // both MapLibre styles declare a glyphs PBF source
+    layerCount: 7, expectedLayers: 7, // narrative-map MAP_LAYERS
+    readiness: p72 ? { geoReady: p72.mapReadySources, totalSources: p72.totalSources, signalsInheritingGeo: p72.signalsInheritingGeo, narrativesInheritingGeo: p72.narrativesInheritingGeo } : null,
+  }, nowIso));
 
   // ---- conversion readiness (beta/demo) ------------------------------------
   // Routes/APIs exist (Phase 73.1); the form backend is an intentional placeholder.

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion } from './checks';
+import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial } from './checks';
 import { sortIssues, readinessScore, summarizeAudit, recommendations } from './summary';
 import { AUDIT_STATUSES, type AuditIssue } from './types';
 
@@ -78,6 +78,23 @@ test('checkConversion: routes/apis present; placeholder backend → NOT_CONFIGUR
   const out = checkConversion({ betaRoute: true, demoRoute: true, betaApi: true, demoApi: true, formsBackendWired: false }, NOW);
   assert.equal(out.find((i) => i.id === 'conversion-routes')?.status, 'PASS');
   assert.equal(out.find((i) => i.id === 'conversion-backend')?.status, 'NOT_CONFIGURED');
+});
+
+// ---- geospatial health (Phase 73.3) ----------------------------------------
+
+test('checkGeospatial: glyphs configured → PASS; not → FAIL', () => {
+  const ok = checkGeospatial({ glyphsConfigured: true, layerCount: 7, expectedLayers: 7, readiness: { geoReady: 5, totalSources: 159, signalsInheritingGeo: 3, narrativesInheritingGeo: 1 } }, NOW);
+  assert.equal(ok.find((i) => i.id === 'geo-glyphs')?.status, 'PASS');
+  const bad = checkGeospatial({ glyphsConfigured: false, layerCount: 7, expectedLayers: 7, readiness: null }, NOW);
+  assert.equal(bad.find((i) => i.id === 'geo-glyphs')?.status, 'FAIL');
+});
+test('checkGeospatial: geoReady>0 → PASS; 0 → WARNING; readiness null → NOT_OBSERVED', () => {
+  assert.equal(checkGeospatial({ glyphsConfigured: true, layerCount: 7, expectedLayers: 7, readiness: { geoReady: 12, totalSources: 159, signalsInheritingGeo: 4, narrativesInheritingGeo: 2 } }, NOW).find((i) => i.id === 'geo-readiness')?.status, 'PASS');
+  assert.equal(checkGeospatial({ glyphsConfigured: true, layerCount: 7, expectedLayers: 7, readiness: { geoReady: 0, totalSources: 159, signalsInheritingGeo: 0, narrativesInheritingGeo: 0 } }, NOW).find((i) => i.id === 'geo-readiness')?.status, 'WARNING');
+  assert.equal(checkGeospatial({ glyphsConfigured: true, layerCount: 7, expectedLayers: 7, readiness: null }, NOW).find((i) => i.id === 'geo-readiness')?.status, 'NOT_OBSERVED');
+});
+test('checkGeospatial: runtime health is NOT_OBSERVED (client-side)', () => {
+  assert.equal(checkGeospatial({ glyphsConfigured: true, layerCount: 7, expectedLayers: 7, readiness: null }, NOW).find((i) => i.id === 'geo-maplibre-runtime')?.status, 'NOT_OBSERVED');
 });
 
 // ---- summary / sort / score ------------------------------------------------

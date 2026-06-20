@@ -16,6 +16,7 @@ import { getSourceNetworkDashboard, getPhase71Readiness } from '@/lib/source-net
 import { DiscoveryOverview, CandidateQueue, SignalCandidateQueue, BatchList, RunList, InvalidRowsPanel, RegistryStatsPanel } from '@/components/source-discovery/panels';
 import { NetworkOverview, HealthBreakdownPanel, CapabilityBreakdownPanel, GeoReadinessPanel, PriorityBreakdownPanel, YieldPanels, PriorityQueuePanel, FamiliesPanel, NeedsReviewPanel, Phase71Panel } from '@/components/source-network/panels';
 import { ImportPanel, AgentRunButtons, SeedManager } from '@/components/source-discovery/Controls';
+import { BackfillGeoButton } from '@/components/global-map/BackfillButton';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -44,7 +45,7 @@ export default async function SourceDiscoveryPage() {
     <DashboardPage
       title="Source Discovery & Import"
       subtitle="Bulk import, duplicate detection, deterministic classification, agent suggestions — all human-reviewed. Approval creates a PAUSED source; nothing activates or publishes automatically."
-      actions={admin ? <AgentRunButtons isAdmin={admin} /> : undefined}
+      actions={admin ? <div className="flex flex-wrap items-start gap-3"><AgentRunButtons isAdmin={admin} /><BackfillGeoButton /></div> : undefined}
     >
       <div className="space-y-8">
         <DiscoveryOverview d={d} />

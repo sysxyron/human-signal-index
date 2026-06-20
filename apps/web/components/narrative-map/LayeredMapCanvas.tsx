@@ -13,7 +13,11 @@ import type { GeoIntelPoint, MapLayer } from '@/lib/narrative-map/types';
 
 const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
 const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
-const OSM_STYLE = { version: 8, sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] } as const;
+// `glyphs` is REQUIRED for any symbol layer that uses `text-field` (the cluster
+// count labels). Without it MapLibre throws "use of text-field requires a style
+// glyphs property". Free PBF font endpoint; no API key.
+const GLYPHS = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf';
+const OSM_STYLE = { version: 8, glyphs: GLYPHS, sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] } as const;
 
 const LAYER_COLOR: Record<MapLayer, string> = {
   SOURCES: '#94A3B8', NARRATIVES: '#8B5CF6', EVIDENCE: '#EC4899', FORECASTS: '#10B981', CONTRADICTIONS: '#F59E0B', TRUST: '#3B82F6', BLIND_SPOTS: '#EF4444',
@@ -57,7 +61,7 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
       map.on('load', () => {
         map.addSource('intel', { type: 'geojson', data: toGeoJSON(points, layer), cluster: true, clusterRadius: 50, clusterMaxZoom: 12, clusterProperties: { weightSum: ['+', ['get', 'weight']] } });
         map.addLayer({ id: 'clusters', type: 'circle', source: 'intel', filter: ['has', 'point_count'], paint: { 'circle-color': color, 'circle-opacity': 0.6, 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 20, 50, 28] } });
-        map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'intel', filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 11 }, paint: { 'text-color': '#ffffff' } });
+        map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'intel', filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Noto Sans Regular'], 'text-size': 11 }, paint: { 'text-color': '#ffffff' } });
         map.addLayer({ id: 'pts', type: 'circle', source: 'intel', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': color, 'circle-radius': ['interpolate', ['linear'], ['get', 'weight'], 0, 4, 1, 6, 10, 12, 50, 20], 'circle-stroke-width': 1, 'circle-stroke-color': '#0b1220' } });
         readyRef.current = true; setStatus('ready');
         map.on('click', 'clusters', (e: any) => { const f = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0]; if (!f) return; map.getSource('intel').getClusterExpansionZoom(f.properties.cluster_id, (_e: unknown, z: number) => { if (z != null) map.easeTo({ center: f.geometry.coordinates, zoom: z }); }); });

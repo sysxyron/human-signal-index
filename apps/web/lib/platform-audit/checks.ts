@@ -117,6 +117,62 @@ export function checkMetadata(nowIso: string): AuditIssue {
   }, nowIso);
 }
 
+// ---- geospatial health (Phase 73.3) ----------------------------------------
+
+export interface GeoHealthInput {
+  glyphsConfigured: boolean;     // MapLibre style declares a glyphs source (config fact)
+  layerCount: number;            // number of map layers wired
+  expectedLayers: number;
+  readiness: { geoReady: number; totalSources: number; signalsInheritingGeo: number; narrativesInheritingGeo: number } | null; // null = could not read
+}
+
+export function checkGeospatial(input: GeoHealthInput, nowIso: string): AuditIssue[] {
+  const out: AuditIssue[] = [];
+
+  out.push(issue({
+    id: 'geo-glyphs', title: 'MapLibre glyphs configured', area: 'global_map',
+    status: input.glyphsConfigured ? 'PASS' : 'FAIL', severity: 'HIGH',
+    explanation: input.glyphsConfigured ? 'The map style declares a glyphs source, so cluster-count labels render.' : 'No glyphs source declared — symbol layers using text-field will error.',
+    recommendedFix: input.glyphsConfigured ? 'None.' : 'Add a `glyphs` PBF endpoint to the MapLibre style.',
+    source: 'MapLibre style config',
+  }, nowIso));
+
+  out.push(issue({
+    id: 'geo-layers', title: 'Map layers available', area: 'global_map',
+    status: input.layerCount >= input.expectedLayers ? 'PASS' : 'WARNING', severity: 'MEDIUM',
+    explanation: `${input.layerCount}/${input.expectedLayers} layers wired (Sources/Narratives/Evidence/Forecasts/Contradictions/Trust/Blind spots).`,
+    recommendedFix: input.layerCount >= input.expectedLayers ? 'None.' : 'Restore the missing map layer(s).',
+    source: 'narrative-map MAP_LAYERS',
+  }, nowIso));
+
+  // runtime MapLibre health is a client concern — not observable server-side.
+  out.push(issue({ id: 'geo-maplibre-runtime', title: 'MapLibre runtime health', area: 'global_map', status: 'NOT_OBSERVED', severity: 'LOW', explanation: 'The map engine runs client-side; its runtime state is not observable from the server.', recommendedFix: 'Check the browser console on /dashboard/global-map.', source: 'client runtime (not introspectable here)' }, nowIso));
+
+  if (!input.readiness) {
+    out.push(issue({ id: 'geo-readiness', title: 'Geo readiness', area: 'global_map', status: 'NOT_OBSERVED', severity: 'MEDIUM', explanation: 'Geo readiness could not be computed.', recommendedFix: 'Verify Supabase access and re-run.', source: 'global-map readiness' }, nowIso));
+    return out;
+  }
+
+  const { geoReady, totalSources, signalsInheritingGeo, narrativesInheritingGeo } = input.readiness;
+  out.push(issue({
+    id: 'geo-readiness', title: 'Geo-ready sources', area: 'global_map',
+    status: geoReady > 0 ? 'PASS' : 'WARNING', severity: geoReady > 0 ? 'LOW' : 'MEDIUM',
+    explanation: `${geoReady}/${totalSources} sources are geo-ready (have real coordinates).`,
+    recommendedFix: geoReady > 0 ? 'None.' : 'Run "Backfill Geographic Data" to deterministically enrich known sources.',
+    source: 'global-map readiness',
+  }, nowIso));
+
+  out.push(issue({
+    id: 'geo-inheritance', title: 'Geo inheritance (signals / narratives)', area: 'global_map',
+    status: geoReady === 0 ? 'NOT_OBSERVED' : (signalsInheritingGeo > 0 || narrativesInheritingGeo > 0) ? 'PASS' : 'WARNING', severity: 'LOW',
+    explanation: geoReady === 0 ? 'No geo-ready sources yet, so nothing inherits geo.' : `${signalsInheritingGeo} signals and ${narrativesInheritingGeo} narratives inherit geo from a geo-ready source.`,
+    recommendedFix: (geoReady > 0 && signalsInheritingGeo === 0 && narrativesInheritingGeo === 0) ? 'Link signals to geo-ready sources (Signal → Source path).' : 'None.',
+    source: 'narrative-map inheritance rollup',
+  }, nowIso));
+
+  return out;
+}
+
 // ---- conversion readiness (beta/demo) --------------------------------------
 
 export interface ConversionInput { betaRoute: boolean; demoRoute: boolean; betaApi: boolean; demoApi: boolean; formsBackendWired: boolean }
