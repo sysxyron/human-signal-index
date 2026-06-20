@@ -4,10 +4,9 @@
 // narrative/forecast attribution) + Phase 71 geo (source_candidates coordinates)
 // + Phase 16 source trust. Rolls everything up by source → geography. Geo is
 // inherited only through verified relationships; absent links are NOT OBSERVED.
-// Server-side aggregation + unstable_cache (Step 11). Degrades to empty.
+// Server-side aggregation, force-dynamic (per-request RLS). Degrades to empty.
 // =============================================================================
 
-import { unstable_cache } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSignalNetworkDashboard } from '@/lib/signal-network/data';
 import { geoStatus, isPlottable } from '@/lib/global-map/geo-model';
@@ -33,7 +32,10 @@ export interface GeospatialIntelligence {
   filters: { types: string[]; categories: string[]; countries: string[] };
 }
 
-async function load(): Promise<GeospatialIntelligence> {
+// NOTE (hotfix): NOT wrapped in unstable_cache — reads cookies via the per-request
+// RLS client (createClient) directly and via getSignalNetworkDashboard. Caching
+// cookie reads crashes the Server Component. Pages are force-dynamic.
+export async function getGeospatialIntelligence(): Promise<GeospatialIntelligence> {
   const db = createClient();
   const [net, sources, cands, trust] = await Promise.all([
     getSignalNetworkDashboard(),
@@ -112,7 +114,6 @@ async function load(): Promise<GeospatialIntelligence> {
   };
 }
 
-export const getGeospatialIntelligence = unstable_cache(load, ['narrative-map:intel:v1'], { revalidate: 60, tags: ['global-map', 'narrative-map'] });
 
 // ---- geographic readiness report (Step 9) ----------------------------------
 
@@ -129,7 +130,7 @@ async function countRows(db: ReturnType<typeof createClient>, table: string): Pr
   try { const { count } = await db.from(table).select('id', { count: 'exact', head: true }); return count ?? 0; } catch { return 0; }
 }
 
-async function loadReadiness(): Promise<GeoReadinessReport> {
+export async function getGeoReadinessReport(): Promise<GeoReadinessReport> {
   const db = createClient();
   const [net, sources, cands, totalNarratives, totalForecasts] = await Promise.all([
     getSignalNetworkDashboard(),
@@ -165,4 +166,3 @@ async function loadReadiness(): Promise<GeoReadinessReport> {
   };
 }
 
-export const getGeoReadinessReport = unstable_cache(loadReadiness, ['narrative-map:readiness:v1'], { revalidate: 60, tags: ['global-map', 'narrative-map'] });

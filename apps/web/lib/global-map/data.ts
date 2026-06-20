@@ -7,7 +7,6 @@
 // (server-side aggregation) for D9 performance. Degrades to empty.
 // =============================================================================
 
-import { unstable_cache } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { computeSourceHealth } from '@/lib/source-network/health';
 import { familyKey } from '@/lib/source-network/family';
@@ -31,7 +30,10 @@ export interface GlobalMapData {
   filters: { types: string[]; categories: string[]; healths: string[]; geoStatuses: GeoStatus[]; countries: string[]; regions: string[] };
 }
 
-async function load(): Promise<GlobalMapData> {
+// NOTE (hotfix): NOT wrapped in unstable_cache — it reads cookies via the
+// per-request RLS client (createClient). Caching cookie reads crashes the Server
+// Component. The page is force-dynamic; per-user RLS is preserved.
+export async function getGlobalMapData(): Promise<GlobalMapData> {
   const db = createClient();
   const nowIso = new Date().toISOString(); const now = new Date(nowIso).getTime();
 
@@ -135,9 +137,6 @@ async function load(): Promise<GlobalMapData> {
   };
 }
 
-/** Memoized (D9 server-side aggregation). 60s revalidate. */
-export const getGlobalMapData = unstable_cache(load, ['global-map:data:v1'], { revalidate: 60, tags: ['global-map'] });
-
 // ---- Phase 72 readiness (D10) ----------------------------------------------
 
 export interface Phase72Readiness {
@@ -148,9 +147,9 @@ export interface Phase72Readiness {
   missing: string[]; requiredForPhase72: string[];
 }
 
-async function loadPhase72(): Promise<Phase72Readiness> {
+export async function getPhase72Readiness(): Promise<Phase72Readiness> {
   const db = createClient();
-  const m = await load();
+  const m = await getGlobalMapData();
   const geoReadySourceIds = new Set(m.points.map((p) => p.id));
   // re-include any beyond the cap by recomputing from readiness totals
   const mapReadySources = m.plottableTotal;
@@ -195,5 +194,3 @@ async function loadPhase72(): Promise<Phase72Readiness> {
     missing, requiredForPhase72,
   };
 }
-
-export const getPhase72Readiness = unstable_cache(loadPhase72, ['global-map:phase72:v1'], { revalidate: 60, tags: ['global-map'] });

@@ -7,7 +7,6 @@
 // are NOT OBSERVED. Memoized (Step 14). Degrades to empty.
 // =============================================================================
 
-import { unstable_cache } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSourceNetworkDashboard } from '@/lib/source-network/data';
 import { getSignalNetworkDashboard, getSignalReadiness } from '@/lib/signal-network/data';
@@ -53,7 +52,10 @@ export interface OperationsCenterData {
   timeline: TimelineRow[];
 }
 
-async function load(): Promise<OperationsCenterData> {
+// NOTE (hotfix): NOT wrapped in unstable_cache — it composes cookie-bound RLS
+// reads (createClient + the source/signal/geo network DALs). Caching cookie reads
+// crashes the Server Component. The page is force-dynamic; per-user RLS preserved.
+export async function getOperationsCenter(): Promise<OperationsCenterData> {
   const db = createClient();
   const nowIso = new Date().toISOString();
   const d7 = new Date(new Date(nowIso).getTime() - 7 * 86400000).toISOString();
@@ -182,4 +184,3 @@ async function buildTimeline(db: DB, d7: string, d30: string): Promise<TimelineR
   return rows;
 }
 
-export const getOperationsCenter = unstable_cache(load, ['operations-center:v1'], { revalidate: 60, tags: ['operations-center', 'global-map', 'narrative-map'] });

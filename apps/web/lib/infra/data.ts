@@ -47,19 +47,21 @@ function currentDeployment(): CurrentDeployment {
 }
 
 export async function getInfrastructureDashboard(): Promise<InfraDashboard> {
+ try {
   const db = createClient();
   const pub = readPublicClient() ?? db;
   const nowIso = new Date().toISOString();
 
   const [health, backups, deployments, migAudit, metrics, uptimeChecks, incidents, events] = await Promise.all([
-    getInfrastructureHealth(),
-    dal.listBackupsDal(db, 20),
-    dal.listDeploymentsDal(db, 20),
+    getInfrastructureHealth().catch(() => [] as SubsystemHealth[]),
+    dal.listBackupsDal(db, 20).catch(() => [] as BackupRecord[]),
+    dal.listDeploymentsDal(db, 20).catch(() => [] as DeploymentRecord[]),
     getMigrationAudit().catch(() => null),
-    dal.operationalMetricsDal(pub),
-    dal.recentUptimeDal(db, 1000),
-    dal.listIncidentsDal(db, 30),
-    dal.listInfraEventsDal(db, 50),
+    dal.operationalMetricsDal(pub).catch(() => ({ sources: 0, signals: 0, evidence: 0, narratives: 0, forecasts: 0, marketplaceProducts: 0, notifications: 0, agents: 0 } as OperationalMetrics)),
+    dal.recentUptimeDal(db, 1000).catch(() => []),
+    dal.listIncidentsDal(db, 30).catch(() => [] as IncidentRecord[]),
+    // Infra event loader must never crash the page (hotfix).
+    dal.listInfraEventsDal(db, 50).catch(() => [] as InfraEventRecord[]),
   ]);
 
   // backup & recovery (computed from the latest good backup)
@@ -92,4 +94,16 @@ export async function getInfrastructureDashboard(): Promise<InfraDashboard> {
     migrations: migAudit && migAudit.ok ? migAudit.data : null,
     metrics, uptime, incidents, events,
   };
+ } catch {
+  // Hotfix: never throw to the page. A crash here would route through
+  // global-error → /api/observability/report and flood infra_events with
+  // render-crash records. Degrade to an empty, safe dashboard instead.
+  return {
+    overall: 'unknown', health: [], backups: [],
+    recovery: { lastBackupAt: null, lastStatus: null, lastSizeBytes: null, restoreTested: false, restoreTestedAt: null, actualRpoMinutes: null, rpoTargetMinutes: RPO_TARGET_MINUTES, rtoTargetMinutes: RTO_TARGET_MINUTES, withinRpo: false },
+    deployments: [], currentDeployment: currentDeployment(), migrations: null,
+    metrics: { sources: 0, signals: 0, evidence: 0, narratives: 0, forecasts: 0, marketplaceProducts: 0, notifications: 0, agents: 0 },
+    uptime: [], incidents: [], events: [],
+  };
+ }
 }
