@@ -63,6 +63,13 @@ test('Phase 62 notifications is viewer+ (every signed-in role) and a real menu i
   assert.equal(canSeeRoute('/dashboard/notifications', null), false);
 });
 
+test('Phase 70.1 infrastructure is admin-only and a real menu item', () => {
+  assert.ok(ALL_NAV_HREFS.includes('/dashboard/infrastructure'));
+  assert.equal(canSeeRoute('/dashboard/infrastructure', 'reviewer'), false);
+  assert.equal(canSeeRoute('/dashboard/infrastructure', 'curator'), false);
+  assert.equal(canSeeRoute('/dashboard/infrastructure', 'admin'), true);
+});
+
 test('Phase 69 marketplace admin is admin-only and a real menu item', () => {
   assert.ok(ALL_NAV_HREFS.includes('/dashboard/marketplace'));
   assert.equal(canSeeRoute('/dashboard/marketplace', 'reviewer'), false);

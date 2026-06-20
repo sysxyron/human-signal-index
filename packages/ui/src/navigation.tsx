@@ -21,6 +21,7 @@ import {
   GitFork,
   Bot,
   Store,
+  Server,
   Menu,
   X,
   Search,
@@ -529,6 +530,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
   {
     group: 'System',
     items: [
+      // Phase 70.1 — infrastructure & observability (admin).
+      { label: 'Infrastructure', href: '/dashboard/infrastructure', icon: Server },
       { label: 'Security Monitor', href: '/dashboard/security-monitor', icon: ShieldAlert },
       { label: 'Security Center', href: '/dashboard/security', icon: ShieldCheck },
       { label: 'Settings', href: '/dashboard/settings', icon: Settings },
