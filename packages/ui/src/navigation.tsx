@@ -449,6 +449,11 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
+    // NOTE (Phase 70.2 audit): "WorldForge" is the simulation / scenario /
+    // counterfactual research engine (hypothetical world-modeling) — it is NOT a
+    // geographic map. A future real geospatial layer is named distinctly ("Global
+    // Intelligence Map", see docs/PHASE_70_2_GLOBAL_INTELLIGENCE_MAP_STRATEGY.md)
+    // to avoid "world map" confusion. No change to WorldForge in this phase.
     group: 'WorldForge',
     items: [
       { label: 'Overview', href: '/dashboard/worldforge', icon: Globe2 },
