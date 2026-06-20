@@ -4,20 +4,23 @@
 // into CandidateInput; invalid rows carry explicit errors. No I/O, no fabrication.
 // =============================================================================
 
-import { CSV_COLUMNS, isSourceType, formatError, type CandidateInput, type RowValidation, type ImportError } from './types';
+import { CSV_COLUMNS, isSourceType, normalizeSourceType, formatError, type CandidateInput, type RowValidation, type ImportError } from './types';
 
-/** Best-effort source_type suggestion for an unrecognized value (diagnostics aid). */
+/** Best-effort canonical source_type suggestion for an unrecognized value. */
 export function suggestType(raw: Record<string, string>): string {
   const blob = `${raw.source_type ?? ''} ${raw.source_name ?? ''} ${raw.primary_url ?? ''} ${raw.feed_or_api_url ?? ''}`.toLowerCase();
-  if (/youtube|youtu\.be|channel/.test(blob)) return 'youtube';
-  if (/reddit/.test(blob)) return 'social';
-  if (/podcast/.test(blob)) return 'podcast';
-  if (/\brss\b|feed|\.xml|atom/.test(blob)) return 'rss';
+  if (/youtube|youtu\.be/.test(blob)) return 'youtube';
+  if (/reddit/.test(blob)) return 'reddit';
+  if (/tiktok/.test(blob)) return 'tiktok';
+  if (/podcast/.test(blob)) return 'podcast_rss';
+  if (/\brss\b|feed|\.xml|atom/.test(blob)) return 'rss_feed';
   if (/\.gov\b|government/.test(blob)) return 'government';
-  if (/court|tribunal/.test(blob)) return 'court';
-  if (/arxiv|research|\.edu\b/.test(blob)) return 'research';
-  if (/\bapi\b/.test(blob)) return 'api';
+  if (/court|tribunal|opinion/.test(blob)) return 'court_opinions';
+  if (/arxiv|research|\.edu\b/.test(blob)) return 'research_rss';
+  if (/\bapi\b/.test(blob)) return 'api_foundation';
   if (/threat|malware|phish|abuse/.test(blob)) return 'threat_feed';
+  if (/forum|board/.test(blob)) return 'forum';
+  if (/archive|wayback/.test(blob)) return 'archive';
   return 'website';
 }
 
@@ -79,7 +82,7 @@ export function validateRow(raw: Record<string, string>): RowValidation {
   if (errs.length > 0) return { valid: false, errors: errs.map(formatError), normalized: null };
 
   const normalized: CandidateInput = {
-    sourceName: name, sourceType, category: (raw.category ?? '').trim() || null,
+    sourceName: name, sourceType: normalizeSourceType(sourceType) ?? sourceType, category: (raw.category ?? '').trim() || null,
     primaryUrl, feedOrApiUrl: feedUrl, platform: (raw.platform ?? '').trim() || null,
     captureIntervalMinutes: interval, baselineRisk: risk, contentSelector: (raw.content_selector ?? '').trim() || null,
     priority: (raw.priority ?? '').trim() || null, ingestionMode: (raw.ingestion_mode ?? '').trim() || null,

@@ -32,11 +32,49 @@ export const CATEGORY_LABEL: Record<ClassificationCategory, string> = {
   A: 'Extremism / Ideology Monitoring', B: 'Public Trust', C: 'OSINT / Research', D: 'Media', Foundation: 'Platform Infrastructure',
 };
 
+/** Canonical HSI source types (Phase 70.3.2). */
 export const SOURCE_TYPES = [
-  'website', 'rss', 'government', 'court', 'research', 'podcast', 'youtube', 'social',
-  'forum', 'api', 'archive', 'watchlist', 'threat_feed', 'newswire',
+  'website', 'rss_feed', 'news_rss', 'youtube', 'tiktok', 'podcast_rss', 'forum', 'document',
+  'manual', 'government', 'court_opinions', 'research_rss', 'reddit', 'social_page', 'api_foundation',
+  'webhook', 'archive', 'intelligence_feed', 'watchlist', 'email', 'news_source', 'public_policy_org', 'threat_feed',
 ] as const;
 export type SourceTypeTag = (typeof SOURCE_TYPES)[number];
+
+/** Alias map (human labels + legacy types, lowercased) → canonical source type. */
+export const SOURCE_TYPE_ALIASES: Record<string, SourceTypeTag> = {
+  'website': 'website', 'web': 'website', 'site': 'website',
+  'rss / atom feed': 'rss_feed', 'rss/atom feed': 'rss_feed', 'rss': 'rss_feed', 'atom': 'rss_feed', 'feed': 'rss_feed',
+  'news (rss)': 'news_rss', 'news rss': 'news_rss',
+  'youtube': 'youtube', 'youtube channel': 'youtube',
+  'tiktok': 'tiktok',
+  'podcast (rss)': 'podcast_rss', 'podcast rss': 'podcast_rss', 'podcast': 'podcast_rss',
+  'forum': 'forum',
+  'document': 'document', 'doc': 'document', 'pdf': 'document',
+  'manual': 'manual',
+  'government': 'government', 'gov': 'government',
+  'court opinions': 'court_opinions', 'court': 'court_opinions',
+  'research (rss)': 'research_rss', 'research rss': 'research_rss', 'research': 'research_rss',
+  'reddit': 'reddit',
+  'social page': 'social_page', 'social': 'social_page',
+  'api (foundation)': 'api_foundation', 'api': 'api_foundation', 'api foundation': 'api_foundation',
+  'webhook (inbound)': 'webhook', 'webhook': 'webhook',
+  'archive': 'archive',
+  'intelligence feed': 'intelligence_feed', 'intel feed': 'intelligence_feed',
+  'watchlist (no rss)': 'watchlist', 'watchlist': 'watchlist',
+  'email': 'email',
+  'news sources': 'news_source', 'news source': 'news_source', 'newswire': 'news_source',
+  'public policy organizations': 'public_policy_org', 'public policy organization': 'public_policy_org', 'public policy org': 'public_policy_org',
+  'threat feed': 'threat_feed', 'threat_feed': 'threat_feed',
+};
+
+/** Normalize a raw source_type string to a canonical type, or null if unknown. */
+export function normalizeSourceType(raw: unknown): SourceTypeTag | null {
+  if (typeof raw !== 'string') return null;
+  const k = raw.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!k) return null;
+  if ((SOURCE_TYPES as readonly string[]).includes(k)) return k as SourceTypeTag;
+  return SOURCE_TYPE_ALIASES[k] ?? null;
+}
 
 /** Accepted CSV columns (order-independent; header-driven). */
 export const CSV_COLUMNS = [
@@ -46,7 +84,7 @@ export const CSV_COLUMNS = [
 ] as const;
 
 export function isSourceType(v: unknown): v is SourceTypeTag {
-  return typeof v === 'string' && (SOURCE_TYPES as readonly string[]).includes(v.toLowerCase());
+  return normalizeSourceType(v) !== null;
 }
 export function isDuplicateStatus(v: unknown): v is DuplicateStatus {
   return typeof v === 'string' && (DUPLICATE_STATUSES as readonly string[]).includes(v);

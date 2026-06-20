@@ -63,7 +63,7 @@ test('classifySource: keyword inference + type inference', () => {
   assert.equal(classifySource(cand({ sourceName: 'Daily News Wire', description: 'press media' })).category, 'D');
   assert.equal(classifySource(cand({ primaryUrl: 'https://youtube.com/x' })).sourceType, 'youtube');
   assert.equal(classifySource(cand({ primaryUrl: 'https://senate.gov' })).sourceType, 'government');
-  assert.equal(classifySource(cand({ feedOrApiUrl: 'https://x.com/feed.xml' })).sourceType, 'rss');
+  assert.equal(classifySource(cand({ feedOrApiUrl: 'https://x.com/feed.xml' })).sourceType, 'rss_feed');
 });
 
 // ---- duplicates ------------------------------------------------------------

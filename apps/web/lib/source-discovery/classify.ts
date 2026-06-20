@@ -6,7 +6,7 @@
 // =============================================================================
 
 import {
-  isSourceType, type CandidateInput, type Classification, type ClassificationCategory, type SourceTypeTag,
+  normalizeSourceType, type CandidateInput, type Classification, type ClassificationCategory, type SourceTypeTag,
 } from './types';
 
 const CATEGORY_KEYWORDS: Record<ClassificationCategory, string[]> = {
@@ -26,21 +26,24 @@ function letterCategory(v: string | null): ClassificationCategory | null {
 }
 
 function inferType(input: CandidateInput): SourceTypeTag {
-  if (input.sourceType && isSourceType(input.sourceType)) return input.sourceType.toLowerCase() as SourceTypeTag;
+  const explicit = normalizeSourceType(input.sourceType);
+  if (explicit) return explicit;
   const url = `${input.primaryUrl ?? ''} ${input.feedOrApiUrl ?? ''}`.toLowerCase();
   const name = `${input.sourceName} ${(input.tags ?? []).join(' ')}`.toLowerCase();
-  if (/\/feed|\/rss|\.xml|\/atom/.test(url) || /\brss\b/.test(name)) return 'rss';
   if (/youtube\.com|youtu\.be/.test(url)) return 'youtube';
+  if (/reddit\.com/.test(url)) return 'reddit';
+  if (/tiktok\.com/.test(url)) return 'tiktok';
+  if (/podcast|\/feed\.mp3|anchor\.fm|megaphone/.test(url + name)) return 'podcast_rss';
+  if (/\/feed|\/rss|\.xml|\/atom/.test(url) || /\brss\b/.test(name)) return 'rss_feed';
   if (/\.gov\b|\.gov\.|government/.test(url + name)) return 'government';
-  if (/court|justice|tribunal/.test(url + name)) return 'court';
-  if (/arxiv|research|\.edu\b|institute|journal/.test(url + name)) return 'research';
-  if (/podcast|\/feed\.mp3|anchor\.fm/.test(url + name)) return 'podcast';
-  if (/twitter\.com|x\.com|reddit\.com|facebook|instagram|tiktok|mastodon|telegram|social/.test(url + name)) return 'social';
+  if (/court|justice|tribunal|opinion/.test(url + name)) return 'court_opinions';
+  if (/arxiv|research|\.edu\b|institute|journal/.test(url + name)) return 'research_rss';
+  if (/twitter\.com|x\.com|facebook|instagram|mastodon|telegram|social/.test(url + name)) return 'social_page';
   if (/forum|board|discourse/.test(url + name)) return 'forum';
-  if (/\/api\b|api\./.test(url) || /\bapi\b/.test(name)) return 'api';
+  if (/\/api\b|api\./.test(url) || /\bapi\b/.test(name)) return 'api_foundation';
   if (/archive\.org|wayback|archive/.test(url + name)) return 'archive';
   if (/threat|abuse|malware|phish|cve|kev/.test(url + name)) return 'threat_feed';
-  if (/newswire|wire service/.test(url + name)) return 'newswire';
+  if (/newswire|wire service/.test(url + name)) return 'news_source';
   return 'website';
 }
 

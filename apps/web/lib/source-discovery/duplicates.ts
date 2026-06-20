@@ -7,16 +7,27 @@
 // duplicates just because both use youtube.com.
 // =============================================================================
 
-import type { CandidateInput, ExistingSource, DuplicateResult, IdentityStrategy } from './types';
+import { normalizeSourceType, type CandidateInput, type ExistingSource, type DuplicateResult, type IdentityStrategy } from './types';
 
 /** Platform domains where the root domain alone is NOT a uniqueness key. */
 const PLATFORM_DOMAINS = new Set([
   'youtube.com', 'youtu.be', 'reddit.com', 'tiktok.com', 'github.com', 'twitter.com', 'x.com',
   'facebook.com', 'instagram.com', 'spotify.com', 'podcasts.apple.com', 'apple.com', 'mastodon.social', 't.me', 'telegram.me',
 ]);
-/** Types whose identity is the feed/endpoint URL, not the homepage. */
-const FEED_TYPES = new Set(['rss', 'podcast', 'threat_feed', 'api', 'archive', 'newswire']);
+/** Canonical feed-identity types → identity-key prefix (identity = feed/endpoint URL). */
+const FEED_PREFIX: Record<string, string> = {
+  rss_feed: 'rss', news_rss: 'rss', research_rss: 'rss', podcast_rss: 'podcast',
+  api_foundation: 'api', webhook: 'api', threat_feed: 'threat', intelligence_feed: 'intel',
+};
+/** Types whose identity is the full canonical URL (path matters). */
+const PATH_TYPES = new Set(['watchlist', 'document', 'archive']);
 const TRACKING_PARAM = /^(utm_|mc_|_hs|fbclid|gclid|igshid|ref$|ref_src|spm|yclid|cmpid)/i;
+
+/** Normalized pathname ('' for root) for website/government identity keys. */
+function pathOf(url: string | null | undefined): string {
+  if (!url) return '';
+  try { const p = new URL(url.includes('://') ? url : `https://${url}`).pathname.replace(/\/+$/, ''); return p === '' ? '' : p.toLowerCase(); } catch { return ''; }
+}
 
 export function domainOf(url: string | null | undefined): string {
   if (!url) return '';
@@ -98,58 +109,81 @@ export interface SourceIdentity { canonicalUrl: string; identityKey: string; ide
 
 /** Compute a source's canonical identity (key + strategy) for de-duplication. */
 export function getSourceIdentityKey(input: { sourceType?: string | null; primaryUrl?: string | null; feedOrApiUrl?: string | null }): SourceIdentity {
-  const type = (input.sourceType ?? '').toLowerCase();
-  if (FEED_TYPES.has(type) && input.feedOrApiUrl) {
+  const type = normalizeSourceType(input.sourceType) ?? '';
+  // Feed-identity types: identity is the feed/endpoint URL.
+  if (FEED_PREFIX[type] && input.feedOrApiUrl) {
     const canon = normalizeSourceUrl(input.feedOrApiUrl);
-    return { canonicalUrl: canon, identityKey: `${type}:${canon}`, identityStrategy: 'feed_url', platform: null };
+    return { canonicalUrl: canon, identityKey: `${FEED_PREFIX[type]}:${canon}`, identityStrategy: 'feed_url', platform: null };
   }
+  // Platform-identity (channel/subreddit/handle/repo).
   const plat = getPlatformIdentity(input.primaryUrl);
   if (plat.identityKey) {
     return { canonicalUrl: normalizeSourceUrl(input.primaryUrl), identityKey: plat.identityKey, identityStrategy: 'platform_identity', platform: plat.platform };
   }
+  // Path-identity types: identity is the full canonical URL.
+  if (PATH_TYPES.has(type)) {
+    const canon = normalizeSourceUrl(input.primaryUrl || input.feedOrApiUrl);
+    return { canonicalUrl: canon, identityKey: `${type}:${canon}`, identityStrategy: 'domain', platform: null };
+  }
+  // Website/government/etc: identity is domain (+ meaningful path).
   const url = input.primaryUrl || input.feedOrApiUrl;
-  return { canonicalUrl: normalizeSourceUrl(url), identityKey: `website:${domainOf(url)}`, identityStrategy: 'domain', platform: plat.platform };
+  return { canonicalUrl: normalizeSourceUrl(url), identityKey: `website:${domainOf(url)}${pathOf(url)}`, identityStrategy: 'domain', platform: plat.platform };
 }
 
 function ident(e: ExistingSource): SourceIdentity {
   return getSourceIdentityKey({ sourceType: e.sourceType, primaryUrl: e.homepageUrl, feedOrApiUrl: e.rssUrl });
 }
-function result(status: DuplicateResult['duplicateStatus'], e: ExistingSource, reason: string): DuplicateResult {
-  return { duplicateStatus: status, existingSourceId: e.id, existingSourceName: e.name, duplicateReason: reason };
+/** "Existing identity X · candidate identity Y → result" — drives the UI explanation. */
+function reasonFor(status: string, cId: SourceIdentity, eId: SourceIdentity): string {
+  return `Existing identity ${eId.identityKey} · candidate identity ${cId.identityKey} → ${status}`;
+}
+function res(status: DuplicateResult['duplicateStatus'], e: ExistingSource, cId: SourceIdentity, eId: SourceIdentity): DuplicateResult {
+  return { duplicateStatus: status, existingSourceId: e.id, existingSourceName: e.name, duplicateReason: reasonFor(status, cId, eId) };
 }
 
-// ---- individual detectors (kept; now platform-aware) -----------------------
+// ---- individual detectors (platform-aware) ---------------------------------
 
 export function detectExactDuplicate(candidate: CandidateInput, existing: ExistingSource[]): DuplicateResult | null {
-  // Exact = identical HOMEPAGE URL (feed/platform identity handle their own cases).
+  const c = getSourceIdentityKey(candidate);
   const cPrimary = normalizeSourceUrl(candidate.primaryUrl);
   if (!cPrimary) return null;
-  for (const e of existing) if (e.homepageUrl && normalizeSourceUrl(e.homepageUrl) === cPrimary) return result('exact_duplicate', e, 'Identical homepage URL already in the registry.');
+  for (const e of existing) if (e.homepageUrl && normalizeSourceUrl(e.homepageUrl) === cPrimary) return res('exact_duplicate', e, c, ident(e));
   return null;
 }
 export function detectPlatformIdentityDuplicate(candidate: CandidateInput, existing: ExistingSource[]): DuplicateResult | null {
   const c = getSourceIdentityKey(candidate);
   if (c.identityStrategy !== 'platform_identity') return null;
-  for (const e of existing) { const ei = ident(e); if (ei.identityStrategy === 'platform_identity' && ei.identityKey === c.identityKey) return result('platform_identity_duplicate', e, `Same platform identity "${c.identityKey}".`); }
+  for (const e of existing) { const ei = ident(e); if (ei.identityStrategy === 'platform_identity' && ei.identityKey === c.identityKey) return res('platform_identity_duplicate', e, c, ei); }
   return null;
 }
 export function detectFeedDuplicate(candidate: CandidateInput, existing: ExistingSource[]): DuplicateResult | null {
   const c = getSourceIdentityKey(candidate);
   if (c.identityStrategy !== 'feed_url') return null;
-  for (const e of existing) { const ei = ident(e); if (ei.identityStrategy === 'feed_url' && ei.identityKey === c.identityKey) return result('feed_duplicate', e, 'Same feed/endpoint URL.'); }
+  for (const e of existing) { const ei = ident(e); if (ei.identityStrategy === 'feed_url' && ei.identityKey === c.identityKey) return res('feed_duplicate', e, c, ei); }
   return null;
 }
+/** Same root domain, different identity, generic (non-platform) WEBSITE → confirm.
+ *  Only website-identity sources participate — feed/path/platform sources are keyed
+ *  by feed-url / full-path / handle, so sharing a domain is not a duplicate. */
 export function detectDomainDuplicate(candidate: CandidateInput, existing: ExistingSource[]): DuplicateResult | null {
   const c = getSourceIdentityKey(candidate);
-  if (c.identityStrategy !== 'domain' || c.platform) return null; // platform domains are not domain-duplicates
-  for (const e of existing) { const ei = ident(e); if (ei.identityStrategy === 'domain' && !ei.platform && ei.identityKey === c.identityKey) return result('domain_duplicate', e, `Domain "${domainOf(candidate.primaryUrl || candidate.feedOrApiUrl)}" already covered.`); }
+  if (!c.identityKey.startsWith('website:')) return null;
+  const cDomain = domainOf(candidate.primaryUrl) || domainOf(candidate.feedOrApiUrl);
+  if (!cDomain || PLATFORM_DOMAINS.has(cDomain)) return null;
+  for (const e of existing) {
+    const eDomain = domainOf(e.homepageUrl) || domainOf(e.rssUrl);
+    if (!eDomain || PLATFORM_DOMAINS.has(eDomain) || eDomain !== cDomain) continue;
+    const ei = ident(e);
+    if (ei.identityKey.startsWith('website:') && ei.canonicalUrl !== c.canonicalUrl) return res('domain_duplicate', e, c, ei); // different URL, same domain
+  }
   return null;
 }
 export function detectRelatedSource(candidate: CandidateInput, existing: ExistingSource[]): DuplicateResult | null {
   const root = (d: string) => d.split('.').slice(-2).join('.');
   const cDomain = domainOf(candidate.primaryUrl) || domainOf(candidate.feedOrApiUrl);
   if (!cDomain || PLATFORM_DOMAINS.has(cDomain)) return null;
-  for (const e of existing) { const ed = domainOf(e.homepageUrl) || domainOf(e.rssUrl); if (ed && ed !== cDomain && root(ed) === root(cDomain)) return result('related_source', e, `Shares root domain "${root(cDomain)}".`); }
+  const c = getSourceIdentityKey(candidate);
+  for (const e of existing) { const ed = domainOf(e.homepageUrl) || domainOf(e.rssUrl); if (ed && ed !== cDomain && root(ed) === root(cDomain)) return res('related_source', e, c, ident(e)); }
   return null;
 }
 
@@ -167,7 +201,7 @@ export function detectDuplicate(candidate: CandidateInput, existing: ExistingSou
   const cDomain = domainOf(candidate.primaryUrl) || domainOf(candidate.feedOrApiUrl);
   if (cDomain && PLATFORM_DOMAINS.has(cDomain)) {
     const share = existing.find((e) => domainOf(e.homepageUrl) === cDomain || domainOf(e.rssUrl) === cDomain);
-    if (share) return result('platform_domain_only_not_duplicate', share, `Same platform (${cDomain}) but a different channel/path — not a duplicate.`);
+    if (share) return res('platform_domain_only_not_duplicate', share, getSourceIdentityKey(candidate), ident(share));
   }
   return { duplicateStatus: 'none', existingSourceId: null, existingSourceName: null, duplicateReason: null };
 }
