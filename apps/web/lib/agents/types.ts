@@ -13,6 +13,9 @@ export const AGENT_KEYS = [
   'PUBLICATION_MONITOR_AGENT', 'TRUST_ANOMALY_AGENT', 'EXECUTIVE_BRIEF_AGENT', 'FORECAST_PREP_AGENT',
   // Phase 67 — forecast validation (validation only, no forecasting).
   'FORECAST_VALIDATION_AGENT',
+  // Phase 70.3 — source discovery + signal scout (suggest only; human-gated).
+  'SOURCE_DISCOVERY_AGENT',
+  'SIGNAL_SCOUT_AGENT',
 ] as const;
 export type AgentKey = (typeof AGENT_KEYS)[number];
 

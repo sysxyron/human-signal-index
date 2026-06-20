@@ -25,6 +25,8 @@ export const AGENT_REGISTRY: AgentDefinition[] = [
   { key: 'EXECUTIVE_BRIEF_AGENT', name: 'Executive Brief Agent', description: 'Produces explainable daily/weekly executive intelligence summaries.', category: 'executive', defaultCadence: 'daily', consumes: ['Phase 61', 'Phase 64', 'Phase 65'] },
   { key: 'FORECAST_PREP_AGENT', name: 'Forecast Prep Agent', description: 'Computes forecast-readiness indicators across Phases 61–65 (no forecasting).', category: 'forecast', defaultCadence: 'weekly', consumes: ['Phase 61', 'Phase 64', 'Phase 65'] },
   { key: 'FORECAST_VALIDATION_AGENT', name: 'Forecast Validation Agent', description: 'Detects due forecasts, evaluates recorded outcomes, computes scores, and raises alerts (validation only — no forecasting).', category: 'forecast', defaultCadence: 'daily', consumes: ['Phase 67'] },
+  { key: 'SOURCE_DISCOVERY_AGENT', name: 'Source Discovery Agent', description: 'Suggests new source candidates from domains already referenced in real evidence (never fabricates URLs). All results enter review.', category: 'discovery', defaultCadence: 'weekly', consumes: ['Source Registry', 'Evidence'] },
+  { key: 'SIGNAL_SCOUT_AGENT', name: 'Signal Scout Agent', description: 'Suggests signal candidates from real recent signals + watchlist/narrative matches. Never publishes; human review required.', category: 'discovery', defaultCadence: 'daily', consumes: ['Signals', 'Watchlists', 'Narratives'] },
 ];
 
 export function getAgentDefinition(key: string): AgentDefinition | undefined {

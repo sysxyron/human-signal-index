@@ -13,6 +13,7 @@ import { listNarrativesDal, latestSnapshotByNarrative, growthByNarrative } from 
 import { validateDueForecasts } from '@/lib/forecasts/engine';
 import { readEvalRecords } from '@/lib/forecasts/persistence';
 import { performanceMetrics } from '@/lib/forecasts/calibration';
+import { runSourceDiscovery as runDiscovery, runSignalScout as runScout } from '@/lib/source-discovery/engine';
 import type { AgentKey, AgentHandlerResult, Finding } from './types';
 
 type Handler = (writer: SupabaseClient) => Promise<AgentHandlerResult>;
@@ -208,6 +209,16 @@ const forecastValidation: Handler = async (writer) => {
   return { findings, actions };
 };
 
+// ---- Phase 70.3. Source Discovery + Signal Scout (suggest only; human-gated) --
+const sourceDiscovery: Handler = async (writer) => {
+  const r = await runDiscovery(writer, null, 'scheduled');
+  return { actions: ['Scanned referenced domains for new source candidates (Phase 70.3)'], findings: [f(`${r.candidates} source candidate(s) suggested from ${r.findings} referenced domain(s) — all in review`, r.candidates > 0 ? 'NOTICE' : 'INFO', 'source_discovery', 'source-discovery', { ...r })] };
+};
+const signalScout: Handler = async (writer) => {
+  const r = await runScout(writer, null);
+  return { actions: ['Scouted recent signals for narrative/watchlist matches (Phase 70.3)'], findings: [f(`${r.candidates} signal candidate(s) suggested for review — none published`, r.candidates > 0 ? 'NOTICE' : 'INFO', 'signal_scout', 'source-discovery', { ...r })] };
+};
+
 export const HANDLERS: Record<AgentKey, Handler> = {
   SOURCE_HEALTH_AGENT: sourceHealth,
   NARRATIVE_WATCH_AGENT: narrativeWatch,
@@ -218,4 +229,6 @@ export const HANDLERS: Record<AgentKey, Handler> = {
   EXECUTIVE_BRIEF_AGENT: executiveBrief,
   FORECAST_PREP_AGENT: forecastPrep,
   FORECAST_VALIDATION_AGENT: forecastValidation,
+  SOURCE_DISCOVERY_AGENT: sourceDiscovery,
+  SIGNAL_SCOUT_AGENT: signalScout,
 };

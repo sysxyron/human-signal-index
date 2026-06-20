@@ -63,6 +63,14 @@ test('Phase 62 notifications is viewer+ (every signed-in role) and a real menu i
   assert.equal(canSeeRoute('/dashboard/notifications', null), false);
 });
 
+test('Phase 70.3 source-discovery is reviewer+ and a real menu item', () => {
+  assert.ok(ALL_NAV_HREFS.includes('/dashboard/source-discovery'));
+  assert.equal(canSeeRoute('/dashboard/source-discovery', 'researcher'), false);
+  assert.equal(canSeeRoute('/dashboard/source-discovery', 'reviewer'), true);
+  assert.equal(canSeeRoute('/dashboard/source-discovery', 'curator'), true);
+  assert.equal(canSeeRoute('/dashboard/source-discovery', 'admin'), true);
+});
+
 test('Phase 70.1 infrastructure is admin-only and a real menu item', () => {
   assert.ok(ALL_NAV_HREFS.includes('/dashboard/infrastructure'));
   assert.equal(canSeeRoute('/dashboard/infrastructure', 'reviewer'), false);

@@ -22,6 +22,7 @@ import {
   Bot,
   Store,
   Server,
+  Compass,
   Menu,
   X,
   Search,
@@ -338,6 +339,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Source Registry', href: '/dashboard/source-registry', icon: Database },
       { label: 'Source Reliability', href: '/dashboard/source-reliability', icon: Activity },
       { label: 'Source Monitoring', href: '/dashboard/source-monitoring', icon: Radar },
+      // Phase 70.3 — source import / discovery / signal scout (reviewer+).
+      { label: 'Source Discovery', href: '/dashboard/source-discovery', icon: Compass },
       { label: 'Manage Sources', href: '/dashboard/sources', icon: Database },
       { label: 'Watchlists', href: '/dashboard/watchlists', icon: Eye },
       { label: 'Submit a Signal', href: '/submit-a-signal', icon: Send },
