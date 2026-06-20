@@ -56,6 +56,8 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
   '/dashboard/signal-network': ['reviewer', 'curator'],
   // Phase 71 — global intelligence map (reviewer+).
   '/dashboard/global-map': ['reviewer', 'curator'],
+  // Phase 73 — global operations command center (reviewer+).
+  '/dashboard/command-center': ['reviewer', 'curator'],
   '/dashboard/collaboration': ['researcher', 'reviewer', 'curator'],
   '/dashboard/release-candidate': ['researcher', 'reviewer', 'curator'],
   '/dashboard/beta-operations': ['admin'],
@@ -172,7 +174,7 @@ export const NAV_VISIBILITY: Record<string, NavRole[]> = {
  * the client `dashboardNavGroups`. Keep in sync with navigation.tsx's sidebar.
  */
 export const ALL_NAV_HREFS: string[] = [
-  '/dashboard', '/dashboard/sources', '/dashboard/source-registry', '/dashboard/source-reliability', '/dashboard/source-monitoring', '/dashboard/evidence-graph', '/dashboard/narratives', '/dashboard/agents', '/dashboard/forecast-validation', '/dashboard/marketplace', '/dashboard/infrastructure', '/dashboard/source-discovery', '/dashboard/signal-network', '/dashboard/global-map', '/submit-a-signal', '/dashboard/signal-intake', '/dashboard/signal-submission', '/dashboard/evidence-vault', '/dashboard/operations',
+  '/dashboard', '/dashboard/sources', '/dashboard/source-registry', '/dashboard/source-reliability', '/dashboard/source-monitoring', '/dashboard/evidence-graph', '/dashboard/narratives', '/dashboard/agents', '/dashboard/forecast-validation', '/dashboard/marketplace', '/dashboard/infrastructure', '/dashboard/source-discovery', '/dashboard/signal-network', '/dashboard/global-map', '/dashboard/command-center', '/submit-a-signal', '/dashboard/signal-intake', '/dashboard/signal-submission', '/dashboard/evidence-vault', '/dashboard/operations',
   '/dashboard/org', '/dashboard/org/members', '/dashboard/org/leaderboard', '/dashboard/org/analytics', '/dashboard/org/health', '/dashboard/org/settings', '/dashboard/org/branding', '/dashboard/org/billing', '/dashboard/org/create',
   '/dashboard/missions', '/dashboard/badges', '/dashboard/leaderboard', '/dashboard/authority',
   '/dashboard/rhetoric-classifier', '/dashboard/risk-scoring', '/dashboard/traceability-engine', '/dashboard/intelligence/operations', '/dashboard/decisions/explorer',

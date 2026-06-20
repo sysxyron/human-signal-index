@@ -391,6 +391,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Signal Network', href: '/dashboard/signal-network', icon: Radio },
       // Phase 71 — global intelligence map (reviewer+).
       { label: 'Global Map', href: '/dashboard/global-map', icon: Globe },
+      // Phase 73 — global operations command center (reviewer+).
+      { label: 'Command Center', href: '/dashboard/command-center', icon: Gauge },
       // Phase 66 — agent automation (reviewer+).
       { label: 'Agents', href: '/dashboard/agents', icon: Bot },
       // Phase 67 — forecast validation (reviewer+).

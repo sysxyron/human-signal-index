@@ -128,6 +128,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/signal-network', minRole: 'reviewer' },
   // Phase 71 — global intelligence map (reviewer+ read; admin geocode).
   { pattern: '/dashboard/global-map', minRole: 'reviewer' },
+  // Phase 73 — global operations command center (reviewer+ read).
+  { pattern: '/dashboard/command-center', minRole: 'reviewer' },
   { pattern: '/dashboard/operations', minRole: 'reviewer' },
   // Phase 25 — governance queue (escalated/sensitive investigations).
   { pattern: '/dashboard/governance-queue', minRole: 'reviewer' },
