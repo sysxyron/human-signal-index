@@ -4,7 +4,22 @@
 // into CandidateInput; invalid rows carry explicit errors. No I/O, no fabrication.
 // =============================================================================
 
-import { CSV_COLUMNS, isSourceType, type CandidateInput, type RowValidation } from './types';
+import { CSV_COLUMNS, isSourceType, formatError, type CandidateInput, type RowValidation, type ImportError } from './types';
+
+/** Best-effort source_type suggestion for an unrecognized value (diagnostics aid). */
+export function suggestType(raw: Record<string, string>): string {
+  const blob = `${raw.source_type ?? ''} ${raw.source_name ?? ''} ${raw.primary_url ?? ''} ${raw.feed_or_api_url ?? ''}`.toLowerCase();
+  if (/youtube|youtu\.be|channel/.test(blob)) return 'youtube';
+  if (/reddit/.test(blob)) return 'social';
+  if (/podcast/.test(blob)) return 'podcast';
+  if (/\brss\b|feed|\.xml|atom/.test(blob)) return 'rss';
+  if (/\.gov\b|government/.test(blob)) return 'government';
+  if (/court|tribunal/.test(blob)) return 'court';
+  if (/arxiv|research|\.edu\b/.test(blob)) return 'research';
+  if (/\bapi\b/.test(blob)) return 'api';
+  if (/threat|malware|phish|abuse/.test(blob)) return 'threat_feed';
+  return 'website';
+}
 
 /** Parse CSV text into a matrix of cells (RFC-4180-ish: quotes + escaped quotes). */
 export function parseCsv(text: string): string[][] {
@@ -42,26 +57,26 @@ export function toObjects(matrix: string[][]): Record<string, string>[] {
 function num(v: string): number | null { if (!v) return null; const n = Number(v); return Number.isFinite(n) ? n : null; }
 function splitTags(v: string): string[] { return v ? v.split(/[;,]/).map((t) => t.trim()).filter(Boolean) : []; }
 
-/** Validate + normalize one CSV row. */
+/** Validate + normalize one CSV row, emitting coded diagnostics. */
 export function validateRow(raw: Record<string, string>): RowValidation {
-  const errors: string[] = [];
+  const errs: ImportError[] = [];
   const name = (raw.source_name ?? '').trim();
   const primaryUrl = (raw.primary_url ?? '').trim() || null;
   const feedUrl = (raw.feed_or_api_url ?? '').trim() || null;
   const sourceType = (raw.source_type ?? '').trim().toLowerCase() || null;
 
-  if (!name) errors.push('source_name is required');
-  if (!primaryUrl && !feedUrl) errors.push('primary_url or feed_or_api_url is required');
-  if (primaryUrl && !/^https?:\/\//i.test(primaryUrl)) errors.push('primary_url must be http(s)');
-  if (feedUrl && !/^https?:\/\//i.test(feedUrl)) errors.push('feed_or_api_url must be http(s)');
-  if (sourceType && !isSourceType(sourceType)) errors.push(`unknown source_type "${sourceType}"`);
+  if (!name) errs.push({ code: 'MISSING_REQUIRED_FIELD', reason: 'source_name is required.', suggestedFix: 'Provide a source name.' });
+  if (!primaryUrl && !feedUrl) errs.push({ code: 'INVALID_URL', reason: 'Primary URL is missing or malformed.', suggestedFix: 'Provide primary_url or feed_or_api_url.' });
+  if (primaryUrl && !/^https?:\/\//i.test(primaryUrl)) errs.push({ code: 'INVALID_URL', reason: `primary_url "${primaryUrl}" is not http(s).`, suggestedFix: 'Use an https:// URL.' });
+  if (feedUrl && !/^https?:\/\//i.test(feedUrl)) errs.push({ code: 'INVALID_URL', reason: `feed_or_api_url "${feedUrl}" is not http(s).`, suggestedFix: 'Use an https:// URL.' });
+  if (sourceType && !isSourceType(sourceType)) errs.push({ code: 'UNSUPPORTED_SOURCE_TYPE', reason: `Source type "${raw.source_type}" is not recognized.`, suggestedFix: `Suggested type: ${suggestType(raw)}.` });
 
   const risk = num(raw.baseline_risk_1_5 ?? '');
-  if (risk != null && (risk < 1 || risk > 5)) errors.push('baseline_risk_1_5 must be 1–5');
+  if (risk != null && (risk < 1 || risk > 5)) errs.push({ code: 'BAD_RISK_SCORE', reason: 'baseline_risk_1_5 must be between 1 and 5.', suggestedFix: 'Use a value 1–5 (or leave blank).' });
   const interval = num(raw.capture_interval_minutes ?? '');
-  if (interval != null && interval <= 0) errors.push('capture_interval_minutes must be positive');
+  if (interval != null && interval <= 0) errs.push({ code: 'BAD_INTERVAL', reason: 'capture_interval_minutes must be a positive number.', suggestedFix: 'Use a positive integer (or leave blank).' });
 
-  if (errors.length > 0) return { valid: false, errors, normalized: null };
+  if (errs.length > 0) return { valid: false, errors: errs.map(formatError), normalized: null };
 
   const normalized: CandidateInput = {
     sourceName: name, sourceType, category: (raw.category ?? '').trim() || null,

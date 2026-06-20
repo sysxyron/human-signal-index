@@ -13,6 +13,28 @@ import * as svc from './service';
 import type { DbResult } from './persistence';
 import type { ImportSummary, DiscoverySummary, ScoutSummary } from './engine';
 
+export async function reprocessBatchAction(batchId: string): Promise<DbResult<ImportSummary>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  const r = await svc.reprocessBatch(batchId);
+  if (r.ok) { await recordSecurityAudit(gate.ctx.db, { actorId: gate.ctx.user.id, eventType: 'SOURCE_IMPORT_REPROCESSED', message: `Batch ${batchId} reprocessed: ${r.data.valid} valid, ${r.data.duplicates} dup.`, metadata: { ...r.data } }); rev(); }
+  return r;
+}
+export async function addSeedAction(category: string, term: string): Promise<DbResult<{ id: string }>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  const r = await svc.addSeed(category, term);
+  if (r.ok) rev();
+  return r;
+}
+export async function toggleSeedAction(id: string, enabled: boolean): Promise<DbResult<{ id: string }>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  const r = await svc.toggleSeed(id, enabled);
+  if (r.ok) rev();
+  return r;
+}
+
 const ROUTE = '/dashboard/source-discovery';
 function rev(): void { try { revalidatePath(ROUTE); } catch { /* best-effort */ } }
 

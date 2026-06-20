@@ -6,6 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CandidateInput, Classification, DuplicateResult, ExistingSource, CandidateStatus } from './types';
+import { getSourceIdentityKey } from './duplicates';
 
 export type DbResultCode = 'AUTH_REQUIRED' | 'FORBIDDEN' | 'NOT_CONFIGURED' | 'DB_ERROR';
 export type DbResult<T> = { ok: true; data: T } | { ok: false; error: string; code?: DbResultCode };
@@ -60,6 +61,7 @@ export interface CandidateRecord {
   id: string; sourceName: string; sourceType: string | null; category: string | null; primaryUrl: string | null; feedOrApiUrl: string | null;
   classificationCategory: string | null; classificationType: string | null; classificationConfidence: number | null; classificationReason: string | null;
   duplicateStatus: string; existingSourceId: string | null; existingSourceName: string | null; duplicateReason: string | null;
+  identityKey: string | null; identityStrategy: string | null; canonicalUrl: string | null;
   status: string; origin: string; tags: string[]; createdAt: string;
 }
 
@@ -68,10 +70,13 @@ export async function insertCandidate(db: SupabaseClient, input: {
 }): Promise<string | null> {
   try {
     const c = input.candidate;
-    const status: CandidateStatus = input.duplicate.duplicateStatus === 'exact_duplicate' ? 'duplicate' : 'pending_review';
+    const blocked = input.duplicate.duplicateStatus === 'exact_duplicate' || input.duplicate.duplicateStatus === 'platform_identity_duplicate';
+    const status: CandidateStatus = blocked ? 'duplicate' : 'pending_review';
+    const identity = getSourceIdentityKey({ sourceType: input.classification.sourceType, primaryUrl: c.primaryUrl, feedOrApiUrl: c.feedOrApiUrl });
     const { data, error } = await db.from('source_candidates').insert({
       batch_id: input.batchId ?? null, discovery_run_id: input.discoveryRunId ?? null, origin: input.origin,
       source_name: c.sourceName, source_type: input.classification.sourceType, category: c.category, primary_url: c.primaryUrl, feed_or_api_url: c.feedOrApiUrl,
+      canonical_url: identity.canonicalUrl, identity_key: identity.identityKey, identity_strategy: identity.identityStrategy,
       platform: c.platform, capture_interval_minutes: c.captureIntervalMinutes, baseline_risk: c.baselineRisk, content_selector: c.contentSelector,
       priority: c.priority, ingestion_mode: c.ingestionMode, tags: c.tags, description: c.description, corroboration_rule: c.corroborationRule, notes: c.notes,
       classification_category: input.classification.category, classification_type: input.classification.sourceType, classification_confidence: input.classification.confidence, classification_reason: input.classification.reason,
@@ -90,10 +95,11 @@ function mapCandidate(r: Record<string, unknown>): CandidateRecord {
     classificationCategory: (r.classification_category as string) ?? null, classificationType: (r.classification_type as string) ?? null,
     classificationConfidence: (r.classification_confidence as number) ?? null, classificationReason: (r.classification_reason as string) ?? null,
     duplicateStatus: (r.duplicate_status as string) ?? 'none', existingSourceId: (r.existing_source_id as string) ?? null, existingSourceName: (r.existing_source_name as string) ?? null, duplicateReason: (r.duplicate_reason as string) ?? null,
+    identityKey: (r.identity_key as string) ?? null, identityStrategy: (r.identity_strategy as string) ?? null, canonicalUrl: (r.canonical_url as string) ?? null,
     status: r.status as string, origin: (r.origin as string) ?? 'csv_import', tags: (r.tags as string[]) ?? [], createdAt: r.created_at as string,
   };
 }
-const CAND_COLS = 'id, source_name, source_type, category, primary_url, feed_or_api_url, classification_category, classification_type, classification_confidence, classification_reason, duplicate_status, existing_source_id, existing_source_name, duplicate_reason, status, origin, tags, created_at';
+const CAND_COLS = 'id, source_name, source_type, category, primary_url, feed_or_api_url, classification_category, classification_type, classification_confidence, classification_reason, duplicate_status, existing_source_id, existing_source_name, duplicate_reason, identity_key, identity_strategy, canonical_url, status, origin, tags, created_at';
 
 export async function listCandidatesDal(db: SupabaseClient, status: CandidateStatus | null, limit = 100): Promise<CandidateRecord[]> {
   try { let q = db.from('source_candidates').select(CAND_COLS); if (status) q = q.eq('status', status); const { data } = await q.order('created_at', { ascending: false }).limit(limit); return ((data ?? []) as Array<Record<string, unknown>>).map(mapCandidate); } catch { return []; }
@@ -130,15 +136,90 @@ export async function createSourceFromCandidate(writer: SupabaseClient, full: Re
 export async function insertDiscoveryRun(writer: SupabaseClient, agentKey: string, trigger: string, actorId: string | null): Promise<string | null> {
   try { const { data, error } = await writer.from('source_discovery_runs').insert({ agent_key: agentKey, trigger, status: 'running', actor_id: actorId }).select('id').single(); if (error || !data) return null; return (data as { id: string }).id; } catch { return null; }
 }
-export async function finishDiscoveryRun(writer: SupabaseClient, id: string, findings: number, candidates: number): Promise<void> {
-  try { await writer.from('source_discovery_runs').update({ status: 'succeeded', findings_count: findings, candidates_created: candidates, finished_at: new Date().toISOString() }).eq('id', id); } catch { /* best-effort */ }
+export async function finishDiscoveryRun(writer: SupabaseClient, id: string, input: { findings: number; candidates: number; reason: string | null; considered: number; skipped: number; diagnostics: Record<string, unknown> }): Promise<void> {
+  try { await writer.from('source_discovery_runs').update({ status: 'succeeded', findings_count: input.findings, candidates_created: input.candidates, reason: input.reason, sources_considered: input.considered, sources_skipped: input.skipped, diagnostics: input.diagnostics, finished_at: new Date().toISOString() }).eq('id', id); } catch { /* best-effort */ }
 }
 export async function insertFinding(writer: SupabaseClient, runId: string, kind: string, detail: string, evidence: Record<string, unknown>): Promise<void> {
   try { await writer.from('source_discovery_findings').insert({ run_id: runId, kind, detail, evidence }); } catch { /* best-effort */ }
 }
-export interface RunRow { id: string; agentKey: string; status: string; findingsCount: number; candidatesCreated: number; startedAt: string; startedLabel: string }
+export interface RunRow { id: string; agentKey: string; status: string; findingsCount: number; candidatesCreated: number; reason: string | null; considered: number; skipped: number; startedAt: string; startedLabel: string }
 export async function listRunsDal(db: SupabaseClient, limit = 20): Promise<RunRow[]> {
-  try { const { data } = await db.from('source_discovery_runs').select('id, agent_key, status, findings_count, candidates_created, started_at').order('started_at', { ascending: false }).limit(limit); return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({ id: r.id as string, agentKey: r.agent_key as string, status: r.status as string, findingsCount: (r.findings_count as number) ?? 0, candidatesCreated: (r.candidates_created as number) ?? 0, startedAt: r.started_at as string, startedLabel: fmt(r.started_at as string) })); } catch { return []; }
+  try { const { data } = await db.from('source_discovery_runs').select('id, agent_key, status, findings_count, candidates_created, reason, sources_considered, sources_skipped, started_at').order('started_at', { ascending: false }).limit(limit); return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({ id: r.id as string, agentKey: r.agent_key as string, status: r.status as string, findingsCount: (r.findings_count as number) ?? 0, candidatesCreated: (r.candidates_created as number) ?? 0, reason: (r.reason as string) ?? null, considered: (r.sources_considered as number) ?? 0, skipped: (r.sources_skipped as number) ?? 0, startedAt: r.started_at as string, startedLabel: fmt(r.started_at as string) })); } catch { return []; }
+}
+
+// ---- reprocess support (Phase 70.3.1) --------------------------------------
+
+export interface ImportRowRecord { rowNumber: number; raw: Record<string, string>; valid: boolean; errors: string[] }
+export async function getImportRowsDal(db: SupabaseClient, batchId: string): Promise<ImportRowRecord[]> {
+  try { const { data } = await db.from('source_import_rows').select('row_number, raw, valid, errors').eq('batch_id', batchId).order('row_number', { ascending: true }).limit(5000); return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({ rowNumber: r.row_number as number, raw: (r.raw as Record<string, string>) ?? {}, valid: (r.valid as boolean) ?? false, errors: (r.errors as string[]) ?? [] })); } catch { return []; }
+}
+export interface InvalidRowRecord { batchId: string; rowNumber: number; sourceName: string; primaryUrl: string; feedUrl: string; errors: string[] }
+export async function listInvalidRowsDal(db: SupabaseClient, limit = 50): Promise<InvalidRowRecord[]> {
+  try {
+    const { data } = await db.from('source_import_rows').select('batch_id, row_number, raw, errors').eq('valid', false).order('row_number', { ascending: true }).limit(limit);
+    return ((data ?? []) as Array<Record<string, unknown>>).map((r) => { const raw = (r.raw as Record<string, string>) ?? {}; return { batchId: r.batch_id as string, rowNumber: r.row_number as number, sourceName: raw.source_name ?? '', primaryUrl: raw.primary_url ?? '', feedUrl: raw.feed_or_api_url ?? '', errors: (r.errors as string[]) ?? [] }; });
+  } catch { return []; }
+}
+/** Delete only un-reviewed candidates for a batch (preserves approved/rejected). */
+export async function deleteReprocessableCandidates(db: SupabaseClient, batchId: string): Promise<void> {
+  try { await db.from('source_candidates').delete().eq('batch_id', batchId).in('status', ['pending_review', 'duplicate', 'needs_changes']); } catch { /* best-effort */ }
+}
+export async function replaceImportRows(db: SupabaseClient, batchId: string, rows: { rowNumber: number; raw: Record<string, string>; valid: boolean; errors: string[] }[]): Promise<void> {
+  try { await db.from('source_import_rows').delete().eq('batch_id', batchId); } catch { /* best-effort */ }
+  await insertImportRows(db, batchId, rows);
+}
+
+// ---- discovery seeds --------------------------------------------------------
+
+export interface SeedRow { id: string; category: string; seedTerm: string; enabled: boolean }
+export async function listSeedsDal(db: SupabaseClient): Promise<SeedRow[]> {
+  try { const { data } = await db.from('source_discovery_seeds').select('id, category, seed_term, enabled').order('category', { ascending: true }).limit(500); return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({ id: r.id as string, category: r.category as string, seedTerm: r.seed_term as string, enabled: (r.enabled as boolean) ?? true })); } catch { return []; }
+}
+export async function insertSeedDal(writer: SupabaseClient, category: string, seedTerm: string, actorId: string): Promise<DbResult<{ id: string }>> {
+  try { const { data, error } = await writer.from('source_discovery_seeds').upsert({ category, seed_term: seedTerm, created_by: actorId }, { onConflict: 'category,seed_term' }).select('id').single(); if (error || !data) return fail(error ?? new Error('insert failed')); return { ok: true, data: { id: (data as { id: string }).id } }; } catch (e) { return fail(e); }
+}
+export async function toggleSeedDal(writer: SupabaseClient, id: string, enabled: boolean): Promise<void> {
+  try { await writer.from('source_discovery_seeds').update({ enabled }).eq('id', id); } catch { /* best-effort */ }
+}
+
+// ---- registry statistics (Phase 71 readiness; real counts) -----------------
+
+export interface RegistryStatistics {
+  totalSources: number; activeSources: number; pausedSources: number;
+  candidatesPending: number; duplicatesFound: number; invalidRows: number;
+  byType: { type: string; count: number }[]; byCategory: { category: string; count: number }[]; byPlatform: { platform: string; count: number }[];
+  withFeed: number; missingFeed: number; geoReady: number; missingGeo: number;
+}
+
+export async function getRegistryStatisticsDal(c: SupabaseClient): Promise<RegistryStatistics> {
+  const empty: RegistryStatistics = { totalSources: 0, activeSources: 0, pausedSources: 0, candidatesPending: 0, duplicatesFound: 0, invalidRows: 0, byType: [], byCategory: [], byPlatform: [], withFeed: 0, missingFeed: 0, geoReady: 0, missingGeo: 0 };
+  try {
+    const { data: sources } = await c.from('hsin_sources').select('source_type, platform, status, rss_url').limit(5000);
+    const srcs = (sources ?? []) as Array<{ source_type: string | null; platform: string | null; status: string | null; rss_url: string | null }>;
+    empty.totalSources = srcs.length;
+    empty.activeSources = srcs.filter((s) => s.status === 'active').length;
+    empty.pausedSources = srcs.filter((s) => s.status === 'paused').length;
+    empty.withFeed = srcs.filter((s) => !!s.rss_url).length;
+    empty.missingFeed = srcs.length - empty.withFeed;
+    const typeMap = new Map<string, number>(); const platMap = new Map<string, number>();
+    for (const s of srcs) { const t = s.source_type ?? 'unknown'; typeMap.set(t, (typeMap.get(t) ?? 0) + 1); if (s.platform) platMap.set(s.platform, (platMap.get(s.platform) ?? 0) + 1); }
+    empty.byType = Array.from(typeMap.entries()).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+    empty.byPlatform = Array.from(platMap.entries()).map(([platform, count]) => ({ platform, count })).sort((a, b) => b.count - a.count);
+
+    const { data: cands } = await c.from('source_candidates').select('status, classification_category, latitude, longitude').limit(5000);
+    const cs = (cands ?? []) as Array<{ status: string; classification_category: string | null; latitude: number | null; longitude: number | null }>;
+    empty.candidatesPending = cs.filter((x) => x.status === 'pending_review').length;
+    empty.duplicatesFound = cs.filter((x) => x.status === 'duplicate').length;
+    empty.geoReady = cs.filter((x) => x.latitude != null && x.longitude != null).length;
+    empty.missingGeo = cs.length - empty.geoReady;
+    const catMap = new Map<string, number>();
+    for (const x of cs) { const k = x.classification_category ?? 'unclassified'; catMap.set(k, (catMap.get(k) ?? 0) + 1); }
+    empty.byCategory = Array.from(catMap.entries()).map(([category, count]) => ({ category, count })).sort((a, b) => b.count - a.count);
+
+    const { data: batches } = await c.from('source_import_batches').select('invalid_count').limit(1000);
+    empty.invalidRows = ((batches ?? []) as Array<{ invalid_count: number | null }>).reduce((sum, b) => sum + (b.invalid_count ?? 0), 0);
+  } catch { /* degrade */ }
+  return empty;
 }
 
 // ---- signal candidates ------------------------------------------------------

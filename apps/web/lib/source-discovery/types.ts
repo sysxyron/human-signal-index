@@ -8,8 +8,22 @@
 export const CANDIDATE_STATUSES = ['pending_review', 'approved', 'rejected', 'needs_changes', 'duplicate', 'archived'] as const;
 export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number];
 
-export const DUPLICATE_STATUSES = ['none', 'exact_duplicate', 'domain_duplicate', 'feed_duplicate', 'related_source'] as const;
+export const DUPLICATE_STATUSES = [
+  'none', 'exact_duplicate', 'domain_duplicate', 'feed_duplicate', 'related_source',
+  // Phase 70.3.1 — platform-aware:
+  'platform_identity_duplicate', 'platform_domain_only_not_duplicate',
+] as const;
 export type DuplicateStatus = (typeof DUPLICATE_STATUSES)[number];
+
+/** Identity strategy used to compute a candidate's uniqueness key. */
+export type IdentityStrategy = 'exact_url' | 'platform_identity' | 'feed_url' | 'domain';
+
+/** Structured CSV validation error codes (Phase 70.3.1 diagnostics). */
+export const IMPORT_ERROR_CODES = ['MISSING_REQUIRED_FIELD', 'INVALID_URL', 'UNSUPPORTED_SOURCE_TYPE', 'BAD_RISK_SCORE', 'BAD_INTERVAL'] as const;
+export type ImportErrorCode = (typeof IMPORT_ERROR_CODES)[number];
+export interface ImportError { code: ImportErrorCode; reason: string; suggestedFix: string }
+/** Serialize an error so it round-trips through a text[] column. */
+export function formatError(e: ImportError): string { return `${e.code}: ${e.reason} — Suggested: ${e.suggestedFix}`; }
 
 /** HSI top-level classification categories. */
 export const CLASSIFICATION_CATEGORIES = ['A', 'B', 'C', 'D', 'Foundation'] as const;
@@ -75,10 +89,11 @@ export interface DuplicateResult {
   duplicateReason: string | null;
 }
 
-/** Exact duplicates block approval; the rest require reviewer confirmation. */
+/** Exact + platform-identity duplicates block approval. */
 export function blocksApproval(status: DuplicateStatus): boolean {
-  return status === 'exact_duplicate';
+  return status === 'exact_duplicate' || status === 'platform_identity_duplicate';
 }
+/** Domain/feed/related require reviewer confirmation; platform-domain-only does not. */
 export function requiresConfirmation(status: DuplicateStatus): boolean {
   return status === 'domain_duplicate' || status === 'feed_duplicate' || status === 'related_source';
 }

@@ -82,3 +82,25 @@ export async function runSignalScout(): Promise<DbResult<engine.ScoutSummary>> {
   const writer = (await getServiceClient()) ?? c.db;
   return { ok: true, data: await engine.runSignalScout(writer, c.userId) };
 }
+
+export async function reprocessBatch(batchId: string): Promise<DbResult<engine.ImportSummary>> {
+  const c = await ctx(); if (!c.ok) return c;
+  if (!c.isAdmin) return { ok: false, error: 'Reprocessing is admin-only.', code: 'FORBIDDEN' };
+  const writer = (await getServiceClient()) ?? c.db;
+  return engine.reprocessBatch(writer, c.userId, batchId);
+}
+
+export async function addSeed(category: string, term: string): Promise<DbResult<{ id: string }>> {
+  const c = await ctx(); if (!c.ok) return c;
+  if (!c.isAdmin) return { ok: false, error: 'Managing seeds is admin-only.', code: 'FORBIDDEN' };
+  if (!category.trim() || !term.trim()) return { ok: false, error: 'Category and seed term are required.', code: 'DB_ERROR' };
+  const writer = (await getServiceClient()) ?? c.db;
+  return dal.insertSeedDal(writer, category.trim(), term.trim(), c.userId);
+}
+export async function toggleSeed(id: string, enabled: boolean): Promise<DbResult<{ id: string }>> {
+  const c = await ctx(); if (!c.ok) return c;
+  if (!c.isAdmin) return { ok: false, error: 'Managing seeds is admin-only.', code: 'FORBIDDEN' };
+  const writer = (await getServiceClient()) ?? c.db;
+  await dal.toggleSeedDal(writer, id, enabled);
+  return { ok: true, data: { id } };
+}

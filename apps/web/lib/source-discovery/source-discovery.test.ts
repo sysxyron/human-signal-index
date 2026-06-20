@@ -85,7 +85,9 @@ test('detectExactDuplicate on identical URL', () => {
 
 test('detectDomainDuplicate / feed / related', () => {
   assert.equal(detectDomainDuplicate(cand({ primaryUrl: 'https://example.com/news' }), existing)?.duplicateStatus, 'domain_duplicate');
-  assert.equal(detectFeedDuplicate(cand({ feedOrApiUrl: 'https://example.com/rss' }), existing)?.duplicateStatus, 'feed_duplicate');
+  // Phase 70.3.1: feed identity is the exact feed URL on a feed-type source.
+  const feedExisting: ExistingSource[] = [{ id: 'f1', name: 'Feed', homepageUrl: null, rssUrl: 'https://example.com/rss', sourceType: 'rss' }];
+  assert.equal(detectFeedDuplicate(cand({ sourceType: 'rss', feedOrApiUrl: 'https://example.com/rss' }), feedExisting)?.duplicateStatus, 'feed_duplicate');
   assert.equal(detectRelatedSource(cand({ primaryUrl: 'https://blog.example.com' }), existing)?.duplicateStatus, 'related_source');
 });
 

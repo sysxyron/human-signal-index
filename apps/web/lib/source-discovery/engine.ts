@@ -110,23 +110,30 @@ export async function requestChangesCandidate(db: SupabaseClient, actorId: strin
 
 export interface DiscoverySummary { findings: number; candidates: number }
 
-/** Suggest source candidates from domains already referenced in real evidence. */
+/** Suggest source candidates from domains already referenced in real evidence.
+ *  Records full diagnostics + a clear reason when nothing is found (never fabricates). */
 export async function runSourceDiscovery(writer: SupabaseClient, actorId: string | null, trigger: string): Promise<DiscoverySummary> {
   const runId = await dal.insertDiscoveryRun(writer, 'SOURCE_DISCOVERY_AGENT', trigger, actorId);
   if (!runId) return { findings: 0, candidates: 0 };
+
   const existing = await dal.listExistingSources(writer);
+  const seeds = await dal.listSeedsDal(writer);
+  const categoriesSearched = Array.from(new Set(seeds.filter((s) => s.enabled).map((s) => s.category)));
   const existingDomains = new Set(existing.map((e) => domainOf(e.homepageUrl) || domainOf(e.rssUrl)).filter(Boolean));
+
+  let considered = 0; let skippedExisting = 0; let skippedNonUrl = 0;
   const seen = new Map<string, { url: string; count: number }>();
   try {
     const { data } = await writer.from('hsin_evidence_claims').select('source_ref').not('source_ref', 'is', null).limit(5000);
     for (const r of (data ?? []) as Array<{ source_ref: string | null }>) {
+      considered += 1;
       const url = (r.source_ref ?? '').trim();
-      if (!/^https?:\/\//i.test(url)) continue;
+      if (!/^https?:\/\//i.test(url)) { skippedNonUrl += 1; continue; }
       const d = domainOf(url);
-      if (!d || existingDomains.has(d)) continue;
+      if (!d) { skippedNonUrl += 1; continue; }
+      if (existingDomains.has(d)) { skippedExisting += 1; continue; }
       const e = seen.get(d) ?? { url, count: 0 };
-      e.count += 1;
-      seen.set(d, e);
+      e.count += 1; seen.set(d, e);
     }
   } catch { /* ignore */ }
 
@@ -135,14 +142,50 @@ export async function runSourceDiscovery(writer: SupabaseClient, actorId: string
   for (const [d, { url, count }] of ranked) {
     await dal.insertFinding(writer, runId, 'referenced_domain', `${d} referenced ${count}× in evidence`, { domain: d, count, url });
     const candidate = { sourceName: d, sourceType: null, category: null, primaryUrl: url, feedOrApiUrl: null, platform: null, captureIntervalMinutes: null, baselineRisk: null, contentSelector: null, priority: null, ingestionMode: null, tags: [], description: `Auto-discovered: referenced ${count}× in existing evidence.`, corroborationRule: null, notes: null };
-    const classification = classifySource(candidate);
-    const duplicate = detectDuplicate(candidate, existing);
-    const id = await dal.insertCandidate(writer, { candidate, classification, duplicate, origin: 'discovery_agent', discoveryRunId: runId, actorId });
+    const id = await dal.insertCandidate(writer, { candidate, classification: classifySource(candidate), duplicate: detectDuplicate(candidate, existing), origin: 'discovery_agent', discoveryRunId: runId, actorId });
     if (id) candidates += 1;
   }
-  await dal.finishDiscoveryRun(writer, runId, ranked.length, candidates);
-  await emitToAdmins(writer, actorId, 'NOTICE', 'Source discovery completed', `${candidates} candidate source(s) suggested from referenced domains.`, { event: 'SOURCE_DISCOVERY_COMPLETED', runId, candidates });
+
+  // Explainable "0 findings" reason — never fabricate.
+  let reason: string | null = null;
+  if (candidates === 0) {
+    if (existing.length === 0) reason = 'NO_APPROVED_SOURCES';
+    else if (considered === 0) reason = 'NO_PUBLIC_FEEDS_FOUND';
+    else if (seen.size === 0 && skippedExisting > 0) reason = 'ALL_DUPLICATES';
+    else reason = 'INSUFFICIENT_INPUTS';
+  }
+  const diagnostics = { mode: 'SAFE_MODE_NO_WEB_ACCESS', input: 'evidence.source_ref', categoriesSearched, candidateUrlsFound: seen.size, skippedExisting, skippedNonUrl, ranked: ranked.length };
+  await dal.finishDiscoveryRun(writer, runId, { findings: ranked.length, candidates, reason, considered, skipped: skippedExisting + skippedNonUrl, diagnostics });
+  await emitToAdmins(writer, actorId, 'NOTICE', 'Source discovery completed', candidates > 0 ? `${candidates} candidate source(s) suggested from referenced domains.` : `No new candidates (${reason}). Considered ${considered} references.`, { event: 'SOURCE_DISCOVERY_COMPLETED', runId, candidates, reason });
   return { findings: ranked.length, candidates };
+}
+
+/** Re-validate, re-classify, and re-dedupe an import batch (preserves raw rows +
+ *  approved/rejected decisions; never duplicates candidates). */
+export async function reprocessBatch(db: SupabaseClient, actorId: string, batchId: string): Promise<dal.DbResult<ImportSummary>> {
+  try {
+    const rows = await dal.getImportRowsDal(db, batchId);
+    if (rows.length === 0) return { ok: false, error: 'Batch has no stored rows to reprocess.', code: 'DB_ERROR' };
+    const existing = await dal.listExistingSources(db);
+    await dal.deleteReprocessableCandidates(db, batchId);
+
+    const newRows: { rowNumber: number; raw: Record<string, string>; valid: boolean; errors: string[] }[] = [];
+    let valid = 0, invalid = 0, duplicates = 0, candidates = 0;
+    for (const row of rows) {
+      const v = validateRow(row.raw);
+      newRows.push({ rowNumber: row.rowNumber, raw: row.raw, valid: v.valid, errors: v.errors });
+      if (!v.valid || !v.normalized) { invalid += 1; continue; }
+      valid += 1;
+      const duplicate = detectDuplicate(v.normalized, existing);
+      if (duplicate.duplicateStatus !== 'none') duplicates += 1;
+      const id = await dal.insertCandidate(db, { candidate: v.normalized, classification: classifySource(v.normalized), duplicate, origin: 'csv_import', batchId, actorId });
+      if (id) candidates += 1;
+    }
+    await dal.replaceImportRows(db, batchId, newRows);
+    await dal.finishBatch(db, batchId, { valid, invalid, duplicate: duplicates });
+    await emitToAdmins(db, actorId, 'NOTICE', 'Import batch reprocessed', `${valid} valid, ${invalid} invalid, ${duplicates} duplicate(s) after re-validation.`, { event: 'SOURCE_IMPORT_REPROCESSED', batchId });
+    return { ok: true, data: { batchId, total: rows.length, valid, invalid, duplicates, candidates } };
+  } catch (e) { return dal.fail(e); }
 }
 
 export interface ScoutSummary { candidates: number }

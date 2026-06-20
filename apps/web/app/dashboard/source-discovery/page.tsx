@@ -12,8 +12,8 @@ import { isAdmin } from '@/lib/security/view';
 import { ErrorState } from '@/components/signals/states';
 import { DashboardPage } from '../../../components/dashboard-shell';
 import { getSourceDiscoveryDashboard } from '@/lib/source-discovery/data';
-import { DiscoveryOverview, CandidateQueue, SignalCandidateQueue, BatchList, RunList } from '@/components/source-discovery/panels';
-import { ImportPanel, AgentRunButtons } from '@/components/source-discovery/Controls';
+import { DiscoveryOverview, CandidateQueue, SignalCandidateQueue, BatchList, RunList, InvalidRowsPanel, RegistryStatsPanel } from '@/components/source-discovery/panels';
+import { ImportPanel, AgentRunButtons, SeedManager } from '@/components/source-discovery/Controls';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -42,14 +42,17 @@ export default async function SourceDiscoveryPage() {
     >
       <div className="space-y-8">
         <DiscoveryOverview d={d} />
+        <RegistryStatsPanel stats={d.statistics} />
         <ImportPanel isAdmin={admin} />
+        {d.invalidRows.length > 0 ? <InvalidRowsPanel rows={d.invalidRows} /> : null}
         <CandidateQueue title="Pending review" candidates={d.pending} empty="No candidates awaiting review." />
         {d.duplicates.length > 0 ? <CandidateQueue title="Flagged duplicates" candidates={d.duplicates} empty="No duplicates." /> : null}
         <SignalCandidateQueue signals={d.signalCandidates} />
         <div className="grid gap-6 xl:grid-cols-2">
-          <BatchList batches={d.batches} />
+          <BatchList batches={d.batches} isAdmin={admin} />
           <RunList runs={d.runs} />
         </div>
+        <SeedManager seeds={d.seeds} isAdmin={admin} />
         <div className="grid gap-6 xl:grid-cols-2">
           <CandidateQueue title="Recently approved" candidates={d.approved} empty="None yet." />
           <CandidateQueue title="Recently rejected" candidates={d.rejected} empty="None yet." />

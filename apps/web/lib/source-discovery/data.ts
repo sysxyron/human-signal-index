@@ -7,7 +7,9 @@
 import { createClient } from '@/lib/supabase/server';
 import {
   listBatchesDal, listCandidatesDal, listSignalCandidatesDal, listRunsDal,
+  listInvalidRowsDal, listSeedsDal, getRegistryStatisticsDal,
   type BatchRow, type CandidateRecord, type SignalCandidateRow, type RunRow,
+  type InvalidRowRecord, type SeedRow, type RegistryStatistics,
 } from './persistence';
 
 export interface SourceDiscoveryDashboard {
@@ -18,12 +20,15 @@ export interface SourceDiscoveryDashboard {
   rejected: CandidateRecord[];
   signalCandidates: SignalCandidateRow[];
   runs: RunRow[];
+  invalidRows: InvalidRowRecord[];
+  seeds: SeedRow[];
+  statistics: RegistryStatistics;
   counts: { pending: number; duplicates: number; approved: number; rejected: number; signals: number };
 }
 
 export async function getSourceDiscoveryDashboard(): Promise<SourceDiscoveryDashboard> {
   const db = createClient();
-  const [batches, pending, duplicates, approved, rejected, signalCandidates, runs] = await Promise.all([
+  const [batches, pending, duplicates, approved, rejected, signalCandidates, runs, invalidRows, seeds, statistics] = await Promise.all([
     listBatchesDal(db, 20),
     listCandidatesDal(db, 'pending_review', 100),
     listCandidatesDal(db, 'duplicate', 50),
@@ -31,9 +36,12 @@ export async function getSourceDiscoveryDashboard(): Promise<SourceDiscoveryDash
     listCandidatesDal(db, 'rejected', 50),
     listSignalCandidatesDal(db, 'pending_review', 100),
     listRunsDal(db, 20),
+    listInvalidRowsDal(db, 50),
+    listSeedsDal(db),
+    getRegistryStatisticsDal(db),
   ]);
   return {
-    batches, pending, duplicates, approved, rejected, signalCandidates, runs,
+    batches, pending, duplicates, approved, rejected, signalCandidates, runs, invalidRows, seeds, statistics,
     counts: { pending: pending.length, duplicates: duplicates.length, approved: approved.length, rejected: rejected.length, signals: signalCandidates.length },
   };
 }
