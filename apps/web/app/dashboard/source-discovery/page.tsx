@@ -12,7 +12,9 @@ import { isAdmin } from '@/lib/security/view';
 import { ErrorState } from '@/components/signals/states';
 import { DashboardPage } from '../../../components/dashboard-shell';
 import { getSourceDiscoveryDashboard } from '@/lib/source-discovery/data';
+import { getSourceNetworkDashboard, getPhase71Readiness } from '@/lib/source-network/data';
 import { DiscoveryOverview, CandidateQueue, SignalCandidateQueue, BatchList, RunList, InvalidRowsPanel, RegistryStatsPanel } from '@/components/source-discovery/panels';
+import { NetworkOverview, HealthBreakdownPanel, CapabilityBreakdownPanel, GeoReadinessPanel, PriorityBreakdownPanel, YieldPanels, PriorityQueuePanel, FamiliesPanel, NeedsReviewPanel, Phase71Panel } from '@/components/source-network/panels';
 import { ImportPanel, AgentRunButtons, SeedManager } from '@/components/source-discovery/Controls';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +34,11 @@ export default async function SourceDiscoveryPage() {
   }
 
   const admin = isAdmin(role);
-  const d = await getSourceDiscoveryDashboard();
+  const [d, network, phase71] = await Promise.all([
+    getSourceDiscoveryDashboard(),
+    getSourceNetworkDashboard(),
+    getPhase71Readiness(),
+  ]);
 
   return (
     <DashboardPage
@@ -42,6 +48,27 @@ export default async function SourceDiscoveryPage() {
     >
       <div className="space-y-8">
         <DiscoveryOverview d={d} />
+
+        {/* Phase 70.3.3 — Source Network Intelligence */}
+        <section className="space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-h5 font-semibold text-text-primary">Source network intelligence</h2>
+            <p className="text-caption text-text-muted">Health, collection capability, signal yield, geo readiness, families, and collection priority — computed from real data. No fabricated metrics; nothing auto-activates.</p>
+          </div>
+          <NetworkOverview d={network} />
+          <div className="grid gap-6 xl:grid-cols-2">
+            <HealthBreakdownPanel d={network} />
+            <CapabilityBreakdownPanel d={network} />
+            <GeoReadinessPanel d={network} />
+            <PriorityBreakdownPanel d={network} />
+          </div>
+          <PriorityQueuePanel d={network} />
+          <YieldPanels d={network} />
+          <NeedsReviewPanel d={network} />
+          <FamiliesPanel d={network} />
+          <Phase71Panel r={phase71} />
+        </section>
+
         <RegistryStatsPanel stats={d.statistics} />
         <ImportPanel isAdmin={admin} />
         {d.invalidRows.length > 0 ? <InvalidRowsPanel rows={d.invalidRows} /> : null}
