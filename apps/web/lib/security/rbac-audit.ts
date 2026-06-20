@@ -122,6 +122,8 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/marketplace', minRole: 'admin' },
   // Phase 70.1 — infrastructure & observability (admin).
   { pattern: '/dashboard/infrastructure', minRole: 'admin' },
+  // Phase 73.2 — platform self-check auditor (admin).
+  { pattern: '/dashboard/platform-audit', minRole: 'admin' },
   // Phase 70.3 — source import / discovery / signal scout (reviewer+ review; admin import).
   { pattern: '/dashboard/source-discovery', minRole: 'reviewer' },
   // Phase 70.4 — signal network intelligence (reviewer+ read).

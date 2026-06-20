@@ -27,10 +27,10 @@ export const metadata: Metadata = {
 };
 
 const WHAT = [
-  { icon: Radio, title: 'Collect public-source signals', body: 'Add sources and capture public narratives and open-source evidence — human-reviewed, never auto-published.' },
+  { icon: Radio, title: 'Collect public-source signals', body: 'Add sources and capture public narratives and open-source evidence. Everything is human-reviewed and nothing is auto-published.' },
   { icon: Link2, title: 'Trace every claim', body: 'Each finding links back to its original passage and timestamp, with a provenance record you can verify.' },
-  { icon: ScanText, title: 'Investigate & build narratives', body: 'Cluster related claims, evidence, and sources into narratives over a real relationship graph.' },
-  { icon: Gauge, title: 'Forecast with accountability', body: 'Record forecasts and track their outcomes — accuracy is measured, not assumed.' },
+  { icon: ScanText, title: 'Investigate and build narratives', body: 'Cluster related claims, evidence, and sources into narratives over a real relationship graph.' },
+  { icon: Gauge, title: 'Forecast with accountability', body: 'Record forecasts and track their outcomes. Accuracy is measured, not assumed.' },
   { icon: FileText, title: 'Publish transparently', body: 'Reports carry their citations; corrections are tracked openly.' },
   { icon: ShieldCheck, title: 'Reviewer in the loop', body: 'Every published conclusion passes human review. Nothing is a black box.' },
 ];
@@ -54,9 +54,9 @@ const GET = [
 ];
 
 const TRUST = [
-  'Public-source focused — built around open, citable evidence.', 'Evidence-first design — claims trace to passages.',
-  'No hidden black-box trust scoring — methods are explainable.', 'Provenance tracking on every source and signal.',
-  'Corrections are tracked, not quietly edited.', 'Forecast accountability — outcomes are measured.',
+  'Public-source focused, built around open and citable evidence.', 'Evidence-first design, so claims trace back to their passages.',
+  'No hidden trust scoring. The methods are explainable.', 'Provenance tracking on every source and signal.',
+  'Corrections are tracked, not quietly edited.', 'Forecast accountability, with outcomes measured against reality.',
   'Your beta feedback is protected.',
 ];
 

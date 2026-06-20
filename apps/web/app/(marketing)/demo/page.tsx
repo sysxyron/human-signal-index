@@ -27,10 +27,10 @@ export const metadata: Metadata = {
 };
 
 const BUILT_FOR = [
-  { icon: Link2, title: 'Provenance you can defend', body: 'Every claim links to its source passage and timestamp — defensible in review, in print, and in court of public opinion.' },
-  { icon: ShieldCheck, title: 'Human-reviewed by design', body: 'Reviewers stay in the loop on every published conclusion. No black-box automation of judgment.' },
-  { icon: Gauge, title: 'Forecasts held to account', body: 'Record predictions, track outcomes, measure accuracy and calibration over time.' },
-  { icon: FileText, title: 'Transparent publishing', body: 'Reports ship with citations; corrections are tracked openly, not silently edited.' },
+  { icon: Link2, title: 'Provenance you can defend', body: 'Every claim links to its source passage and timestamp, so findings hold up in review and in print.' },
+  { icon: ShieldCheck, title: 'Human-reviewed by design', body: 'Reviewers stay in the loop on every published conclusion. Judgment is never automated away.' },
+  { icon: Gauge, title: 'Forecasts held to account', body: 'Record predictions, track outcomes, and measure accuracy and calibration over time.' },
+  { icon: FileText, title: 'Transparent publishing', body: 'Reports ship with citations, and corrections are tracked openly rather than edited quietly.' },
 ];
 
 const USE_CASES = [

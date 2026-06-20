@@ -1,0 +1,115 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion } from './checks';
+import { sortIssues, readinessScore, summarizeAudit, recommendations } from './summary';
+import { AUDIT_STATUSES, type AuditIssue } from './types';
+
+const NOW = '2026-06-20T00:00:00.000Z';
+
+// ---- route / nav / RBAC mismatch -------------------------------------------
+
+test('checkRouteNav: consistent registries → PASS', () => {
+  const out = checkRouteNav({
+    navVisibility: { '/dashboard/x': ['reviewer'] }, allNavHrefs: ['/dashboard/x'],
+    protectedRoutes: [{ pattern: '/dashboard/x', minRole: 'reviewer' }],
+  }, NOW);
+  assert.equal(out.find((i) => i.id === 'nav-invariant')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'nav-rbac-gate')?.status, 'PASS');
+});
+test('checkRouteNav: nav key missing from ALL_NAV_HREFS → FAIL', () => {
+  const out = checkRouteNav({ navVisibility: { '/dashboard/x': ['reviewer'] }, allNavHrefs: [], protectedRoutes: [{ pattern: '/dashboard/x', minRole: 'reviewer' }] }, NOW);
+  assert.equal(out.find((i) => i.id === 'nav-invariant')?.status, 'FAIL');
+});
+test('checkRouteNav: nav-restricted but ungated → WARNING (security gap)', () => {
+  const out = checkRouteNav({ navVisibility: { '/dashboard/x': ['reviewer'] }, allNavHrefs: ['/dashboard/x'], protectedRoutes: [] }, NOW);
+  assert.equal(out.find((i) => i.id === 'nav-rbac-gate')?.status, 'WARNING');
+});
+
+// ---- env presence ----------------------------------------------------------
+
+test('checkEnv: required missing → FAIL/CRITICAL; present → PASS; optional → NOT_CONFIGURED', () => {
+  const out = checkEnv({ present: { NEXT_PUBLIC_SUPABASE_URL: true, NEXT_PUBLIC_SUPABASE_ANON_KEY: true, NEXT_PUBLIC_APP_URL: false } }, NOW);
+  assert.equal(out.find((i) => i.id === 'env-NEXT_PUBLIC_SUPABASE_URL')?.status, 'PASS');
+  const appUrl = out.find((i) => i.id === 'env-NEXT_PUBLIC_APP_URL');
+  assert.equal(appUrl?.status, 'FAIL'); assert.equal(appUrl?.severity, 'CRITICAL');
+  assert.equal(out.find((i) => i.id === 'env-RESEND_API_KEY')?.status, 'NOT_CONFIGURED');
+  assert.equal(out.find((i) => i.id === 'env-SUPABASE_SERVICE_ROLE_KEY')?.status, 'WARNING');
+});
+test('checkEnv: never exposes values (presence booleans only)', () => {
+  const out = checkEnv({ present: { NEXT_PUBLIC_SUPABASE_URL: true } }, NOW);
+  for (const i of out) assert.ok(!/=|secret|key=/i.test(i.explanation));
+});
+
+// ---- subsystem health mapping ----------------------------------------------
+
+test('checkSubsystems: maps probe states deterministically', () => {
+  const out = checkSubsystems([{ name: 'supabase', state: 'ok' }, { name: 'storage', state: 'down' }, { name: 'auth', state: 'unknown' }], NOW);
+  assert.equal(out.find((i) => i.title.includes('supabase'))?.status, 'PASS');
+  const storage = out.find((i) => i.title.includes('storage'));
+  assert.equal(storage?.status, 'FAIL'); assert.equal(storage?.area, 'storage');
+  assert.equal(out.find((i) => i.title.includes('auth'))?.status, 'NOT_OBSERVED');
+});
+test('checkSubsystems: no probes → NOT_OBSERVED', () => {
+  assert.equal(checkSubsystems([], NOW)[0].status, 'NOT_OBSERVED');
+});
+
+// ---- migrations ------------------------------------------------------------
+
+test('checkMigrations: ok → PASS; missing → FAIL; null/unverifiable → NOT_OBSERVED', () => {
+  assert.equal(checkMigrations({ verifiable: true, ok: true, applied: 58, missing: 0, total: 58 }, NOW).status, 'PASS');
+  assert.equal(checkMigrations({ verifiable: true, ok: false, applied: 50, missing: 8, total: 58 }, NOW).status, 'FAIL');
+  assert.equal(checkMigrations(null, NOW).status, 'NOT_OBSERVED');
+  assert.equal(checkMigrations({ verifiable: false, ok: false, applied: 0, missing: 0, total: 58 }, NOW).status, 'NOT_OBSERVED');
+});
+
+// ---- error events ----------------------------------------------------------
+
+test('checkErrorEvents: 0 → PASS; >0 → WARNING; null → NOT_OBSERVED', () => {
+  assert.equal(checkErrorEvents(0, NOW).status, 'PASS');
+  assert.equal(checkErrorEvents(3, NOW).status, 'WARNING');
+  assert.equal(checkErrorEvents(20, NOW).severity, 'HIGH');
+  assert.equal(checkErrorEvents(null, NOW).status, 'NOT_OBSERVED');
+});
+
+// ---- conversion ------------------------------------------------------------
+
+test('checkConversion: routes/apis present; placeholder backend → NOT_CONFIGURED', () => {
+  const out = checkConversion({ betaRoute: true, demoRoute: true, betaApi: true, demoApi: true, formsBackendWired: false }, NOW);
+  assert.equal(out.find((i) => i.id === 'conversion-routes')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'conversion-backend')?.status, 'NOT_CONFIGURED');
+});
+
+// ---- summary / sort / score ------------------------------------------------
+
+function mk(over: Partial<AuditIssue>): AuditIssue {
+  return { id: 'x', title: 'X', status: 'PASS', severity: 'LOW', area: 'routing', explanation: '', recommendedFix: '', source: '', timestamp: NOW, ...over };
+}
+
+test('sortIssues: FAIL before WARNING before PASS; severity within status', () => {
+  const sorted = sortIssues([mk({ status: 'PASS' }), mk({ status: 'WARNING', severity: 'LOW' }), mk({ status: 'FAIL', severity: 'HIGH' }), mk({ status: 'FAIL', severity: 'CRITICAL' })]);
+  assert.deepEqual(sorted.map((i) => `${i.status}:${i.severity}`), ['FAIL:CRITICAL', 'FAIL:HIGH', 'WARNING:LOW', 'PASS:LOW']);
+});
+test('readinessScore: penalizes FAIL/WARNING only; NOT_* never penalize; clamped', () => {
+  assert.equal(readinessScore([mk({ status: 'PASS' })]), 100);
+  assert.equal(readinessScore([mk({ status: 'NOT_OBSERVED', severity: 'CRITICAL' }), mk({ status: 'NOT_CONFIGURED', severity: 'HIGH' })]), 100);
+  assert.equal(readinessScore([mk({ status: 'FAIL', severity: 'CRITICAL' })]), 75);
+  assert.equal(readinessScore([mk({ status: 'WARNING', severity: 'CRITICAL' })]), 87); // 100 - round(25/2)=13
+  assert.equal(readinessScore(Array.from({ length: 10 }, () => mk({ status: 'FAIL', severity: 'CRITICAL' }))), 0); // clamped
+});
+test('summarizeAudit: counts + overall status + no fabrication on empty', () => {
+  const empty = summarizeAudit([]);
+  assert.equal(empty.total, 0); assert.equal(empty.overall, 'GREEN'); assert.equal(empty.readinessScore, 100);
+  const s = summarizeAudit([mk({ status: 'PASS', area: 'routing' }), mk({ status: 'WARNING', area: 'forms', severity: 'MEDIUM' }), mk({ status: 'FAIL', area: 'environment', severity: 'CRITICAL' })]);
+  assert.equal(s.overall, 'RED');
+  assert.equal(s.byStatus.FAIL, 1); assert.equal(s.byStatus.WARNING, 1); assert.equal(s.byStatus.PASS, 1);
+  assert.equal(s.bySeverity.CRITICAL, 1);
+  assert.ok(s.byArea.find((a) => a.area === 'environment')?.problems === 1);
+});
+test('recommendations: worst-first fix list, problems only', () => {
+  const recs = recommendations([mk({ status: 'PASS', recommendedFix: 'none' }), mk({ status: 'FAIL', severity: 'CRITICAL', title: 'DB', recommendedFix: 'fix db' })]);
+  assert.equal(recs.length, 1); assert.match(recs[0], /DB: fix db/);
+});
+test('all statuses are part of the vocabulary', () => {
+  assert.equal(AUDIT_STATUSES.length, 5);
+});
