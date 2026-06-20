@@ -257,8 +257,10 @@ export default async function HomePage() {
             <p className="mx-auto mt-4 max-w-xl text-body text-text-secondary">Explore the live command center, browse the public signal library, or submit a signal for review.</p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <a href={appHref('/dashboard')}><Button variant="primary" size="lg">Explore Dashboard <ArrowRight className="h-4 w-4" /></Button></a>
-              <a href="/submit-a-signal"><Button variant="secondary" size="lg">Submit a Signal</Button></a>
+              <a href="/beta"><Button variant="secondary" size="lg">Apply to Beta</Button></a>
+              <a href="/demo"><Button variant="secondary" size="lg">Request a Demo</Button></a>
             </div>
+            <p className="mt-3 text-body-sm text-text-muted"><a href="/submit-a-signal" className="font-semibold text-electric hover:text-white">Or submit a signal for review →</a></p>
           </Card>
         </Reveal>
       </section>
