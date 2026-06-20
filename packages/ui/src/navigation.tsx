@@ -64,6 +64,8 @@ import {
   Palette,
   Layers,
   Eye,
+  Radio,
+  Globe,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from './utils';
@@ -385,6 +387,10 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Evidence Graph', href: '/dashboard/evidence-graph', icon: GitFork },
       // Phase 65 — narrative intelligence (reviewer+).
       { label: 'Narratives', href: '/dashboard/narratives', icon: Layers },
+      // Phase 70.4 — signal network intelligence (reviewer+).
+      { label: 'Signal Network', href: '/dashboard/signal-network', icon: Radio },
+      // Phase 71 — global intelligence map (reviewer+).
+      { label: 'Global Map', href: '/dashboard/global-map', icon: Globe },
       // Phase 66 — agent automation (reviewer+).
       { label: 'Agents', href: '/dashboard/agents', icon: Bot },
       // Phase 67 — forecast validation (reviewer+).

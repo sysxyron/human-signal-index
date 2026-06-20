@@ -124,6 +124,10 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   { pattern: '/dashboard/infrastructure', minRole: 'admin' },
   // Phase 70.3 — source import / discovery / signal scout (reviewer+ review; admin import).
   { pattern: '/dashboard/source-discovery', minRole: 'reviewer' },
+  // Phase 70.4 — signal network intelligence (reviewer+ read).
+  { pattern: '/dashboard/signal-network', minRole: 'reviewer' },
+  // Phase 71 — global intelligence map (reviewer+ read; admin geocode).
+  { pattern: '/dashboard/global-map', minRole: 'reviewer' },
   { pattern: '/dashboard/operations', minRole: 'reviewer' },
   // Phase 25 — governance queue (escalated/sensitive investigations).
   { pattern: '/dashboard/governance-queue', minRole: 'reviewer' },
