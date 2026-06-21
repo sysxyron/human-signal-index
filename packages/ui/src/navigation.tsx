@@ -505,6 +505,8 @@ export const dashboardNavGroups: { group: string; items: NavItem[] }[] = [
       { label: 'Global Map', href: '/dashboard/global-map', icon: Globe },
       // Phase 73 — global operations command center (reviewer+).
       { label: 'Command Center', href: '/dashboard/command-center', icon: Gauge },
+      // Phase 74 — executive intelligence & early warning (reviewer+).
+      { label: 'Executive Intelligence', href: '/dashboard/executive-intelligence', icon: Siren },
       // Phase 73.2 — platform self-check auditor (admin).
       { label: 'Platform Audit', href: '/dashboard/platform-audit', icon: ShieldCheck },
       // Phase 66 — agent automation (reviewer+).

@@ -156,7 +156,25 @@ const changelog: DocPage = {
   ],
 };
 
-export const DOC_PAGES: DocPage[] = [concepts, workflow, methodology, api, developers, roles, faq, changelog];
+const executiveIntelligence: DocPage = {
+  slug: 'executive-intelligence', title: 'Executive Intelligence & Early Warning',
+  description: 'How HSI detects emerging risks: deterministic early-warning alerts, risk categories, forecast divergence, executive briefs, governance, and transparency rules.',
+  keywords: ['executive intelligence', 'early warning', 'alerts', 'risk', 'forecast divergence', 'detection'],
+  intro: 'Executive Intelligence is a detection layer, not a prediction engine. It surfaces what deserves attention now, using deterministic rules over real platform data. Every alert is explainable and reproducible, and human review remains authoritative.',
+  sections: [
+    { heading: 'Purpose', body: ['Answer "what should I be paying attention to right now?" without black-box scores or AI risk ratings. It detects; it does not predict.'] },
+    { heading: 'Methodology', body: ['Each signal is computed from existing data (signals, evidence, narratives, contradictions, trust, forecasts, geo, review queue) using fixed, documented thresholds. The same inputs always produce the same output.'] },
+    { heading: 'Alert types', body: ['Eight deterministic warnings: Narrative Surge, Contradiction Spike, Evidence Gap, Forecast Divergence, Trust Degradation, Geographic Expansion, Review Backlog, and Source Failure. Each alert states the trigger and the numbers behind it.'] },
+    { heading: 'Risk categories', body: ['Eight categories — Narrative, Trust, Evidence, Forecast, Operational, Collection, Review, and Geo — each shown as GREEN, YELLOW, or RED via transparent ratio/backlog thresholds. No hidden scoring.'] },
+    { heading: 'Forecast divergence', body: ['Recorded forecasts are classified against their observed outcomes as on-track, diverging, missed, or unresolved. This reads real evaluation results; it never generates a forecast.'] },
+    { heading: 'Executive briefs', body: ['A concise, human-readable summary built only from platform deltas: what changed, what is accelerating or slowing, what needs review, which forecasts need attention, trust issues, and remaining blind spots. No generated prose.'] },
+    { heading: 'Governance', body: ['Alerts and risks are advisory. They inform human reviewers and never publish, approve, or change a finding on their own.'] },
+    { heading: 'Transparency rules', body: ['No black-box scores, no invented confidence metrics, no AI risk ratings. Every alert is traceable to its inputs and reproducible from the data.'] },
+    { heading: 'Limitations', body: ['Some signals use the best available real proxy (for example, geographic footprint stands in for temporal expansion until per-entity history is wired). Thresholds are starting points and may be tuned with operational experience.'] },
+  ],
+};
+
+export const DOC_PAGES: DocPage[] = [concepts, workflow, methodology, api, developers, roles, faq, changelog, executiveIntelligence];
 
 export function getDocPage(slug: string): DocPage | undefined { return DOC_PAGES.find((p) => p.slug === slug); }
 
