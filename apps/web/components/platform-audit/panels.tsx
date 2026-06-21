@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { Card, MetricCard } from '@hsi/ui';
-import { ShieldCheck, AlertTriangle, ListChecks, Network, FileText, Server, Megaphone } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, ListChecks, Network, FileText, Server, Megaphone, Map as MapIcon } from 'lucide-react';
 import type { PlatformAuditReport, AuditIssue, AuditStatus, AuditArea } from '@/lib/platform-audit/types';
 
 const n = (v: number) => v.toLocaleString('en-US');
@@ -83,6 +83,7 @@ export function ReportTables({ r }: { r: PlatformAuditReport }) {
         <IssueTable title="Infrastructure & data" icon={Server} rows={inAreas(r, ['supabase', 'storage', 'infrastructure', 'migrations'])} />
         <IssueTable title="Environment" icon={ShieldCheck} rows={inAreas(r, ['environment'])} />
       </div>
+      <IssueTable title="Geospatial health" icon={MapIcon} rows={inAreas(r, ['global_map'])} />
       <IssueTable title="Conversion funnel checklist" icon={Megaphone} rows={inAreas(r, ['conversion', 'forms'])} />
     </div>
   );
