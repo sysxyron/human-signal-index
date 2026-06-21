@@ -300,8 +300,10 @@ export function PublicNav({
 /* Footer                                                                        */
 /* -------------------------------------------------------------------------- */
 
-// Five-column footer: brand (col 1) + these four. The Learn & Build column was
-// removed; its links moved into Platform and About. No routes removed.
+// Five-column footer (brand + four). Columns: Platform, Resources, Trust,
+// Security. The old "About" column was retired to remove Resources/About
+// ambiguity; its org pages move to the secondary bottom row (footerSecondaryLinks)
+// so the footer stays a complete, discoverable site directory. No routes removed.
 const footerColumns: { title: string; links: { label: string; href: string }[] }[] =
   [
     {
@@ -311,21 +313,17 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
         { label: 'Signal Library', href: '/signal-library' },
         { label: 'Research Reports', href: '/research-reports' },
         { label: 'Submit a Signal', href: '/submit-a-signal' },
-        { label: 'How HSI Works', href: '/how-hsi-works' },
-        { label: 'Documentation', href: '/docs' },
-        { label: 'Developers', href: '/docs/developers' },
-        { label: 'API', href: '/docs/api' },
       ],
     },
     {
-      title: 'About',
+      title: 'Resources',
       links: [
-        { label: 'Our Mission', href: '/mission' },
-        { label: 'About HSI', href: '/about' },
-        { label: 'Methodology', href: '/methodology' },
-        { label: 'Contact', href: '/contact' },
         { label: 'Education Hub', href: '/education-hub' },
+        { label: 'Documentation', href: '/docs' },
         { label: 'FAQ', href: '/docs/faq' },
+        { label: 'Developers', href: '/docs/developers' },
+        { label: 'API', href: '/docs/api' },
+        { label: 'How HSI Works', href: '/how-hsi-works' },
       ],
     },
     {
@@ -338,7 +336,7 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
       ],
     },
     {
-      title: 'Security & Reporting',
+      title: 'Security',
       links: [
         { label: 'Vulnerability Disclosure', href: '/security/vulnerability-disclosure' },
         { label: 'Responsible Disclosure', href: '/security/responsible-disclosure' },
@@ -348,6 +346,15 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
       ],
     },
   ];
+
+// Organization pages — kept in the footer (secondary bottom row) so every public
+// page remains discoverable without reintroducing an ambiguous "About" column.
+const footerSecondaryLinks: { label: string; href: string }[] = [
+  { label: 'About HSI', href: '/about' },
+  { label: 'Our Mission', href: '/mission' },
+  { label: 'Methodology', href: '/methodology' },
+  { label: 'Contact', href: '/contact' },
+];
 
 export function Footer({
   dashboardHref = '/dashboard',
@@ -401,8 +408,25 @@ export function Footer({
             </div>
           ))}
         </div>
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-caption text-text-muted sm:flex-row">
-          <span>© {new Date().getFullYear()} Human Signal Index. A public-interest project. Mapping the narratives that shape humanity.</span>
+        <div className="mt-12 flex flex-col gap-4 border-t border-border pt-6">
+          <nav aria-label="Organization" className="flex flex-wrap gap-x-5 gap-y-2">
+            {footerSecondaryLinks.map((link) => {
+              const active = navIsActive(pathname, link.href);
+              return (
+                <a
+                  key={link.href}
+                  href={`${siteBase}${link.href}`}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn('text-caption transition', active ? 'font-semibold text-electric' : 'text-text-muted hover:text-text-primary')}
+                >
+                  {link.label}
+                </a>
+              );
+            })}
+          </nav>
+          <div className="flex flex-col items-center justify-between gap-3 text-caption text-text-muted sm:flex-row">
+            <span>© {new Date().getFullYear()} Human Signal Index. A public-interest project. Mapping the narratives that shape humanity.</span>
+          </div>
         </div>
       </div>
     </footer>
