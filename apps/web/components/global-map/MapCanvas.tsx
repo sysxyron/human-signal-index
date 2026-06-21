@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { MapPoint } from '@/lib/global-map/geo-model';
+import { pointFeature, type PointFeature } from '@/lib/global-map/geometry';
 
 const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
 const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
@@ -24,11 +25,10 @@ const OSM_STYLE = {
 function toGeoJSON(points: MapPoint[]) {
   return {
     type: 'FeatureCollection',
-    features: points.map((p) => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
-      properties: { id: p.id, name: p.name, health: p.health, signalCount: p.signalCount, narrativeCount: p.narrativeCount, forecastCount: p.forecastCount },
-    })),
+    // Point-only: coerce + validate coordinates; skip anything that isn't a valid Point.
+    features: points
+      .map((p) => pointFeature({ id: p.id, name: p.name, health: p.health, signalCount: p.signalCount, narrativeCount: p.narrativeCount, forecastCount: p.forecastCount }, p.lat, p.lng))
+      .filter((f): f is PointFeature => f !== null),
   };
 }
 

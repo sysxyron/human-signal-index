@@ -173,6 +173,25 @@ export function checkGeospatial(input: GeoHealthInput, nowIso: string): AuditIss
   return out;
 }
 
+// ---- geospatial data integrity (Phase 73.3 bugfix) -------------------------
+
+export interface GeometryAuditInput { total: number; point: number; invalid: number; byType: Record<string, number> }
+
+/** The map is Point-only. PASS when every coordinate is a valid Point; WARNING
+ *  (with exact counts by type) when any unsupported/invalid geometry exists —
+ *  those are skipped at render, never coerced into a fake geometry. */
+export function checkGeoIntegrity(audit: GeometryAuditInput | null, nowIso: string): AuditIssue {
+  if (!audit) return issue({ id: 'geo-integrity', title: 'Geospatial data integrity', status: 'NOT_OBSERVED', severity: 'LOW', area: 'global_map', explanation: 'Coordinate data could not be read.', recommendedFix: 'Verify source_candidates access and re-run.', source: 'source_candidates coordinates' }, nowIso);
+  const byType = Object.entries(audit.byType).filter(([, c]) => c > 0).map(([t, c]) => `${t}: ${c}`).join(', ');
+  const status: AuditStatus = audit.invalid === 0 ? 'PASS' : 'WARNING';
+  return issue({
+    id: 'geo-integrity', title: 'Geospatial data integrity', status, severity: audit.invalid === 0 ? 'LOW' : 'MEDIUM', area: 'global_map',
+    explanation: audit.invalid === 0 ? `All ${audit.point} coordinate(s) are valid Point geometries.` : `${audit.invalid} of ${audit.total} coordinate(s) are not valid Points and are skipped at render. By type — ${byType}.`,
+    recommendedFix: audit.invalid === 0 ? 'None.' : 'Correct or clear the invalid coordinates (the renderer skips them; the Point-only model is preserved).',
+    source: 'source_candidates coordinates (Point-only model)',
+  }, nowIso);
+}
+
 // ---- conversion readiness (beta/demo) --------------------------------------
 
 export interface ConversionInput { betaRoute: boolean; demoRoute: boolean; betaApi: boolean; demoApi: boolean; formsBackendWired: boolean }

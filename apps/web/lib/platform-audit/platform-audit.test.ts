@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial } from './checks';
+import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity } from './checks';
 import { sortIssues, readinessScore, summarizeAudit, recommendations } from './summary';
 import { AUDIT_STATUSES, type AuditIssue } from './types';
 
@@ -95,6 +95,12 @@ test('checkGeospatial: geoReady>0 → PASS; 0 → WARNING; readiness null → NO
 });
 test('checkGeospatial: runtime health is NOT_OBSERVED (client-side)', () => {
   assert.equal(checkGeospatial({ glyphsConfigured: true, layerCount: 7, expectedLayers: 7, readiness: null }, NOW).find((i) => i.id === 'geo-maplibre-runtime')?.status, 'NOT_OBSERVED');
+});
+test('checkGeoIntegrity: all Points → PASS; invalid → WARNING with counts; null → NOT_OBSERVED', () => {
+  assert.equal(checkGeoIntegrity({ total: 10, point: 10, invalid: 0, byType: { Point: 10, INVALID: 0 } }, NOW).status, 'PASS');
+  const w = checkGeoIntegrity({ total: 10, point: 8, invalid: 2, byType: { Point: 8, INVALID: 2 } }, NOW);
+  assert.equal(w.status, 'WARNING'); assert.match(w.explanation, /2 of 10/);
+  assert.equal(checkGeoIntegrity(null, NOW).status, 'NOT_OBSERVED');
 });
 
 // ---- summary / sort / score ------------------------------------------------

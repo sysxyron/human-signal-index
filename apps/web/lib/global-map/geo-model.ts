@@ -9,6 +9,7 @@
 // =============================================================================
 
 import { computeGeoReadiness } from '../source-network/geo';
+import { toNum, inRange } from './geometry';
 
 export const GEO_STATUSES = ['GEO_READY', 'PARTIAL_GEO', 'MISSING_GEO', 'NOT_APPLICABLE'] as const;
 export type GeoStatus = (typeof GEO_STATUSES)[number];
@@ -28,10 +29,11 @@ export interface GeoFields {
 /** Derive the uppercase map geo_status, reusing the Phase 70.3.3 readiness rule.
  *  (region carries state when a discrete state column is absent.) */
 export function geoStatus(f: GeoFields): { status: GeoStatus; reason: string } {
+  // Coerce numeric-string coordinates so geo_status agrees with the renderer.
   const r = computeGeoReadiness({
     sourceType: f.sourceType,
     country: f.country, region: f.region ?? f.state, city: f.city,
-    latitude: f.latitude, longitude: f.longitude,
+    latitude: toNum(f.latitude), longitude: toNum(f.longitude),
     geoConfidence: f.geoConfidence, geoSource: f.geoSource,
   });
   const map: Record<string, GeoStatus> = { geo_ready: 'GEO_READY', partial_geo: 'PARTIAL_GEO', missing_geo: 'MISSING_GEO', not_applicable: 'NOT_APPLICABLE' };
@@ -58,7 +60,9 @@ export interface MapPoint {
   familyKey: string;
 }
 
-/** A point is valid for the map ONLY with finite real coordinates in range. */
-export function isPlottable(lat: number | null, lng: number | null): boolean {
-  return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+/** A point is valid for the map ONLY with finite real coordinates in range.
+ *  Coerces numeric strings (Postgres `numeric` can deserialize as a string). */
+export function isPlottable(lat: unknown, lng: unknown): boolean {
+  const la = toNum(lat); const ln = toNum(lng);
+  return la != null && ln != null && inRange(la, ln);
 }

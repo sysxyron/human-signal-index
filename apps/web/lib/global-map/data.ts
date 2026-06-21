@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import { computeSourceHealth } from '@/lib/source-network/health';
 import { familyKey } from '@/lib/source-network/family';
 import { geoStatus, isPlottable, type MapPoint, type GeoStatus } from './geo-model';
+import { toNum } from './geometry';
 import { computeMapReadiness, type ReadinessSource, type MapReadiness } from './readiness';
 
 const POINT_CAP = 8000; // client render cap (D9); readiness uses full counts
@@ -111,12 +112,13 @@ export async function getGlobalMapData(): Promise<GlobalMapData> {
 
     readinessRows.push({ geoStatus: gs.status, sourceType: s.source_type, category, familyKey: fam, country: cand?.country ?? null });
 
-    if (gs.status === 'GEO_READY' && isPlottable(cand?.latitude ?? null, cand?.longitude ?? null)) {
+    const lat = toNum(cand?.latitude); const lng = toNum(cand?.longitude);
+    if (gs.status === 'GEO_READY' && lat != null && lng != null && isPlottable(lat, lng)) {
       points.push({
         id: s.id, name: s.name ?? 'Source', sourceType: s.source_type, category, health,
         signalCount: signalCountBySource.get(s.id) ?? 0, narrativeCount: narrativesBySource.get(s.id)?.size ?? 0, forecastCount: forecastsBySource.get(s.id)?.size ?? 0,
         geoStatus: gs.status, geoConfidence: cand?.geo_confidence ?? null, geoSource: cand?.geo_source ?? null,
-        country: cand?.country ?? null, region: cand?.region ?? null, lat: cand!.latitude as number, lng: cand!.longitude as number, familyKey: fam,
+        country: cand?.country ?? null, region: cand?.region ?? null, lat, lng, familyKey: fam,
       });
     }
   }

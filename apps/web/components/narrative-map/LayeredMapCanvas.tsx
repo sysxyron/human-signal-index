@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { layerWeight } from '@/lib/narrative-map/aggregate';
+import { pointFeature, type PointFeature } from '@/lib/global-map/geometry';
 import type { GeoIntelPoint, MapLayer } from '@/lib/narrative-map/types';
 
 const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
@@ -29,7 +30,9 @@ function toGeoJSON(points: GeoIntelPoint[], layer: MapLayer) {
     features: points
       .map((p) => ({ p, w: layerWeight(p, layer) }))
       .filter(({ w }) => (layer === 'BLIND_SPOTS' ? w > 0 : true)) // blind-spot layer shows only flagged points
-      .map(({ p, w }) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: { id: p.id, name: p.name, weight: w } })),
+      // Point-only: coerce + validate; skip anything that isn't a valid Point.
+      .map(({ p, w }) => pointFeature({ id: p.id, name: p.name, weight: w }, p.lat, p.lng))
+      .filter((f): f is PointFeature => f !== null),
   };
 }
 

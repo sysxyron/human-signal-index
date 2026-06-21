@@ -10,6 +10,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getSignalNetworkDashboard } from '@/lib/signal-network/data';
 import { geoStatus, isPlottable } from '@/lib/global-map/geo-model';
+import { toNum } from '@/lib/global-map/geometry';
 import { contradictionRatio, rollupByGeo } from './aggregate';
 import { detectBlindSpot } from './blindspots';
 import type { GeoIntelPoint, RegionBucket } from './types';
@@ -66,8 +67,9 @@ export async function getGeospatialIntelligence(): Promise<GeospatialIntelligenc
 
   for (const s of sources) {
     const cand = candBySource.get(s.id);
-    const gs = geoStatus({ sourceType: s.source_type, country: cand?.country ?? null, region: cand?.region ?? null, state: null, city: cand?.city ?? null, latitude: cand?.latitude ?? null, longitude: cand?.longitude ?? null, geoConfidence: null, geoSource: null });
-    if (gs.status !== 'GEO_READY' || !isPlottable(cand?.latitude ?? null, cand?.longitude ?? null)) continue;
+    const lat = toNum(cand?.latitude); const lng = toNum(cand?.longitude);
+    const gs = geoStatus({ sourceType: s.source_type, country: cand?.country ?? null, region: cand?.region ?? null, state: null, city: cand?.city ?? null, latitude: lat, longitude: lng, geoConfidence: null, geoSource: null });
+    if (gs.status !== 'GEO_READY' || lat == null || lng == null || !isPlottable(lat, lng)) continue;
 
     const agg = bySource.get(s.id);
     const narrativeCount = agg?.narratives.size ?? 0; const forecastCount = agg?.forecasts.size ?? 0; const evidenceCount = agg?.evidenceCount ?? 0;
@@ -79,7 +81,7 @@ export async function getGeospatialIntelligence(): Promise<GeospatialIntelligenc
     points.push({
       id: s.id, name: s.name ?? 'Source', sourceType: s.source_type, category: cand?.classification_category ?? null,
       country: cand?.country ?? null, region: cand?.region ?? null, city: cand?.city ?? null,
-      lat: cand!.latitude as number, lng: cand!.longitude as number,
+      lat, lng,
       sourceCount: 1, signalCount: agg?.signalCount ?? 0, evidenceCount, narrativeCount, forecastCount,
       contradicts: agg?.contradicts ?? 0, supports: agg?.supports ?? 0,
       contradictionRatio: contradictionRatio(agg?.contradicts ?? 0, agg?.supports ?? 0),

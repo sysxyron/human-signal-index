@@ -13,8 +13,9 @@ import { getInfrastructureHealth } from '@/lib/infra/probes';
 import { getMigrationAudit } from '@/lib/launch/persistence';
 import { listInfraEventsDal } from '@/lib/infra/persistence';
 import { getPhase72Readiness } from '@/lib/global-map/data';
+import { auditGeometries } from '@/lib/global-map/geometry';
 import {
-  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial,
+  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity,
 } from './checks';
 import { summarizeAudit, sortIssues, recommendations, isProblem } from './summary';
 import type { PlatformAuditReport, AuditIssue } from './types';
@@ -65,6 +66,15 @@ export async function getPlatformAuditReport(): Promise<PlatformAuditReport> {
     layerCount: 7, expectedLayers: 7, // narrative-map MAP_LAYERS
     readiness: p72 ? { geoReady: p72.mapReadySources, totalSources: p72.totalSources, signalsInheritingGeo: p72.signalsInheritingGeo, narrativesInheritingGeo: p72.narrativesInheritingGeo } : null,
   }, nowIso));
+
+  // ---- geospatial data integrity (Point-only model) ------------------------
+  let geoAudit: ReturnType<typeof auditGeometries> | null = null;
+  try {
+    const { data } = await createClient().from('source_candidates').select('latitude, longitude').not('latitude', 'is', null).limit(20000);
+    const rows = (data ?? []) as Array<{ latitude: unknown; longitude: unknown }>;
+    geoAudit = auditGeometries(rows.map((r) => ({ lat: r.latitude, lng: r.longitude })));
+  } catch { geoAudit = null; }
+  issues.push(checkGeoIntegrity(geoAudit, nowIso));
 
   // ---- conversion readiness (beta/demo) ------------------------------------
   // Routes/APIs exist (Phase 73.1); the form backend is an intentional placeholder.
