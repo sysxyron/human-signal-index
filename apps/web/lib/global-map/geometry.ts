@@ -23,14 +23,38 @@ export function inRange(lat: number, lng: number): boolean {
 export interface PointFeature {
   type: 'Feature';
   geometry: { type: 'Point'; coordinates: [number, number] };
-  properties: Record<string, unknown>;
+  properties: Record<string, string | number>;
 }
 
-/** Build a valid GeoJSON Point feature, or null if the coordinate is invalid. */
+/** MapLibre's GeoJSON worker (vt-pbf) can only encode string / finite-number
+ *  property values. null / undefined / NaN / objects / arrays corrupt the tile
+ *  stream and throw "Unimplemented type: 4". Keep only safe values; coerce
+ *  booleans to 0/1; drop everything else. */
+export function sanitizeProperties(props: Record<string, unknown>): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  for (const [k, v] of Object.entries(props)) {
+    if (typeof v === 'number') { if (Number.isFinite(v)) out[k] = v; }
+    else if (typeof v === 'string') out[k] = v;
+    else if (typeof v === 'boolean') out[k] = v ? 1 : 0;
+    // null / undefined / object / array → skipped (never sent to MapLibre)
+  }
+  return out;
+}
+
+/** Build a valid GeoJSON Point feature with sanitized properties, or null if the
+ *  coordinate is invalid. The ONLY way features reach the map. */
 export function pointFeature(properties: Record<string, unknown>, latRaw: unknown, lngRaw: unknown): PointFeature | null {
   const lat = toNum(latRaw); const lng = toNum(lngRaw);
   if (lat == null || lng == null || !inRange(lat, lng)) return null;
-  return { type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties };
+  return { type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: sanitizeProperties(properties) };
+}
+
+/** A guaranteed-safe FeatureCollection: only valid Point features, sanitized
+ *  properties, finite in-range coordinates. Never throws. */
+export function sanitizeFeatureCollection(rows: Array<{ properties: Record<string, unknown>; lat: unknown; lng: unknown }>): { type: 'FeatureCollection'; features: PointFeature[] } {
+  const features: PointFeature[] = [];
+  for (const r of rows) { const f = pointFeature(r.properties, r.lat, r.lng); if (f) features.push(f); }
+  return { type: 'FeatureCollection', features };
 }
 
 export type GeometryKind = 'Point' | 'INVALID';

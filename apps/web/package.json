@@ -53,6 +53,7 @@
     "@hsi/world-models": "workspace:*",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.0.0",
+    "@vercel/edge-config": "^1.4.3",
     "clsx": "^2.1.0",
     "framer-motion": "^11.18.2",
     "lucide-react": "^0.484.0",

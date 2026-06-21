@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { toNum, inRange, pointFeature, classifyCoordinate, auditGeometries } from './geometry';
+import { toNum, inRange, pointFeature, classifyCoordinate, auditGeometries, sanitizeProperties, sanitizeFeatureCollection } from './geometry';
 
 // ---- coercion (the "Unimplemented type: 4" root cause: numeric-as-string) ---
 
@@ -55,4 +55,32 @@ test('auditGeometries: counts Point vs INVALID (Point-only model)', () => {
 });
 test('auditGeometries: empty → all zero', () => {
   assert.deepEqual(auditGeometries([]), { total: 0, point: 0, invalid: 0, byType: { Point: 0, INVALID: 0 } });
+});
+
+// ---- property sanitizer (the real "Unimplemented type: 4" guard) -----------
+
+test('sanitizeProperties: keep string + finite number; drop null/undefined/NaN/object/array', () => {
+  const out = sanitizeProperties({ id: 'x', name: 'Reuters', weight: 3, ratio: 0.5, bad: NaN, n: null, u: undefined, obj: {}, arr: [1], inf: Infinity });
+  assert.deepEqual(out, { id: 'x', name: 'Reuters', weight: 3, ratio: 0.5 });
+});
+test('sanitizeProperties: boolean → 0/1', () => {
+  assert.deepEqual(sanitizeProperties({ a: true, b: false }), { a: 1, b: 0 });
+});
+
+test('pointFeature: properties are sanitized (no null/NaN reach MapLibre)', () => {
+  const f = pointFeature({ id: 'x', name: 'N', weight: NaN, junk: null, ok: 2 }, 40, -74);
+  assert.ok(f);
+  assert.deepEqual(f?.properties, { id: 'x', name: 'N', ok: 2 }); // weight(NaN)+junk(null) dropped
+});
+
+test('sanitizeFeatureCollection: only valid Point features survive', () => {
+  const fc = sanitizeFeatureCollection([
+    { properties: { id: '1', weight: 5 }, lat: 51.5, lng: -0.1 },
+    { properties: { id: '2', weight: NaN }, lat: '40', lng: '-74' },   // string coords coerced
+    { properties: { id: '3' }, lat: 999, lng: 0 },                       // out of range → skipped
+    { properties: { id: '4' }, lat: null, lng: null },                   // invalid → skipped
+  ]);
+  assert.equal(fc.type, 'FeatureCollection');
+  assert.equal(fc.features.length, 2);
+  assert.ok(fc.features.every((f) => f.geometry.type === 'Point' && Number.isFinite(f.geometry.coordinates[0]) && Number.isFinite(f.geometry.coordinates[1])));
 });

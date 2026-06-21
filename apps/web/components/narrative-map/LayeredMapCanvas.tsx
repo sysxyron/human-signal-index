@@ -31,7 +31,8 @@ function toGeoJSON(points: GeoIntelPoint[], layer: MapLayer) {
       .map((p) => ({ p, w: layerWeight(p, layer) }))
       .filter(({ w }) => (layer === 'BLIND_SPOTS' ? w > 0 : true)) // blind-spot layer shows only flagged points
       // Point-only: coerce + validate; skip anything that isn't a valid Point.
-      .map(({ p, w }) => pointFeature({ id: p.id, name: p.name, weight: w }, p.lat, p.lng))
+      // weight is always a finite number so cluster/paint expressions never see null.
+      .map(({ p, w }) => pointFeature({ id: p.id, name: p.name, weight: Number.isFinite(w) ? w : 0 }, p.lat, p.lng))
       .filter((f): f is PointFeature => f !== null),
   };
 }
@@ -62,7 +63,9 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
       mapRef.current = map;
       map.addControl(new mlg.NavigationControl({ showCompass: false }), 'top-right');
       map.on('load', () => {
-        map.addSource('intel', { type: 'geojson', data: toGeoJSON(points, layer), cluster: true, clusterRadius: 50, clusterMaxZoom: 12, clusterProperties: { weightSum: ['+', ['get', 'weight']] } });
+        // Clusters are sized by point_count only — no custom clusterProperties
+        // accumulator (an unused expression that can crash the GeoJSON worker).
+        map.addSource('intel', { type: 'geojson', data: toGeoJSON(points, layer), cluster: true, clusterRadius: 50, clusterMaxZoom: 12 });
         map.addLayer({ id: 'clusters', type: 'circle', source: 'intel', filter: ['has', 'point_count'], paint: { 'circle-color': color, 'circle-opacity': 0.6, 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 20, 50, 28] } });
         map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'intel', filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Noto Sans Regular'], 'text-size': 11 }, paint: { 'text-color': '#ffffff' } });
         map.addLayer({ id: 'pts', type: 'circle', source: 'intel', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': color, 'circle-radius': ['interpolate', ['linear'], ['get', 'weight'], 0, 4, 1, 6, 10, 12, 50, 20], 'circle-stroke-width': 1, 'circle-stroke-color': '#0b1220' } });
