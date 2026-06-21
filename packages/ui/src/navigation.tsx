@@ -102,6 +102,8 @@ export const publicNavLinks = [
   { label: 'Signal Library', href: '/signal-library' },
   { label: 'Research Reports', href: '/research-reports' },
   { label: 'Education Hub', href: '/education-hub' },
+  { label: 'How HSI Works', href: '/how-hsi-works' },
+  { label: 'Documentation', href: '/docs' },
   { label: 'Submit a Signal', href: '/submit-a-signal' },
   { label: 'Transparency', href: '/transparency' },
   { label: 'Ethics', href: '/ethics' },
@@ -238,6 +240,17 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
         { label: 'Methodology', href: '/methodology' },
         { label: 'Education Hub', href: '/education-hub' },
         { label: 'Contact', href: '/contact' },
+      ],
+    },
+    {
+      title: 'Learn & Build',
+      links: [
+        { label: 'Education Hub', href: '/education-hub' },
+        { label: 'How HSI Works', href: '/how-hsi-works' },
+        { label: 'Documentation', href: '/docs' },
+        { label: 'FAQ', href: '/docs/faq' },
+        { label: 'Developers', href: '/docs/developers' },
+        { label: 'API', href: '/docs/api' },
       ],
     },
     {

@@ -136,6 +136,7 @@ export default function BetaPage() {
         <Card className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="space-y-1"><h3 className="text-h6 font-semibold">Already a tester?</h3><p className="text-body-sm text-text-secondary">Sign in to the product to pick up where you left off.</p></div>
           <div className="flex flex-wrap gap-3">
+            <a href="/docs"><Button variant="ghost">Documentation</Button></a>
             <a href="/demo"><Button variant="secondary">Request a Demo</Button></a>
             <a href={appHref('/sign-in')}><Button variant="primary"><LogIn className="h-4 w-4" /> Sign in to the app</Button></a>
           </div>

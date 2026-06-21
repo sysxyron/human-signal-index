@@ -118,6 +118,7 @@ export default function DemoPage() {
         <Card className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="space-y-1"><h3 className="text-h6 font-semibold">Prefer to try it yourself first?</h3><p className="text-body-sm text-text-secondary">Join the beta, or sign in if you already have access.</p></div>
           <div className="flex flex-wrap gap-3">
+            <a href="/docs"><Button variant="ghost">Documentation</Button></a>
             <a href="/beta"><Button variant="secondary">Join the Beta</Button></a>
             <a href={appHref('/sign-in')}><Button variant="primary"><LogIn className="h-4 w-4" /> Sign in to the app</Button></a>
           </div>
