@@ -300,6 +300,9 @@ export function PublicNav({
 /* Footer                                                                        */
 /* -------------------------------------------------------------------------- */
 
+// Four-column footer: brand (col 1, with Security & Reporting beneath) + these
+// three. The Learn & Build column was removed; its links moved into Platform and
+// About. No routes removed — everything stays reachable.
 const footerColumns: { title: string; links: { label: string; href: string }[] }[] =
   [
     {
@@ -309,6 +312,10 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
         { label: 'Signal Library', href: '/signal-library' },
         { label: 'Research Reports', href: '/research-reports' },
         { label: 'Submit a Signal', href: '/submit-a-signal' },
+        { label: 'How HSI Works', href: '/how-hsi-works' },
+        { label: 'Documentation', href: '/docs' },
+        { label: 'Developers', href: '/docs/developers' },
+        { label: 'API', href: '/docs/api' },
       ],
     },
     {
@@ -317,19 +324,9 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
         { label: 'Our Mission', href: '/mission' },
         { label: 'About HSI', href: '/about' },
         { label: 'Methodology', href: '/methodology' },
-        { label: 'Education Hub', href: '/education-hub' },
         { label: 'Contact', href: '/contact' },
-      ],
-    },
-    {
-      title: 'Learn & Build',
-      links: [
         { label: 'Education Hub', href: '/education-hub' },
-        { label: 'How HSI Works', href: '/how-hsi-works' },
-        { label: 'Documentation', href: '/docs' },
         { label: 'FAQ', href: '/docs/faq' },
-        { label: 'Developers', href: '/docs/developers' },
-        { label: 'API', href: '/docs/api' },
       ],
     },
     {
@@ -341,17 +338,16 @@ const footerColumns: { title: string; links: { label: string; href: string }[] }
         { label: 'Accessibility', href: '/accessibility' },
       ],
     },
-    {
-      title: 'Security & Reporting',
-      links: [
-        { label: 'Vulnerability Disclosure', href: '/security/vulnerability-disclosure' },
-        { label: 'Responsible Disclosure', href: '/security/responsible-disclosure' },
-        { label: 'Security Awareness', href: '/security-awareness' },
-        { label: 'Whistleblower Center', href: '/whistleblower' },
-        { label: 'Report Confidentially', href: '/report-confidentially' },
-      ],
-    },
   ];
+
+// Security & Reporting — rendered under the brand block (column 1).
+const footerSecurityLinks: { label: string; href: string }[] = [
+  { label: 'Vulnerability Disclosure', href: '/security/vulnerability-disclosure' },
+  { label: 'Responsible Disclosure', href: '/security/responsible-disclosure' },
+  { label: 'Security Awareness', href: '/security-awareness' },
+  { label: 'Whistleblower Center', href: '/whistleblower' },
+  { label: 'Report Confidentially', href: '/report-confidentially' },
+];
 
 export function Footer({
   dashboardHref = '/dashboard',
@@ -368,7 +364,7 @@ export function Footer({
   return (
     <footer className="border-t border-border bg-background-deep">
       <div className="mx-auto max-w-[1180px] px-6 py-14">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.6fr_repeat(3,1fr)]">
           <div className="space-y-4">
             <BrandMark homeHref={siteBase ? `${siteBase}/` : '/'} />
             <p className="max-w-xs text-body-sm leading-relaxed text-text-secondary">
@@ -379,6 +375,21 @@ export function Footer({
             <p className="text-caption text-text-muted">
               Evidence first. Traceability always. Humanity above all.
             </p>
+            <div className="pt-2">
+              <h5 className="text-label text-text-muted">Security &amp; Reporting</h5>
+              <ul className="mt-3 space-y-2">
+                {footerSecurityLinks.map((link) => {
+                  const active = navIsActive(pathname, link.href);
+                  return (
+                    <li key={link.href}>
+                      <a href={`${siteBase}${link.href}`} aria-current={active ? 'page' : undefined} className={cn('text-body-sm transition', active ? 'font-semibold text-electric' : 'text-text-secondary hover:text-text-primary')}>
+                        {link.label}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
           {columns.map((col) => (
             <div key={col.title}>
