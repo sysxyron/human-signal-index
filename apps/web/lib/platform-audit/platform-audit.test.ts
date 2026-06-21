@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity } from './checks';
+import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, type RuntimeConfigInput } from './checks';
 import { sortIssues, readinessScore, summarizeAudit, recommendations } from './summary';
 import { AUDIT_STATUSES, type AuditIssue } from './types';
 
@@ -101,6 +101,29 @@ test('checkGeoIntegrity: all Points → PASS; invalid → WARNING with counts; n
   const w = checkGeoIntegrity({ total: 10, point: 8, invalid: 2, byType: { Point: 8, INVALID: 2 } }, NOW);
   assert.equal(w.status, 'WARNING'); assert.match(w.explanation, /2 of 10/);
   assert.equal(checkGeoIntegrity(null, NOW).status, 'NOT_OBSERVED');
+});
+
+// ---- runtime config (Phase 74.1) -------------------------------------------
+
+function rc(over: Partial<RuntimeConfigInput> = {}): RuntimeConfigInput {
+  return { source: 'edge-config', maintenanceBanner: false, betaSignupOpen: true, globalMapEnabled: true, sourceIngestEnabled: true, protectedReadMode: false, publicReadsSource: 'primary', dashboardReadsSource: 'primary', primaryDbHealth: 'healthy', ...over };
+}
+test('checkRuntimeConfig: all nominal → PASS; intentional disables are WARNING not FAIL', () => {
+  const ok = checkRuntimeConfig(rc(), NOW);
+  assert.ok(ok.every((i) => i.status === 'PASS'));
+  const off = checkRuntimeConfig(rc({ globalMapEnabled: false, sourceIngestEnabled: false, betaSignupOpen: false, maintenanceBanner: true, protectedReadMode: true }), NOW);
+  assert.equal(off.find((i) => i.id === 'runtime-global-map')?.status, 'WARNING');
+  assert.equal(off.find((i) => i.id === 'runtime-source-ingest')?.status, 'WARNING');
+  assert.ok(off.every((i) => i.status !== 'FAIL')); // intentional disables never FAIL
+});
+test('checkRuntimeConfig: edge config source maps to status', () => {
+  assert.equal(checkRuntimeConfig(rc({ source: 'edge-config' }), NOW).find((i) => i.id === 'runtime-edge-config')?.status, 'PASS');
+  assert.equal(checkRuntimeConfig(rc({ source: 'defaults' }), NOW).find((i) => i.id === 'runtime-edge-config')?.status, 'NOT_OBSERVED');
+  assert.equal(checkRuntimeConfig(rc({ source: 'error-fallback' }), NOW).find((i) => i.id === 'runtime-edge-config')?.status, 'WARNING');
+});
+test('checkRuntimeConfig: non-primary read source warns; down DB fails', () => {
+  assert.equal(checkRuntimeConfig(rc({ publicReadsSource: 'replica' }), NOW).find((i) => i.id === 'runtime-reads-public')?.status, 'WARNING');
+  assert.equal(checkRuntimeConfig(rc({ primaryDbHealth: 'down' }), NOW).find((i) => i.id === 'runtime-db-health')?.status, 'FAIL');
 });
 
 // ---- summary / sort / score ------------------------------------------------

@@ -19,6 +19,8 @@ import { MapReadinessOverview, MapReadinessReport, Phase72Panel } from '@/compon
 import { GeocodeButton } from '@/components/global-map/Controls';
 import { LayeredMapExplorer } from '@/components/narrative-map/LayeredMapExplorer';
 import { IntelOverview, BlindSpotPanel, RegionDetailTable } from '@/components/narrative-map/panels';
+import { Card } from '@hsi/ui';
+import { getRuntimeFlag } from '@/lib/hsi/edge-config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -37,6 +39,7 @@ export default async function GlobalMapPage() {
   }
 
   const admin = isAdmin(role);
+  const mapEnabled = await getRuntimeFlag('globalMapEnabled');
   const [data, phase72, intel] = await Promise.all([getGlobalMapData(), getPhase72Readiness(), getGeospatialIntelligence()]);
 
   return (
@@ -58,7 +61,15 @@ export default async function GlobalMapPage() {
             <Link href={'/dashboard/global-map/readiness' as never} className="rounded-card border border-border bg-surface-2/40 px-3 py-1.5 text-caption text-electric hover:underline">Geographic readiness report →</Link>
           </div>
           <IntelOverview d={intel} />
-          <LayeredMapExplorer data={intel} />
+          {mapEnabled ? (
+            <LayeredMapExplorer data={intel} />
+          ) : (
+            <Card className="space-y-2">
+              <h3 className="text-h6 font-semibold text-text-primary">Global Map is temporarily disabled by runtime configuration.</h3>
+              <p className="text-body-sm text-text-secondary">The interactive map is turned off via runtime configuration, so the map canvas is not loaded. The readiness report and regional breakdowns below remain available.</p>
+              <a href="/dashboard/global-map/readiness" className="inline-block text-caption text-electric hover:underline">View the geographic readiness report →</a>
+            </Card>
+          )}
           <BlindSpotPanel d={intel} />
           <div className="grid gap-6 xl:grid-cols-2">
             <RegionDetailTable title="By country" rows={intel.byCountry} />

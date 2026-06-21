@@ -16,7 +16,7 @@ export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
 export const AUDIT_AREAS = [
   'routing', 'rbac', 'metadata', 'supabase', 'storage', 'migrations',
   'source_network', 'signal_network', 'global_map', 'infrastructure',
-  'environment', 'forms', 'conversion',
+  'environment', 'forms', 'conversion', 'runtime',
 ] as const;
 export type AuditArea = (typeof AUDIT_AREAS)[number];
 

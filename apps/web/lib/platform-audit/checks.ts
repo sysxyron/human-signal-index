@@ -192,6 +192,43 @@ export function checkGeoIntegrity(audit: GeometryAuditInput | null, nowIso: stri
   }, nowIso);
 }
 
+// ---- runtime config (Phase 74.1 — Edge Config flags) -----------------------
+
+export interface RuntimeConfigInput {
+  source: 'edge-config' | 'defaults' | 'error-fallback';
+  maintenanceBanner: boolean; betaSignupOpen: boolean; globalMapEnabled: boolean;
+  sourceIngestEnabled: boolean; protectedReadMode: boolean;
+  publicReadsSource: string; dashboardReadsSource: string; primaryDbHealth: string;
+}
+
+/** Report runtime flag status. Intentionally-disabled features are WARNING (not
+ *  FAIL); an unreachable Edge Config is NOT_OBSERVED / WARNING, never a crash. */
+export function checkRuntimeConfig(c: RuntimeConfigInput, nowIso: string): AuditIssue[] {
+  const out: AuditIssue[] = [];
+  const add = (id: string, title: string, status: AuditStatus, severity: AuditSeverity, explanation: string, recommendedFix = 'None.') =>
+    out.push(issue({ id: `runtime-${id}`, title, status, severity, area: 'runtime', explanation, recommendedFix, source: 'Vercel Edge Config' }, nowIso));
+
+  // Edge Config reachability.
+  if (c.source === 'edge-config') add('edge-config', 'Edge Config reachable', 'PASS', 'LOW', 'Runtime flags loaded from Vercel Edge Config.');
+  else if (c.source === 'defaults') add('edge-config', 'Edge Config reachable', 'NOT_OBSERVED', 'LOW', 'No Edge Config items returned — running on safe defaults.', 'Connect an Edge Config store to control runtime flags.');
+  else add('edge-config', 'Edge Config reachable', 'WARNING', 'MEDIUM', 'Edge Config read failed — running on safe defaults (error fallback).', 'Check the EDGE_CONFIG connection string.');
+
+  add('maintenance', 'Maintenance mode', c.maintenanceBanner ? 'WARNING' : 'PASS', 'LOW', c.maintenanceBanner ? 'Maintenance banner is ON (intentional).' : 'Maintenance banner is off.');
+  add('beta', 'Beta signup', c.betaSignupOpen ? 'PASS' : 'WARNING', 'LOW', c.betaSignupOpen ? 'Beta applications are open.' : 'Beta applications are paused (intentional).');
+  add('global-map', 'Global map', c.globalMapEnabled ? 'PASS' : 'WARNING', 'LOW', c.globalMapEnabled ? 'Global map is enabled.' : 'Global map is disabled by config (intentional).');
+  add('source-ingest', 'Source ingest', c.sourceIngestEnabled ? 'PASS' : 'WARNING', 'LOW', c.sourceIngestEnabled ? 'Source ingest is enabled.' : 'Source ingest is disabled by config (intentional).');
+  add('protected-read', 'Protected read mode', c.protectedReadMode ? 'WARNING' : 'PASS', 'LOW', c.protectedReadMode ? 'Protected read mode is ON (degraded reads; auth unchanged).' : 'Protected read mode is off.');
+
+  const readNote = (which: string, v: string) => add(`reads-${which}`, `${which === 'public' ? 'Public' : 'Dashboard'} read source`, v === 'primary' ? 'PASS' : 'WARNING', 'LOW', v === 'primary' ? `Reads use ${v}.` : `Configured as "${v}" but replica/D1/cache are not implemented — reads still use primary.`, v === 'primary' ? 'None.' : 'No action — selection is recorded; effective backend remains primary.');
+  readNote('public', c.publicReadsSource);
+  readNote('dashboard', c.dashboardReadsSource);
+
+  const dbStatus: AuditStatus = c.primaryDbHealth === 'healthy' ? 'PASS' : c.primaryDbHealth === 'down' ? 'FAIL' : c.primaryDbHealth === 'unknown' ? 'NOT_OBSERVED' : 'WARNING';
+  add('db-health', 'Primary DB health (reported)', dbStatus, dbStatus === 'FAIL' ? 'HIGH' : 'LOW', `Reported primary DB health: ${c.primaryDbHealth}.`, dbStatus === 'PASS' || dbStatus === 'NOT_OBSERVED' ? 'None.' : 'Investigate database health.');
+
+  return out;
+}
+
 // ---- conversion readiness (beta/demo) --------------------------------------
 
 export interface ConversionInput { betaRoute: boolean; demoRoute: boolean; betaApi: boolean; demoApi: boolean; formsBackendWired: boolean }

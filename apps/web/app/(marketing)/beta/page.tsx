@@ -8,6 +8,7 @@ import type { Metadata } from 'next';
 import { Card, Button, SectionEyebrow } from '@hsi/ui';
 import { PageHeader, Section } from '../../../components/page-header';
 import { appHref } from '@/lib/env/app-url';
+import { getRuntimeFlag } from '@/lib/hsi/edge-config';
 import { BetaForm } from '@/components/marketing/BetaForm';
 import {
   ArrowRight, Radio, Link2, ScanText, Gauge, FileText, ShieldCheck, Microscope, Newspaper, Landmark,
@@ -60,7 +61,8 @@ const TRUST = [
   'Your beta feedback is protected.',
 ];
 
-export default function BetaPage() {
+export default async function BetaPage() {
+  const betaSignupOpen = await getRuntimeFlag('betaSignupOpen');
   return (
     <main className="text-text-primary">
       <PageHeader
@@ -128,7 +130,15 @@ export default function BetaPage() {
       <Section className="pt-0">
         <div id="apply" className="scroll-mt-24" />
         <div className="mb-6 max-w-2xl space-y-2"><SectionEyebrow>Apply</SectionEyebrow><h2 className="text-h3 font-bold lg:text-h2">Apply to beta test HSI</h2><p className="text-body-lg text-text-secondary">Tell us a little about your work. We review applications in batches.</p></div>
-        <Card className="max-w-3xl"><BetaForm /></Card>
+        {betaSignupOpen ? (
+          <Card className="max-w-3xl"><BetaForm /></Card>
+        ) : (
+          <Card className="max-w-3xl space-y-2">
+            <h3 className="text-h6 font-semibold text-text-primary">Beta applications are temporarily paused</h3>
+            <p className="text-body-sm text-text-secondary">We&apos;re not accepting new beta applications right now. Please check back soon, or request a demo if you represent an organization.</p>
+            <div className="flex flex-wrap gap-3 pt-1"><a href="/demo"><Button variant="secondary">Request a Demo</Button></a><a href="/docs"><Button variant="ghost">Documentation</Button></a></div>
+          </Card>
+        )}
       </Section>
 
       {/* App login + cross links */}

@@ -12,6 +12,8 @@ import { NotificationCenter } from '@/components/governance/NotificationCenter';
 import { AccountStatusBanner } from '@/components/admin/AccountStatusBanner';
 import { OrgSwitcher } from '@/components/org/OrgSwitcher';
 import { getUserOrganizations, requireOrganization } from '@/lib/org/organizations';
+import { MaintenanceBanner } from '@/components/system/MaintenanceBanner';
+import { ProtectedReadNotice } from '@/components/system/ProtectedReadNotice';
 
 export default async function DashboardLayout({
   children,
@@ -38,6 +40,8 @@ export default async function DashboardLayout({
           </div>
         </div>
         <AccountStatusBanner />
+        <MaintenanceBanner />
+        <ProtectedReadNotice />
         {children}
       </div>
     </div>

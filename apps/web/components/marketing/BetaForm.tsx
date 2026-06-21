@@ -28,7 +28,7 @@ export function BetaForm() {
       const res = await fetch('/api/beta/apply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json().catch(() => ({ ok: false, error: 'Unexpected response.' }));
       if (res.ok && data.ok) { setState('success'); setMessage(data.message ?? 'Application received.'); }
-      else { setState('error'); setMessage(data.error ?? 'Something went wrong. Please try again.'); }
+      else { setState('error'); setMessage(data.error ?? data.message ?? 'Something went wrong. Please try again.'); }
     } catch {
       setState('error');
       setMessage('We could not reach the server. Please email beta@humansignalindex.org with your details and we will follow up.');

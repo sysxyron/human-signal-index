@@ -12,6 +12,7 @@
 // =============================================================================
 
 import { NextResponse } from 'next/server';
+import { getRuntimeFlag } from '@/lib/hsi/edge-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,10 @@ interface BetaApplication {
 function str(v: unknown): string { return typeof v === 'string' ? v.trim() : ''; }
 
 export async function POST(req: Request) {
+  // Runtime flag: beta signup can be paused via Edge Config without a redeploy.
+  if (!(await getRuntimeFlag('betaSignupOpen'))) {
+    return NextResponse.json({ ok: false, code: 'BETA_CLOSED', message: 'Beta applications are temporarily paused.' }, { status: 423 });
+  }
   let body: BetaApplication;
   try { body = (await req.json()) as BetaApplication; } catch { return NextResponse.json({ ok: false, error: 'Invalid request.' }, { status: 400 }); }
 

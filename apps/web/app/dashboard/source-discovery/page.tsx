@@ -5,8 +5,9 @@
 // source or publishes a signal here — approval creates a PAUSED source only.
 // =============================================================================
 
-import { TopNav } from '@hsi/ui';
+import { TopNav, Card } from '@hsi/ui';
 import { getSessionRole, getUser } from '@/lib/supabase/server';
+import { getRuntimeFlag } from '@/lib/hsi/edge-config';
 import { hasRole } from '@/lib/security/rbac-audit';
 import { isAdmin } from '@/lib/security/view';
 import { ErrorState } from '@/components/signals/states';
@@ -35,6 +36,7 @@ export default async function SourceDiscoveryPage() {
   }
 
   const admin = isAdmin(role);
+  const ingestEnabled = await getRuntimeFlag('sourceIngestEnabled');
   const [d, network, phase71] = await Promise.all([
     getSourceDiscoveryDashboard(),
     getSourceNetworkDashboard(),
@@ -45,7 +47,7 @@ export default async function SourceDiscoveryPage() {
     <DashboardPage
       title="Source Discovery & Import"
       subtitle="Bulk import, duplicate detection, deterministic classification, agent suggestions — all human-reviewed. Approval creates a PAUSED source; nothing activates or publishes automatically."
-      actions={admin ? <div className="flex flex-wrap items-start gap-3"><AgentRunButtons isAdmin={admin} /><BackfillGeoButton /></div> : undefined}
+      actions={admin ? <div className="flex flex-wrap items-start gap-3">{ingestEnabled ? <AgentRunButtons isAdmin={admin} /> : null}<BackfillGeoButton /></div> : undefined}
     >
       <div className="space-y-8">
         <DiscoveryOverview d={d} />
@@ -71,7 +73,12 @@ export default async function SourceDiscoveryPage() {
         </section>
 
         <RegistryStatsPanel stats={d.statistics} />
-        <ImportPanel isAdmin={admin} />
+        {ingestEnabled ? <ImportPanel isAdmin={admin} /> : (
+          <Card className="space-y-1">
+            <h3 className="text-h6 font-semibold text-text-primary">Source ingest is temporarily disabled.</h3>
+            <p className="text-body-sm text-text-secondary">Import, discovery, and signal-scout runs are paused by runtime configuration. Existing sources and candidates remain fully viewable below.</p>
+          </Card>
+        )}
         {d.invalidRows.length > 0 ? <InvalidRowsPanel rows={d.invalidRows} /> : null}
         <CandidateQueue title="Pending review" candidates={d.pending} empty="No candidates awaiting review." />
         {d.duplicates.length > 0 ? <CandidateQueue title="Flagged duplicates" candidates={d.duplicates} empty="No duplicates." /> : null}

@@ -4,6 +4,7 @@ import { getPublicSiteUrl } from '@/lib/env/site-url';
 import { getUser } from '@/lib/supabase/server';
 import { getPublicFooterGroups } from '@/lib/cms/cms';
 import { AccessibilityWidget } from '@/components/accessibility/AccessibilityWidget';
+import { MaintenanceBanner } from '@/components/system/MaintenanceBanner';
 
 export default async function MarketingLayout({
   children,
@@ -22,6 +23,7 @@ export default async function MarketingLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <PublicNav dashboardHref={dashboardHref} siteBase={siteBase} signInHref={signInHref} authed={authed} />
+      <MaintenanceBanner />
       <div className="flex-1">{children}</div>
       <Footer dashboardHref={dashboardHref} siteBase={siteBase} groups={footerGroups ?? undefined} />
       <AccessibilityWidget />

@@ -14,8 +14,9 @@ import { getMigrationAudit } from '@/lib/launch/persistence';
 import { listInfraEventsDal } from '@/lib/infra/persistence';
 import { getPhase72Readiness } from '@/lib/global-map/data';
 import { auditGeometries } from '@/lib/global-map/geometry';
+import { getHsiRuntimeConfig } from '@/lib/hsi/edge-config';
 import {
-  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity,
+  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig,
 } from './checks';
 import { summarizeAudit, sortIssues, recommendations, isProblem } from './summary';
 import type { PlatformAuditReport, AuditIssue } from './types';
@@ -75,6 +76,14 @@ export async function getPlatformAuditReport(): Promise<PlatformAuditReport> {
     geoAudit = auditGeometries(rows.map((r) => ({ lat: r.latitude, lng: r.longitude })));
   } catch { geoAudit = null; }
   issues.push(checkGeoIntegrity(geoAudit, nowIso));
+
+  // ---- runtime config (Edge Config flags) ----------------------------------
+  const rc = await getHsiRuntimeConfig();
+  issues.push(...checkRuntimeConfig({
+    source: rc.source, maintenanceBanner: rc.maintenanceBanner, betaSignupOpen: rc.betaSignupOpen,
+    globalMapEnabled: rc.globalMapEnabled, sourceIngestEnabled: rc.sourceIngestEnabled, protectedReadMode: rc.protectedReadMode,
+    publicReadsSource: rc.publicReadsSource, dashboardReadsSource: rc.dashboardReadsSource, primaryDbHealth: rc.primaryDbHealth,
+  }, nowIso));
 
   // ---- conversion readiness (beta/demo) ------------------------------------
   // Routes/APIs exist (Phase 73.1); the form backend is an intentional placeholder.
