@@ -25,6 +25,7 @@ import {
   Compass,
   Menu,
   X,
+  ChevronDown,
   Search,
   Globe2,
   FlaskConical,
@@ -95,19 +96,61 @@ export function BrandMark({ compact = false, homeHref = '/' }: { compact?: boole
 /* PublicNav                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export const publicNavLinks = [
+interface PublicNavItem { label: string; href: string; /** app-origin link (uses dashboardHref) */ app?: boolean }
+interface PublicNavGroup { label: string; href?: string; items?: PublicNavItem[] }
+
+/** Grouped top navigation (dropdowns). The footer keeps the full route list. */
+export const publicNavGroups: PublicNavGroup[] = [
   { label: 'Home', href: '/' },
-  { label: 'About', href: '/about' },
-  { label: 'Methodology', href: '/methodology' },
-  { label: 'Signal Library', href: '/signal-library' },
-  { label: 'Research Reports', href: '/research-reports' },
-  { label: 'Education Hub', href: '/education-hub' },
-  { label: 'How HSI Works', href: '/how-hsi-works' },
-  { label: 'Documentation', href: '/docs' },
-  { label: 'Submit a Signal', href: '/submit-a-signal' },
-  { label: 'Transparency', href: '/transparency' },
-  { label: 'Ethics', href: '/ethics' },
-  { label: 'Contact', href: '/contact' },
+  {
+    label: 'Platform',
+    items: [
+      { label: 'How HSI Works', href: '/how-hsi-works' },
+      { label: 'Signal Library', href: '/signal-library' },
+      { label: 'Research Reports', href: '/research-reports' },
+      { label: 'Submit a Signal', href: '/submit-a-signal' },
+      { label: 'Dashboard', href: '/dashboard', app: true },
+    ],
+  },
+  {
+    label: 'Solutions',
+    items: [
+      { label: 'Researchers', href: '/docs/roles' },
+      { label: 'Analysts', href: '/docs/roles' },
+      { label: 'Journalists', href: '/education-hub' },
+      { label: 'Organizations', href: '/demo' },
+      { label: 'Trust & Safety', href: '/demo' },
+      { label: 'Demo', href: '/demo' },
+    ],
+  },
+  {
+    label: 'Learn',
+    items: [
+      { label: 'Education Hub', href: '/education-hub' },
+      { label: 'Documentation', href: '/docs' },
+      { label: 'FAQ', href: '/docs/faq' },
+      { label: 'Developers', href: '/docs/developers' },
+      { label: 'API', href: '/docs/api' },
+    ],
+  },
+  {
+    label: 'Trust',
+    items: [
+      { label: 'Methodology', href: '/methodology' },
+      { label: 'Transparency', href: '/transparency' },
+      { label: 'Ethics', href: '/ethics' },
+      { label: 'Accessibility', href: '/accessibility' },
+      { label: 'Responsible Disclosure', href: '/security/responsible-disclosure' },
+    ],
+  },
+  {
+    label: 'Contact',
+    items: [
+      { label: 'Contact', href: '/contact' },
+      { label: 'Request Demo', href: '/demo' },
+      { label: 'Apply for Beta', href: '/beta' },
+    ],
+  },
 ];
 
 /** Active when the path equals the link, or is nested under it (non-home). */
@@ -115,6 +158,12 @@ function navIsActive(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
   if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** A group is active when any of its (marketing) items matches the path. */
+function groupIsActive(pathname: string | null, group: PublicNavGroup): boolean {
+  if (group.href) return navIsActive(pathname, group.href);
+  return (group.items ?? []).some((i) => !i.app && navIsActive(pathname, i.href));
 }
 
 export function PublicNav({
@@ -132,84 +181,114 @@ export function PublicNav({
   authed?: boolean;
 } = {}) {
   const [open, setOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const pathname = usePathname();
   const header = publicHeaderState(authed);
+  // Resolve a nav item to its real href (app items use the app-origin URL).
+  const hrefOf = (it: PublicNavItem) => (it.app ? dashboardHref : `${siteBase}${it.href}`);
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-6 py-3.5">
         <BrandMark homeHref={siteBase ? `${siteBase}/` : '/'} />
-        <nav className="hidden items-center gap-5 xl:flex">
-          {publicNavLinks.map((link) => {
-            const active = navIsActive(pathname, link.href);
+
+        {/* desktop: grouped dropdowns */}
+        <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
+          {publicNavGroups.map((group) => {
+            const active = groupIsActive(pathname, group);
+            if (!group.items) {
+              return (
+                <a
+                  key={group.label}
+                  href={`${siteBase}${group.href}`}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn('rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors', active ? 'font-semibold text-electric' : 'text-text-secondary hover:text-text-primary')}
+                >
+                  {group.label}
+                </a>
+              );
+            }
+            const isOpen = openMenu === group.label;
             return (
-              <a
-                key={link.href}
-                href={`${siteBase}${link.href}`}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  // animated underline via an absolute pseudo-element → no layout shift
-                  'relative inline-flex pb-1 text-[13px] font-medium transition-colors',
-                  'after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-electric after:transition-transform after:duration-300 after:ease-out',
-                  active
-                    ? 'font-semibold text-electric [text-shadow:0_0_12px_rgba(59,130,246,0.45)] after:scale-x-100'
-                    : 'text-text-secondary after:scale-x-0 hover:text-text-primary hover:after:scale-x-100',
-                )}
-              >
-                {link.label}
-              </a>
+              <div key={group.label} className="relative" onMouseEnter={() => setOpenMenu(group.label)} onMouseLeave={() => setOpenMenu(null)}>
+                <button
+                  type="button"
+                  aria-haspopup="true"
+                  aria-expanded={isOpen}
+                  onClick={() => setOpenMenu(isOpen ? null : group.label)}
+                  className={cn('inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors', active || isOpen ? 'font-semibold text-electric' : 'text-text-secondary hover:text-text-primary')}
+                >
+                  {group.label}
+                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-180')} />
+                </button>
+                {isOpen ? (
+                  <div className="absolute left-0 top-full z-50 min-w-[220px] pt-2" role="menu" aria-label={group.label}>
+                    <div className="overflow-hidden rounded-card border border-border bg-surface shadow-xl">
+                      {group.items.map((it) => {
+                        const itemActive = !it.app && navIsActive(pathname, it.href);
+                        return (
+                          <a
+                            key={it.label}
+                            href={hrefOf(it)}
+                            role="menuitem"
+                            aria-current={itemActive ? 'page' : undefined}
+                            className={cn('block px-4 py-2 text-[13px] transition', itemActive ? 'bg-primary/15 font-semibold text-electric' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary')}
+                          >
+                            {it.label}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             );
           })}
         </nav>
-        <div className="hidden items-center gap-3 xl:flex">
+
+        <div className="hidden items-center gap-3 lg:flex">
           {header.showSignIn && signInHref ? (
-            <a href={signInHref} className="text-[13px] font-medium text-text-secondary transition hover:text-text-primary">
-              Sign in
-            </a>
+            <a href={signInHref} className="text-[13px] font-medium text-text-secondary transition hover:text-text-primary">Sign in</a>
           ) : null}
-          <a href={dashboardHref}>
-            <Button variant="primary" size="sm">
-              {header.dashboardLabel}
-            </Button>
-          </a>
+          <a href={dashboardHref}><Button variant="primary" size="sm">{header.dashboardLabel}</Button></a>
         </div>
-        <button
-          className="rounded-lg p-2 text-text-secondary xl:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle navigation"
-        >
+
+        <button className="rounded-lg p-2 text-text-secondary lg:hidden" onClick={() => setOpen((v) => !v)} aria-label="Toggle navigation" aria-expanded={open}>
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
+
+      {/* mobile: grouped accordion-style panel (sections expanded for usability) */}
       {open ? (
-        <div className="border-t border-border bg-surface px-6 py-4 xl:hidden">
-          <nav className="grid gap-1">
-            {publicNavLinks.map((link) => {
-              const active = navIsActive(pathname, link.href);
+        <div className="max-h-[80vh] overflow-y-auto border-t border-border bg-surface px-6 py-4 lg:hidden">
+          <nav className="grid gap-3" aria-label="Primary mobile">
+            {publicNavGroups.map((group) => {
+              if (!group.items) {
+                const active = groupIsActive(pathname, group);
+                return (
+                  <a key={group.label} href={`${siteBase}${group.href}`} aria-current={active ? 'page' : undefined} onClick={() => setOpen(false)} className={cn('rounded-lg px-3 py-2 text-sm transition', active ? 'bg-primary/15 font-semibold text-electric' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary')}>
+                    {group.label}
+                  </a>
+                );
+              }
               return (
-                <a
-                  key={link.href}
-                  href={`${siteBase}${link.href}`}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'rounded-lg px-3 py-2 text-sm transition',
-                    active ? 'bg-primary/15 font-semibold text-electric' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary',
-                  )}
-                  onClick={() => setOpen(false)}
-                >
-                  {link.label}
-                </a>
+                <div key={group.label} className="space-y-1">
+                  <p className="px-3 text-[10px] font-semibold uppercase tracking-wide text-text-muted">{group.label}</p>
+                  {group.items.map((it) => {
+                    const itemActive = !it.app && navIsActive(pathname, it.href);
+                    return (
+                      <a key={it.label} href={hrefOf(it)} aria-current={itemActive ? 'page' : undefined} onClick={() => setOpen(false)} className={cn('block rounded-lg px-3 py-2 text-sm transition', itemActive ? 'bg-primary/15 font-semibold text-electric' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary')}>
+                        {it.label}
+                      </a>
+                    );
+                  })}
+                </div>
               );
             })}
             {header.showSignIn && signInHref ? (
-              <a href={signInHref} className="rounded-lg px-3 py-2 text-sm text-text-secondary transition hover:bg-surface-2 hover:text-text-primary" onClick={() => setOpen(false)}>
-                Sign in
-              </a>
+              <a href={signInHref} className="rounded-lg px-3 py-2 text-sm text-text-secondary transition hover:bg-surface-2 hover:text-text-primary" onClick={() => setOpen(false)}>Sign in</a>
             ) : null}
-            <a href={dashboardHref} className="mt-2">
-              <Button variant="primary" size="sm" className="w-full">
-                {header.dashboardLabel}
-              </Button>
-            </a>
+            <a href={dashboardHref} className="mt-1"><Button variant="primary" size="sm" className="w-full">{header.dashboardLabel}</Button></a>
           </nav>
         </div>
       ) : null}
