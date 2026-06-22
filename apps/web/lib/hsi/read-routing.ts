@@ -30,3 +30,9 @@ export async function getDashboardReadsSource(): Promise<ReadSource> {
 export function effectiveBackend(_selected: ReadSource): 'primary' {
   return 'primary';
 }
+
+// Phase 74.2 — the Edge Config selectors above flow into the canonical resolver
+// in read-backends.ts (which applies scope rules + availability + fallback).
+// Prefer `resolveReadBackend(scope)` / `getEffectiveReadBackend(scope)` in new
+// code; the simple selectors remain for back-compat.
+export { resolveReadBackend, getEffectiveReadBackend, isBackendAvailable, type ReadBackend, type ReadScope, type ReadRoutingDecision } from './read-backends';

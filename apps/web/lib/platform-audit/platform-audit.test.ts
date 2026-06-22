@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, type RuntimeConfigInput } from './checks';
+import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, type RuntimeConfigInput, type ReadRoutingAuditInput } from './checks';
 import { sortIssues, readinessScore, summarizeAudit, recommendations } from './summary';
 import { AUDIT_STATUSES, type AuditIssue } from './types';
 
@@ -124,6 +124,32 @@ test('checkRuntimeConfig: edge config source maps to status', () => {
 test('checkRuntimeConfig: non-primary read source warns; down DB fails', () => {
   assert.equal(checkRuntimeConfig(rc({ publicReadsSource: 'replica' }), NOW).find((i) => i.id === 'runtime-reads-public')?.status, 'WARNING');
   assert.equal(checkRuntimeConfig(rc({ primaryDbHealth: 'down' }), NOW).find((i) => i.id === 'runtime-db-health')?.status, 'FAIL');
+});
+
+// ---- read routing (Phase 74.2) ---------------------------------------------
+
+function rr(over: Partial<ReadRoutingAuditInput> = {}): ReadRoutingAuditInput {
+  return {
+    public: { requestedBackend: 'primary', effectiveBackend: 'primary', fallbackReason: null },
+    dashboard: { requestedBackend: 'primary', effectiveBackend: 'primary', fallbackReason: null },
+    availability: { primary: true, replica: false, d1: false, cache: false }, ...over,
+  };
+}
+test('checkReadRouting: primary selected + available → PASS; unavailable backends → NOT_OBSERVED', () => {
+  const out = checkReadRouting(rr(), NOW);
+  assert.equal(out.find((i) => i.id === 'read-public')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'read-backend-primary')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'read-backend-replica')?.status, 'NOT_OBSERVED');
+  assert.ok(out.every((i) => i.status !== 'FAIL'));
+});
+test('checkReadRouting: non-primary requested but unavailable → WARNING (fell back)', () => {
+  const out = checkReadRouting(rr({ public: { requestedBackend: 'replica', effectiveBackend: 'primary', fallbackReason: 'replica is unavailable' } }), NOW);
+  assert.equal(out.find((i) => i.id === 'read-public')?.status, 'WARNING');
+});
+test('checkReadRouting: primary unavailable → FAIL', () => {
+  const out = checkReadRouting(rr({ availability: { primary: false, replica: false, d1: false, cache: false } }), NOW);
+  assert.equal(out.find((i) => i.id === 'read-backend-primary')?.status, 'FAIL');
+  assert.equal(out.find((i) => i.id === 'read-public')?.status, 'FAIL');
 });
 
 // ---- summary / sort / score ------------------------------------------------

@@ -15,8 +15,9 @@ import { listInfraEventsDal } from '@/lib/infra/persistence';
 import { getPhase72Readiness } from '@/lib/global-map/data';
 import { auditGeometries } from '@/lib/global-map/geometry';
 import { getHsiRuntimeConfig } from '@/lib/hsi/edge-config';
+import { resolveReadBackend, availabilityFromHealth } from '@/lib/hsi/read-backends';
 import {
-  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig,
+  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting,
 } from './checks';
 import { summarizeAudit, sortIssues, recommendations, isProblem } from './summary';
 import type { PlatformAuditReport, AuditIssue } from './types';
@@ -83,6 +84,15 @@ export async function getPlatformAuditReport(): Promise<PlatformAuditReport> {
     source: rc.source, maintenanceBanner: rc.maintenanceBanner, betaSignupOpen: rc.betaSignupOpen,
     globalMapEnabled: rc.globalMapEnabled, sourceIngestEnabled: rc.sourceIngestEnabled, protectedReadMode: rc.protectedReadMode,
     publicReadsSource: rc.publicReadsSource, dashboardReadsSource: rc.dashboardReadsSource, primaryDbHealth: rc.primaryDbHealth,
+  }, nowIso));
+
+  // ---- read routing (Phase 74.2) -------------------------------------------
+  const [pub, dash] = await Promise.all([resolveReadBackend('public'), resolveReadBackend('dashboard')]);
+  const avail = availabilityFromHealth(rc.primaryDbHealth);
+  issues.push(...checkReadRouting({
+    public: { requestedBackend: pub.requestedBackend, effectiveBackend: pub.effectiveBackend, fallbackReason: pub.fallbackReason },
+    dashboard: { requestedBackend: dash.requestedBackend, effectiveBackend: dash.effectiveBackend, fallbackReason: dash.fallbackReason },
+    availability: { primary: avail.primary.available && avail.primary.reads, replica: avail.replica.available && avail.replica.reads, d1: avail.d1.available && avail.d1.reads, cache: avail.cache.available && avail.cache.reads },
   }, nowIso));
 
   // ---- conversion readiness (beta/demo) ------------------------------------

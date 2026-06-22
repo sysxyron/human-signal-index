@@ -84,6 +84,7 @@ export function ReportTables({ r }: { r: PlatformAuditReport }) {
         <IssueTable title="Environment" icon={ShieldCheck} rows={inAreas(r, ['environment'])} />
       </div>
       <IssueTable title="Runtime configuration" icon={SlidersHorizontal} rows={inAreas(r, ['runtime'])} />
+      <IssueTable title="Read routing" icon={Network} rows={inAreas(r, ['read_routing'])} />
       <IssueTable title="Geospatial health" icon={MapIcon} rows={inAreas(r, ['global_map'])} />
       <IssueTable title="Conversion funnel checklist" icon={Megaphone} rows={inAreas(r, ['conversion', 'forms'])} />
     </div>

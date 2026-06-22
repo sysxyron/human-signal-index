@@ -229,6 +229,38 @@ export function checkRuntimeConfig(c: RuntimeConfigInput, nowIso: string): Audit
   return out;
 }
 
+// ---- read routing (Phase 74.2) ---------------------------------------------
+
+export interface ReadRoutingAuditInput {
+  public: { requestedBackend: string; effectiveBackend: string; fallbackReason: string | null };
+  dashboard: { requestedBackend: string; effectiveBackend: string; fallbackReason: string | null };
+  availability: { primary: boolean; replica: boolean; d1: boolean; cache: boolean };
+}
+
+/** Surface read-routing status. PASS when primary selected + available; WARNING
+ *  when a non-primary backend was selected but unavailable (fell back to primary);
+ *  NOT_OBSERVED for unconfigured backends; FAIL only when primary is unavailable. */
+export function checkReadRouting(i: ReadRoutingAuditInput, nowIso: string): AuditIssue[] {
+  const out: AuditIssue[] = [];
+  const add = (id: string, title: string, status: AuditStatus, severity: AuditSeverity, explanation: string, recommendedFix = 'None.') =>
+    out.push(issue({ id: `read-${id}`, title, status, severity, area: 'read_routing', explanation, recommendedFix, source: 'read-backends resolver' }, nowIso));
+
+  const scopeRow = (scope: 'public' | 'dashboard', d: ReadRoutingAuditInput['public']) => {
+    if (!i.availability.primary) { add(`${scope}`, `${scope === 'public' ? 'Public' : 'Dashboard'} reads`, 'FAIL', 'CRITICAL', 'Primary is reported unavailable — reads cannot be served.', 'Investigate primary database health.'); return; }
+    if (d.requestedBackend !== 'primary' && d.effectiveBackend === 'primary') { add(`${scope}`, `${scope === 'public' ? 'Public' : 'Dashboard'} reads`, 'WARNING', 'LOW', `Requested "${d.requestedBackend}" but it is unavailable — serving from primary. ${d.fallbackReason ?? ''}`.trim(), 'No action — selection recorded; effective backend is primary until that backend is implemented.'); return; }
+    add(`${scope}`, `${scope === 'public' ? 'Public' : 'Dashboard'} reads`, 'PASS', 'LOW', `Requested "${d.requestedBackend}", effective "${d.effectiveBackend}".`);
+  };
+  scopeRow('public', i.public);
+  scopeRow('dashboard', i.dashboard);
+
+  add('backend-primary', 'Backend: primary', i.availability.primary ? 'PASS' : 'FAIL', i.availability.primary ? 'LOW' : 'CRITICAL', i.availability.primary ? 'Primary backend is available for reads + writes.' : 'Primary backend reported unavailable.', i.availability.primary ? 'None.' : 'Investigate primary database health.');
+  for (const b of ['replica', 'd1', 'cache'] as const) {
+    const ok = i.availability[b];
+    add(`backend-${b}`, `Backend: ${b}`, ok ? 'PASS' : 'NOT_OBSERVED', 'LOW', ok ? `${b} backend is available.` : `${b} backend is not implemented yet (reads fall back to primary).`, ok ? 'None.' : 'No action — declared for future use.');
+  }
+  return out;
+}
+
 // ---- conversion readiness (beta/demo) --------------------------------------
 
 export interface ConversionInput { betaRoute: boolean; demoRoute: boolean; betaApi: boolean; demoApi: boolean; formsBackendWired: boolean }
