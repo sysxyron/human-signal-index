@@ -1,18 +1,16 @@
 'use client';
 // =============================================================================
-// HSI Phase 71 — MapLibre GL canvas (client). Loads MapLibre GL JS + OpenStreetMap
-// raster tiles from the CDN (no paid provider, no API key, no 3D globe). Renders
-// REAL source points with MapLibre's built-in clustering (cluster only real
-// points). Degrades to a notice if MapLibre can't load — the list/readiness view
-// stays fully usable. No fabricated points.
+// HSI Phase 71 — MapLibre GL canvas (client). Loads MapLibre from the LOCAL npm
+// package (no CDN) + OpenStreetMap raster tiles (no paid provider, no API key).
+// Renders REAL source points with built-in clustering. Degrades to a notice if
+// the map can't initialize — the list/readiness view stays fully usable. No
+// fabricated points. This file is only loaded client-side (dynamic ssr:false).
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
 import type { MapPoint } from '@/lib/global-map/geo-model';
 import { pointFeature, type PointFeature } from '@/lib/global-map/geometry';
-
-const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
 
 // `glyphs` is REQUIRED for symbol layers that use `text-field` (cluster counts).
 const OSM_STYLE = {
@@ -32,20 +30,6 @@ function toGeoJSON(points: MapPoint[]) {
   };
 }
 
-function loadMaplibre(): Promise<unknown> {
-  const w = window as unknown as { maplibregl?: unknown };
-  if (w.maplibregl) return Promise.resolve(w.maplibregl);
-  return new Promise((resolve, reject) => {
-    if (!document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) {
-      const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS; document.head.appendChild(link);
-    }
-    const existing = document.querySelector(`script[src="${MAPLIBRE_JS}"]`) as HTMLScriptElement | null;
-    if (existing) { existing.addEventListener('load', () => resolve(w.maplibregl)); existing.addEventListener('error', reject); return; }
-    const s = document.createElement('script'); s.src = MAPLIBRE_JS; s.async = true;
-    s.onload = () => resolve(w.maplibregl); s.onerror = reject; document.head.appendChild(s);
-  });
-}
-
 export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: (id: string) => void }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -54,12 +38,12 @@ export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: 
 
   // init once
   useEffect(() => {
-    let cancelled = false;
-    loadMaplibre().then((mlg: any) => {
-      if (cancelled || !containerRef.current || mapRef.current) return;
-      const map = new mlg.Map({ container: containerRef.current, style: OSM_STYLE as never, center: [0, 20], zoom: 1.4, attributionControl: true });
+    if (!containerRef.current || mapRef.current) return;
+    try {
+      const map: any = new maplibregl.Map({ container: containerRef.current, style: OSM_STYLE as never, center: [0, 20], zoom: 1.4 });
       mapRef.current = map;
-      map.addControl(new mlg.NavigationControl({ showCompass: false }), 'top-right');
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      map.on('error', () => { /* tile/network errors must not crash the page */ });
       map.on('load', () => {
         map.addSource('sources', { type: 'geojson', data: toGeoJSON(points), cluster: true, clusterRadius: 50, clusterMaxZoom: 12 });
         map.addLayer({ id: 'clusters', type: 'circle', source: 'sources', filter: ['has', 'point_count'], paint: { 'circle-color': '#3B82F6', 'circle-opacity': 0.65, 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 20, 50, 28] } });
@@ -77,8 +61,11 @@ export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: 
         map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = ''; });
       });
-    }).catch(() => { if (!cancelled) setStatus('error'); });
-    return () => { cancelled = true; if (mapRef.current) { try { mapRef.current.remove(); } catch { /* noop */ } mapRef.current = null; } };
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') console.error('[global-map] MapLibre init failed', err);
+      setStatus('error');
+    }
+    return () => { if (mapRef.current) { try { mapRef.current.remove(); } catch { /* noop */ } mapRef.current = null; } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -94,7 +81,7 @@ export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: 
       {status !== 'ready' ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <span className="rounded-card border border-border bg-surface-2/80 px-3 py-1.5 text-caption text-text-muted">
-            {status === 'error' ? 'Map tiles unavailable — use the filters & list below (all data is server-rendered).' : 'Loading map…'}
+            {status === 'error' ? 'Map temporarily unavailable — use the filters & list below (all data is server-rendered).' : 'Loading map…'}
           </span>
         </div>
       ) : null}

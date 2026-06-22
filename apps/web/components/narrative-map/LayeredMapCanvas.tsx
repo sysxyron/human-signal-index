@@ -1,19 +1,18 @@
 'use client';
 // =============================================================================
-// HSI Phase 72 — Layered MapLibre canvas (client). Same MapLibre + OpenStreetMap
-// + clustering as Phase 71 (no new map framework). Each point carries a `weight`
-// = the active layer's REAL metric; clusters sum it (clusterProperties). Changing
-// layer recomputes weights and re-renders the SAME real points. Degrades to a
-// notice if tiles can't load. No fabricated points.
+// HSI Phase 72 — Layered MapLibre canvas (client). MapLibre from the LOCAL npm
+// package (no CDN) + OpenStreetMap raster tiles + clustering. Each point carries
+// a `weight` = the active layer's REAL metric. Changing layer recomputes weights
+// and re-renders the SAME real points. Degrades to a notice if the map can't
+// initialize. No fabricated points. Only loaded client-side (dynamic ssr:false).
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
 import { layerWeight } from '@/lib/narrative-map/aggregate';
 import { pointFeature, type PointFeature } from '@/lib/global-map/geometry';
 import type { GeoIntelPoint, MapLayer } from '@/lib/narrative-map/types';
 
-const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
 // `glyphs` is REQUIRED for any symbol layer that uses `text-field` (the cluster
 // count labels). Without it MapLibre throws "use of text-field requires a style
 // glyphs property". Free PBF font endpoint; no API key.
@@ -37,17 +36,6 @@ function toGeoJSON(points: GeoIntelPoint[], layer: MapLayer) {
   };
 }
 
-function loadMaplibre(): Promise<unknown> {
-  const w = window as unknown as { maplibregl?: unknown };
-  if (w.maplibregl) return Promise.resolve(w.maplibregl);
-  return new Promise((resolve, reject) => {
-    if (!document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = MAPLIBRE_CSS; document.head.appendChild(l); }
-    const ex = document.querySelector(`script[src="${MAPLIBRE_JS}"]`) as HTMLScriptElement | null;
-    if (ex) { ex.addEventListener('load', () => resolve(w.maplibregl)); ex.addEventListener('error', reject); return; }
-    const s = document.createElement('script'); s.src = MAPLIBRE_JS; s.async = true; s.onload = () => resolve(w.maplibregl); s.onerror = reject; document.head.appendChild(s);
-  });
-}
-
 export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntelPoint[]; layer: MapLayer; onSelect: (id: string) => void }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -56,12 +44,12 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
   const color = LAYER_COLOR[layer];
 
   useEffect(() => {
-    let cancelled = false;
-    loadMaplibre().then((mlg: any) => {
-      if (cancelled || !containerRef.current || mapRef.current) return;
-      const map = new mlg.Map({ container: containerRef.current, style: OSM_STYLE as never, center: [0, 20], zoom: 1.4 });
+    if (!containerRef.current || mapRef.current) return;
+    try {
+      const map: any = new maplibregl.Map({ container: containerRef.current, style: OSM_STYLE as never, center: [0, 20], zoom: 1.4 });
       mapRef.current = map;
-      map.addControl(new mlg.NavigationControl({ showCompass: false }), 'top-right');
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      map.on('error', () => { /* tile/network errors must not crash the page */ });
       map.on('load', () => {
         // Clusters are sized by point_count only — no custom clusterProperties
         // accumulator (an unused expression that can crash the GeoJSON worker).
@@ -74,8 +62,11 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
         map.on('click', 'pts', (e: any) => { const id = e.features?.[0]?.properties?.id; if (id) onSelect(id); });
         for (const lyr of ['pts', 'clusters']) { map.on('mouseenter', lyr, () => { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', lyr, () => { map.getCanvas().style.cursor = ''; }); }
       });
-    }).catch(() => { if (!cancelled) setStatus('error'); });
-    return () => { cancelled = true; if (mapRef.current) { try { mapRef.current.remove(); } catch { /* noop */ } mapRef.current = null; } };
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') console.error('[global-map] MapLibre init failed', err);
+      setStatus('error');
+    }
+    return () => { if (mapRef.current) { try { mapRef.current.remove(); } catch { /* noop */ } mapRef.current = null; } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -92,7 +83,7 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
       <div ref={containerRef} className="absolute inset-0" />
       {status !== 'ready' ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="rounded-card border border-border bg-surface-2/80 px-3 py-1.5 text-caption text-text-muted">{status === 'error' ? 'Map tiles unavailable — use the layer tables below (all server-rendered).' : 'Loading map…'}</span>
+          <span className="rounded-card border border-border bg-surface-2/80 px-3 py-1.5 text-caption text-text-muted">{status === 'error' ? 'Map temporarily unavailable — use the layer tables below (all server-rendered).' : 'Loading map…'}</span>
         </div>
       ) : null}
     </div>

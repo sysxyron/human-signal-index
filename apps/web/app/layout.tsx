@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+// MapLibre styles, served from the local npm package (no CDN). Global location
+// so package CSS is imported once at the app root (Next rejects package global
+// CSS imported inside arbitrary nested components).
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 const inter = Inter({
   subsets: ['latin'],

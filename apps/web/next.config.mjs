@@ -19,7 +19,11 @@ const cspReportOnly = [
   // is added (tracked as a follow-up); report-only means nothing is blocked yet.
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.vercel-insights.com https://*.vercel.app",
+  // MapLibre (local npm bundle) fetches OSM raster tiles + glyph PBFs over the
+  // network → connect-src must list those exact origins. img-src already allows
+  // https: for the rendered tile images. worker-src 'self' blob: covers the
+  // MapLibre web worker. No CDN script/style origins are needed (bundled locally).
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.vercel-insights.com https://*.vercel.app https://tile.openstreetmap.org https://fonts.openmaptiles.org",
   "frame-src 'self' https://js.stripe.com",
   "form-action 'self'",
   "worker-src 'self' blob:",
@@ -30,7 +34,7 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
 ];
 
