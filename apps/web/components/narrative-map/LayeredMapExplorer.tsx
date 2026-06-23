@@ -24,7 +24,8 @@ interface Filters { type: string; category: string; country: string; minNarrativ
 const EMPTY: Filters = { type: '', category: '', country: '', minNarratives: 0, minEvidence: 0, minForecasts: 0 };
 
 export function LayeredMapExplorer({ data }: { data: GeospatialIntelligence }) {
-  const [layer, setLayer] = useState<MapLayer>('NARRATIVES');
+  // Default to Sources — it has plotted points today; Narratives may be empty.
+  const [layer, setLayer] = useState<MapLayer>('SOURCES');
   const [f, setF] = useState<Filters>(EMPTY);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) => setF((p) => ({ ...p, [k]: v }));

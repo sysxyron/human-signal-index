@@ -13,11 +13,10 @@ import { layerWeight } from '@/lib/narrative-map/aggregate';
 import { pointFeature, type PointFeature } from '@/lib/global-map/geometry';
 import type { GeoIntelPoint, MapLayer } from '@/lib/narrative-map/types';
 
-// `glyphs` is REQUIRED for any symbol layer that uses `text-field` (the cluster
-// count labels). Without it MapLibre throws "use of text-field requires a style
-// glyphs property". Free PBF font endpoint; no API key.
-const GLYPHS = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf';
-const OSM_STYLE = { version: 8, glyphs: GLYPHS, sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] } as const;
+// Circle-only style: NO `glyphs` and NO symbol/text layers. (The external glyph
+// PBF endpoint returned HTML, breaking MapLibre with "Unimplemented type: 4".)
+// Clusters are sized circles instead of numeric text labels.
+const OSM_STYLE = { version: 8, sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] } as const;
 
 const LAYER_COLOR: Record<MapLayer, string> = {
   SOURCES: '#94A3B8', NARRATIVES: '#8B5CF6', EVIDENCE: '#EC4899', FORECASTS: '#10B981', CONTRADICTIONS: '#F59E0B', TRUST: '#3B82F6', BLIND_SPOTS: '#EF4444',
@@ -41,6 +40,7 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
   const mapRef = useRef<any>(null);
   const readyRef = useRef(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [count, setCount] = useState(0);
   const color = LAYER_COLOR[layer];
 
   useEffect(() => {
@@ -53,11 +53,13 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
       map.on('load', () => {
         // Clusters are sized by point_count only — no custom clusterProperties
         // accumulator (an unused expression that can crash the GeoJSON worker).
-        map.addSource('intel', { type: 'geojson', data: toGeoJSON(points, layer), cluster: true, clusterRadius: 50, clusterMaxZoom: 12 });
-        map.addLayer({ id: 'clusters', type: 'circle', source: 'intel', filter: ['has', 'point_count'], paint: { 'circle-color': color, 'circle-opacity': 0.6, 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 20, 50, 28] } });
-        map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'intel', filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Noto Sans Regular'], 'text-size': 11 }, paint: { 'text-color': '#ffffff' } });
+        const fc = toGeoJSON(points, layer);
+        map.addSource('intel', { type: 'geojson', data: fc, cluster: true, clusterRadius: 50, clusterMaxZoom: 12 });
+        // Circle-only clusters (radius scales with point_count; no text labels).
+        map.addLayer({ id: 'clusters', type: 'circle', source: 'intel', filter: ['has', 'point_count'], paint: { 'circle-color': color, 'circle-opacity': 0.6, 'circle-stroke-width': 1.5, 'circle-stroke-color': color, 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 20, 50, 28] } });
         map.addLayer({ id: 'pts', type: 'circle', source: 'intel', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': color, 'circle-radius': ['interpolate', ['linear'], ['get', 'weight'], 0, 4, 1, 6, 10, 12, 50, 20], 'circle-stroke-width': 1, 'circle-stroke-color': '#0b1220' } });
-        readyRef.current = true; setStatus('ready');
+        readyRef.current = true; setStatus('ready'); setCount(fc.features.length);
+        if (process.env.NODE_ENV !== 'production') console.debug('[global-map] LayeredMapCanvas: map+style loaded, source+layers added, layer =', layer, 'features =', fc.features.length);
         map.on('click', 'clusters', (e: any) => { const f = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0]; if (!f) return; map.getSource('intel').getClusterExpansionZoom(f.properties.cluster_id, (_e: unknown, z: number) => { if (z != null) map.easeTo({ center: f.geometry.coordinates, zoom: z }); }); });
         map.on('click', 'pts', (e: any) => { const id = e.features?.[0]?.properties?.id; if (id) onSelect(id); });
         for (const lyr of ['pts', 'clusters']) { map.on('mouseenter', lyr, () => { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', lyr, () => { map.getCanvas().style.cursor = ''; }); }
@@ -73,9 +75,12 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
   // re-style + re-data on layer or filter change
   useEffect(() => {
     const map = mapRef.current; if (!map || !readyRef.current) return;
-    const src = map.getSource('intel'); if (src) src.setData(toGeoJSON(points, layer));
-    if (map.getLayer('clusters')) map.setPaintProperty('clusters', 'circle-color', color);
+    const fc = toGeoJSON(points, layer);
+    const src = map.getSource('intel'); if (src) src.setData(fc);
+    setCount(fc.features.length);
+    if (map.getLayer('clusters')) { map.setPaintProperty('clusters', 'circle-color', color); map.setPaintProperty('clusters', 'circle-stroke-color', color); }
     if (map.getLayer('pts')) map.setPaintProperty('pts', 'circle-color', color);
+    if (process.env.NODE_ENV !== 'production') console.debug('[global-map] layer change →', layer, 'features =', fc.features.length);
   }, [points, layer, color]);
 
   return (
@@ -84,6 +89,11 @@ export function LayeredMapCanvas({ points, layer, onSelect }: { points: GeoIntel
       {status !== 'ready' ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <span className="rounded-card border border-border bg-surface-2/80 px-3 py-1.5 text-caption text-text-muted">{status === 'error' ? 'Map temporarily unavailable — use the layer tables below (all server-rendered).' : 'Loading map…'}</span>
+        </div>
+      ) : null}
+      {status === 'ready' && count === 0 ? (
+        <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2">
+          <span className="rounded-card border border-border bg-surface-2/80 px-3 py-1.5 text-caption text-text-muted">No points available for this layer.</span>
         </div>
       ) : null}
     </div>
