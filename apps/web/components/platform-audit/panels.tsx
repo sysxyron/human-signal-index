@@ -83,6 +83,7 @@ export function ReportTables({ r }: { r: PlatformAuditReport }) {
         <IssueTable title="Infrastructure & data" icon={Server} rows={inAreas(r, ['supabase', 'storage', 'infrastructure', 'migrations'])} />
         <IssueTable title="Environment" icon={ShieldCheck} rows={inAreas(r, ['environment'])} />
       </div>
+      <IssueTable title="Operations runtime" icon={SlidersHorizontal} rows={inAreas(r, ['operations_runtime'])} />
       <IssueTable title="Runtime configuration" icon={SlidersHorizontal} rows={inAreas(r, ['runtime'])} />
       <IssueTable title="Read routing" icon={Network} rows={inAreas(r, ['read_routing'])} />
       <IssueTable title="Geospatial health" icon={MapIcon} rows={inAreas(r, ['global_map'])} />

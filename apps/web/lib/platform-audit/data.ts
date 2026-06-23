@@ -16,8 +16,9 @@ import { getPhase72Readiness } from '@/lib/global-map/data';
 import { auditGeometries } from '@/lib/global-map/geometry';
 import { getHsiRuntimeConfig } from '@/lib/hsi/edge-config';
 import { resolveReadBackend, availabilityFromHealth } from '@/lib/hsi/read-backends';
+import { validateRuntimeFlags } from '@/lib/operations-runtime/summary';
 import {
-  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting,
+  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime,
 } from './checks';
 import { summarizeAudit, sortIssues, recommendations, isProblem } from './summary';
 import type { PlatformAuditReport, AuditIssue } from './types';
@@ -92,6 +93,15 @@ export async function getPlatformAuditReport(): Promise<PlatformAuditReport> {
   issues.push(...checkReadRouting({
     public: { requestedBackend: pub.requestedBackend, effectiveBackend: pub.effectiveBackend, fallbackReason: pub.fallbackReason },
     dashboard: { requestedBackend: dash.requestedBackend, effectiveBackend: dash.effectiveBackend, fallbackReason: dash.fallbackReason },
+    availability: { primary: avail.primary.available && avail.primary.reads, replica: avail.replica.available && avail.replica.reads, d1: avail.d1.available && avail.d1.reads, cache: avail.cache.available && avail.cache.reads },
+  }, nowIso));
+
+  // ---- operations runtime (Phase 74.3 — consolidated) ----------------------
+  const flagsValid = validateRuntimeFlags(rc).valid;
+  issues.push(...checkOperationsRuntime({
+    source: rc.source, flagsValid,
+    routingResolved: Boolean(pub.effectiveBackend && dash.effectiveBackend),
+    routingFellBack: Boolean(pub.fallbackReason || dash.fallbackReason),
     availability: { primary: avail.primary.available && avail.primary.reads, replica: avail.replica.available && avail.replica.reads, d1: avail.d1.available && avail.d1.reads, cache: avail.cache.available && avail.cache.reads },
   }, nowIso));
 

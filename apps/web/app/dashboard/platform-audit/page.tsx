@@ -12,7 +12,9 @@ import { isAdmin } from '@/lib/security/view';
 import { ErrorState } from '@/components/signals/states';
 import { DashboardPage } from '../../../components/dashboard-shell';
 import { getPlatformAuditReport } from '@/lib/platform-audit/data';
+import { getRuntimeStatus } from '@/lib/operations-runtime/data';
 import { AuditSummaryPanel, RecommendedActions, ReportTables } from '@/components/platform-audit/panels';
+import { OperationsCenter } from '@/components/operations-runtime/panels';
 import { PdfExportButton } from '@/components/platform-audit/PdfExportButton';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +33,7 @@ export default async function PlatformAuditPage() {
     );
   }
 
-  const report = await getPlatformAuditReport();
+  const [report, runtimeStatus] = await Promise.all([getPlatformAuditReport(), getRuntimeStatus()]);
 
   return (
     <DashboardPage
@@ -42,6 +44,7 @@ export default async function PlatformAuditPage() {
       <div className="space-y-8">
         <AuditSummaryPanel r={report} />
         <RecommendedActions r={report} />
+        <OperationsCenter status={runtimeStatus} />
         <ReportTables r={report} />
       </div>
     </DashboardPage>

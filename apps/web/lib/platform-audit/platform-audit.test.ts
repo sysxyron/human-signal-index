@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, type RuntimeConfigInput, type ReadRoutingAuditInput } from './checks';
+import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime, type RuntimeConfigInput, type ReadRoutingAuditInput, type OperationsRuntimeInput } from './checks';
 import { sortIssues, readinessScore, summarizeAudit, recommendations } from './summary';
 import { AUDIT_STATUSES, type AuditIssue } from './types';
 
@@ -150,6 +150,36 @@ test('checkReadRouting: primary unavailable → FAIL', () => {
   const out = checkReadRouting(rr({ availability: { primary: false, replica: false, d1: false, cache: false } }), NOW);
   assert.equal(out.find((i) => i.id === 'read-backend-primary')?.status, 'FAIL');
   assert.equal(out.find((i) => i.id === 'read-public')?.status, 'FAIL');
+});
+
+// ---- operations runtime (Phase 74.3) ---------------------------------------
+
+function ops(over: Partial<OperationsRuntimeInput> = {}): OperationsRuntimeInput {
+  return { source: 'edge-config', flagsValid: true, routingResolved: true, routingFellBack: false, availability: { primary: true, replica: false, d1: false, cache: false }, ...over };
+}
+test('checkOperationsRuntime: nominal → primary PASS, others NOT_OBSERVED, no FAIL', () => {
+  const out = checkOperationsRuntime(ops(), NOW);
+  assert.equal(out.find((i) => i.id === 'ops-edge-config')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'ops-flags-valid')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'ops-read-routing')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'ops-backend-primary')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'ops-backend-replica')?.status, 'NOT_OBSERVED');
+  assert.equal(out.find((i) => i.id === 'ops-backend-d1')?.status, 'NOT_OBSERVED');
+  assert.equal(out.find((i) => i.id === 'ops-backend-cache')?.status, 'NOT_OBSERVED');
+  assert.ok(out.every((i) => i.status !== 'FAIL'));
+});
+test('checkOperationsRuntime: edge-config error → WARNING; defaults → NOT_OBSERVED', () => {
+  assert.equal(checkOperationsRuntime(ops({ source: 'error-fallback' }), NOW).find((i) => i.id === 'ops-edge-config')?.status, 'WARNING');
+  assert.equal(checkOperationsRuntime(ops({ source: 'defaults' }), NOW).find((i) => i.id === 'ops-edge-config')?.status, 'NOT_OBSERVED');
+});
+test('checkOperationsRuntime: invalid flags → FAIL; routing fallback → WARNING', () => {
+  assert.equal(checkOperationsRuntime(ops({ flagsValid: false }), NOW).find((i) => i.id === 'ops-flags-valid')?.status, 'FAIL');
+  assert.equal(checkOperationsRuntime(ops({ routingFellBack: true }), NOW).find((i) => i.id === 'ops-read-routing')?.status, 'WARNING');
+});
+test('checkOperationsRuntime: primary unavailable → FAIL on primary + routing', () => {
+  const out = checkOperationsRuntime(ops({ availability: { primary: false, replica: false, d1: false, cache: false } }), NOW);
+  assert.equal(out.find((i) => i.id === 'ops-backend-primary')?.status, 'FAIL');
+  assert.equal(out.find((i) => i.id === 'ops-read-routing')?.status, 'FAIL');
 });
 
 // ---- summary / sort / score ------------------------------------------------

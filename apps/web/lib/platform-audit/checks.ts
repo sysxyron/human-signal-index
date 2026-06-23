@@ -261,6 +261,51 @@ export function checkReadRouting(i: ReadRoutingAuditInput, nowIso: string): Audi
   return out;
 }
 
+// ---- operations runtime (Phase 74.3 — consolidated runtime view) -----------
+
+export interface OperationsRuntimeInput {
+  source: 'edge-config' | 'defaults' | 'error-fallback';
+  flagsValid: boolean;
+  routingResolved: boolean;          // resolver produced decisions for both scopes
+  routingFellBack: boolean;          // a non-primary backend selected but unavailable
+  availability: { primary: boolean; replica: boolean; d1: boolean; cache: boolean };
+}
+
+/** Seven consolidated Operations Center checks. Unimplemented backends are
+ *  NOT_OBSERVED (never FAIL); primary is the only PASS/FAIL backend. */
+export function checkOperationsRuntime(i: OperationsRuntimeInput, nowIso: string): AuditIssue[] {
+  const out: AuditIssue[] = [];
+  const add = (id: string, title: string, status: AuditStatus, severity: AuditSeverity, explanation: string, recommendedFix = 'None.') =>
+    out.push(issue({ id: `ops-${id}`, title, status, severity, area: 'operations_runtime', explanation, recommendedFix, source: 'operations runtime' }, nowIso));
+
+  add('edge-config', 'Edge Config reachable',
+    i.source === 'edge-config' ? 'PASS' : i.source === 'error-fallback' ? 'WARNING' : 'NOT_OBSERVED',
+    i.source === 'error-fallback' ? 'MEDIUM' : 'LOW',
+    i.source === 'edge-config' ? 'Runtime flags loaded from Edge Config.' : i.source === 'error-fallback' ? 'Edge Config read failed — using safe defaults.' : 'No Edge Config items — using safe defaults.',
+    i.source === 'edge-config' ? 'None.' : 'Connect an Edge Config store / check EDGE_CONFIG.');
+
+  add('flags-valid', 'Runtime flags valid', i.flagsValid ? 'PASS' : 'FAIL', i.flagsValid ? 'LOW' : 'HIGH',
+    i.flagsValid ? 'All runtime flags are within their allowed vocabularies.' : 'One or more runtime flags hold an invalid value.',
+    i.flagsValid ? 'None.' : 'Correct the offending Edge Config value.');
+
+  add('read-routing', 'Read routing resolver',
+    !i.availability.primary ? 'FAIL' : i.routingFellBack ? 'WARNING' : i.routingResolved ? 'PASS' : 'WARNING',
+    !i.availability.primary ? 'CRITICAL' : 'LOW',
+    !i.availability.primary ? 'Primary unavailable — reads cannot be served.' : i.routingFellBack ? 'A non-primary backend was selected but is unavailable; reads fall back to primary.' : 'Resolver produced read decisions for public and dashboard scopes.',
+    !i.availability.primary ? 'Investigate primary database health.' : 'None.');
+
+  add('backend-primary', 'Primary backend', i.availability.primary ? 'PASS' : 'FAIL', i.availability.primary ? 'LOW' : 'CRITICAL',
+    i.availability.primary ? 'Primary backend available for reads + writes.' : 'Primary backend reported unavailable.',
+    i.availability.primary ? 'None.' : 'Investigate primary database health.');
+
+  for (const b of ['replica', 'd1', 'cache'] as const) {
+    const ok = i.availability[b];
+    add(`backend-${b}`, `${b[0].toUpperCase()}${b.slice(1)} backend`, ok ? 'PASS' : 'NOT_OBSERVED', 'LOW',
+      ok ? `${b} backend is available.` : `${b} backend is not implemented (reads fall back to primary).`, ok ? 'None.' : 'No action — declared for future use.');
+  }
+  return out;
+}
+
 // ---- conversion readiness (beta/demo) --------------------------------------
 
 export interface ConversionInput { betaRoute: boolean; demoRoute: boolean; betaApi: boolean; demoApi: boolean; formsBackendWired: boolean }
