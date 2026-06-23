@@ -40,10 +40,20 @@ export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: 
 
   // init once
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    const el = containerRef.current;
+    if (!el || mapRef.current) return;
+    const dev = process.env.NODE_ENV !== 'production';
+    if (dev) console.debug('[global-map] MapCanvas mounted; container', el.clientWidth, 'x', el.clientHeight);
+    let ro: ResizeObserver | null = null; let rafId = 0; let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const map: any = new maplibregl.Map({ container: containerRef.current, style: OSM_STYLE as never, center: [0, 20], zoom: 1.4 });
+      const map: any = new maplibregl.Map({ container: el, style: OSM_STYLE as never, center: [0, 20], zoom: 1.4 });
       mapRef.current = map;
+      if (dev) console.debug('[global-map] Map instance created');
+      // Resize after paint / shortly after / on container resize to avoid a blank
+      // canvas when the container is 0×0 at construction time.
+      rafId = requestAnimationFrame(() => { try { map.resize(); } catch { /* noop */ } });
+      timer = setTimeout(() => { try { map.resize(); } catch { /* noop */ } }, 300);
+      if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(() => { try { map.resize(); } catch { /* noop */ } }); ro.observe(el); }
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
       map.on('error', () => { /* tile/network errors must not crash the page */ });
       map.on('load', () => {
@@ -53,7 +63,13 @@ export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: 
         map.addLayer({ id: 'clusters', type: 'circle', source: 'sources', filter: ['has', 'point_count'], paint: { 'circle-color': '#3B82F6', 'circle-opacity': 0.65, 'circle-stroke-width': 1.5, 'circle-stroke-color': '#3B82F6', 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 20, 50, 28] } });
         map.addLayer({ id: 'unclustered', type: 'circle', source: 'sources', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': '#10B981', 'circle-radius': 6, 'circle-stroke-width': 1, 'circle-stroke-color': '#0b1220' } });
         readyRef.current = true; setStatus('ready'); setCount(fc.features.length);
-        if (process.env.NODE_ENV !== 'production') console.debug('[global-map] MapCanvas: map+style loaded, source+layers added, features =', fc.features.length);
+        map.resize();
+        if (dev) {
+          const canvas = el.querySelector('canvas.maplibregl-canvas');
+          console.debug('[global-map] MapCanvas: style loaded; source added; features added =', fc.features.length,
+            '| container', el.clientWidth, 'x', el.clientHeight, '| .maplibregl-map?', !!el.querySelector('.maplibregl-map'),
+            '| canvas?', !!canvas, '| center', map.getCenter(), '| zoom', map.getZoom());
+        }
 
         map.on('click', 'clusters', (e: any) => {
           const f = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0]; if (!f) return;
@@ -66,10 +82,15 @@ export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: 
         map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = ''; });
       });
     } catch (err) {
-      if (process.env.NODE_ENV !== 'production') console.error('[global-map] MapLibre init failed', err);
+      if (dev) console.error('[global-map] MapLibre init failed', err);
       setStatus('error');
     }
-    return () => { if (mapRef.current) { try { mapRef.current.remove(); } catch { /* noop */ } mapRef.current = null; } };
+    return () => {
+      if (ro) ro.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+      if (timer) clearTimeout(timer);
+      if (mapRef.current) { try { mapRef.current.remove(); } catch { /* noop */ } mapRef.current = null; }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -82,8 +103,8 @@ export function MapCanvas({ points, onSelect }: { points: MapPoint[]; onSelect: 
   }, [points]);
 
   return (
-    <div className="relative h-[60vh] min-h-[420px] w-full overflow-hidden rounded-card border border-border bg-background-deep">
-      <div ref={containerRef} className="absolute inset-0" />
+    <div className="relative h-[600px] w-full overflow-hidden rounded-card border border-border bg-background-deep">
+      <div ref={containerRef} className="absolute inset-0 h-full w-full" />
       {status !== 'ready' ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <span className="rounded-card border border-border bg-surface-2/80 px-3 py-1.5 text-caption text-text-muted">
