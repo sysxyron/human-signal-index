@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime, type RuntimeConfigInput, type ReadRoutingAuditInput, type OperationsRuntimeInput } from './checks';
+import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime, checkDatabaseHealth, type RuntimeConfigInput, type ReadRoutingAuditInput, type OperationsRuntimeInput } from './checks';
 import { sortIssues, readinessScore, summarizeAudit, recommendations } from './summary';
 import { AUDIT_STATUSES, type AuditIssue } from './types';
 
@@ -150,6 +150,16 @@ test('checkReadRouting: primary unavailable → FAIL', () => {
   const out = checkReadRouting(rr({ availability: { primary: false, replica: false, d1: false, cache: false } }), NOW);
   assert.equal(out.find((i) => i.id === 'read-backend-primary')?.status, 'FAIL');
   assert.equal(out.find((i) => i.id === 'read-public')?.status, 'FAIL');
+});
+
+// ---- database health (Phase 74.4) ------------------------------------------
+
+test('checkDatabaseHealth: status maps healthy/degraded/down/unknown', () => {
+  assert.equal(checkDatabaseHealth({ status: 'healthy', latencyMs: 40, probe: 'table_read' }, NOW).status, 'PASS');
+  assert.equal(checkDatabaseHealth({ status: 'degraded', latencyMs: 3000, probe: 'table_read' }, NOW).status, 'WARNING');
+  const down = checkDatabaseHealth({ status: 'down', latencyMs: null, probe: 'table_read' }, NOW);
+  assert.equal(down.status, 'FAIL'); assert.equal(down.severity, 'CRITICAL');
+  assert.equal(checkDatabaseHealth({ status: 'unknown', latencyMs: null, probe: 'unavailable' }, NOW).status, 'NOT_OBSERVED');
 });
 
 // ---- operations runtime (Phase 74.3) ---------------------------------------

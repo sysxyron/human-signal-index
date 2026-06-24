@@ -7,6 +7,7 @@
 
 import { getHsiRuntimeConfig } from '@/lib/hsi/edge-config';
 import { resolveReadBackend, availabilityFromHealth, type ReadBackend } from '@/lib/hsi/read-backends';
+import { getDatabaseHealth, type DatabaseHealth } from '@/lib/hsi/health';
 import { buildRuntimeSummary } from './summary';
 
 export type AvailabilityStatus = 'PASS' | 'WARNING' | 'FAIL' | 'NOT_OBSERVED';
@@ -24,13 +25,15 @@ export interface RuntimeStatus {
     dashboard: { requestedBackend: string; effectiveBackend: string; fallbackReason: string | null };
   };
   availability: Record<ReadBackend, AvailabilityStatus>;
+  /** Phase 74.4 — live read-only probe of the primary database. */
+  databaseHealth: DatabaseHealth;
   summary: { lines: string[] };
 }
 
 export async function getRuntimeStatus(): Promise<RuntimeStatus> {
   const timestamp = new Date().toISOString();
   const cfg = await getHsiRuntimeConfig();
-  const [pub, dash] = await Promise.all([resolveReadBackend('public'), resolveReadBackend('dashboard')]);
+  const [pub, dash, databaseHealth] = await Promise.all([resolveReadBackend('public'), resolveReadBackend('dashboard'), getDatabaseHealth()]);
   const avail = availabilityFromHealth(cfg.primaryDbHealth);
 
   // primary → PASS/FAIL by readability; the others are declared-but-unimplemented
@@ -62,6 +65,7 @@ export async function getRuntimeStatus(): Promise<RuntimeStatus> {
       dashboard: { requestedBackend: dash.requestedBackend, effectiveBackend: dash.effectiveBackend, fallbackReason: dash.fallbackReason },
     },
     availability: { primary: statusOf('primary'), replica: statusOf('replica'), d1: statusOf('d1'), cache: statusOf('cache') },
+    databaseHealth,
     summary: { lines: summary },
   };
 }

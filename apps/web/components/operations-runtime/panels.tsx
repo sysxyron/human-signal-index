@@ -19,6 +19,7 @@ function Badge({ label, className }: { label: string; className: string }) {
 }
 
 const AVAIL_STYLE: Record<AvailabilityStatus, string> = { PASS: ON, WARNING: WARN, FAIL: RISK, NOT_OBSERVED: OFF };
+const HEALTH_STYLE: Record<string, string> = { healthy: ON, degraded: WARN, down: RISK, unknown: OFF };
 
 function boolBadge(v: boolean) { return <Badge label={v ? 'ON' : 'OFF'} className={v ? ON : OFF} />; }
 
@@ -91,7 +92,14 @@ export function OperationsCenter({ status }: { status: RuntimeStatus }) {
               </li>
             ))}
           </ul>
-          <p className="text-[11px] text-text-muted">Primary is the live write/read backend. Replica, D1, and cache are declared for future use and not yet implemented.</p>
+          <div className="border-t border-border pt-2">
+            <div className="flex items-center gap-2 text-caption">
+              <span className="min-w-0 flex-1 truncate text-text-secondary">Live primary DB probe</span>
+              <span className="shrink-0 text-text-muted">{status.databaseHealth.latencyMs != null ? `${status.databaseHealth.latencyMs}ms · ` : ''}{status.databaseHealth.probe}</span>
+              <Badge label={status.databaseHealth.status} className={HEALTH_STYLE[status.databaseHealth.status] ?? OFF} />
+            </div>
+          </div>
+          <p className="text-[11px] text-text-muted">Primary is the live write/read backend (probed read-only above). Replica, D1, and cache are declared for future use and not yet implemented.</p>
         </Card>
       </div>
 

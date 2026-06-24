@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const s = await getRuntimeStatus();
   return NextResponse.json(
-    { ok: true, timestamp: s.timestamp, runtime: s.runtime, routing: s.routing, availability: s.availability, summary: s.summary },
+    { ok: true, timestamp: s.timestamp, runtime: s.runtime, routing: s.routing, availability: s.availability, databaseHealth: s.databaseHealth, summary: s.summary },
     { headers: { 'cache-control': 'no-store' } },
   );
 }

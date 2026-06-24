@@ -17,8 +17,9 @@ import { auditGeometries } from '@/lib/global-map/geometry';
 import { getHsiRuntimeConfig } from '@/lib/hsi/edge-config';
 import { resolveReadBackend, availabilityFromHealth } from '@/lib/hsi/read-backends';
 import { validateRuntimeFlags } from '@/lib/operations-runtime/summary';
+import { getDatabaseHealth } from '@/lib/hsi/health';
 import {
-  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime,
+  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime, checkDatabaseHealth,
 } from './checks';
 import { summarizeAudit, sortIssues, recommendations, isProblem } from './summary';
 import type { PlatformAuditReport, AuditIssue } from './types';
@@ -95,6 +96,10 @@ export async function getPlatformAuditReport(): Promise<PlatformAuditReport> {
     dashboard: { requestedBackend: dash.requestedBackend, effectiveBackend: dash.effectiveBackend, fallbackReason: dash.fallbackReason },
     availability: { primary: avail.primary.available && avail.primary.reads, replica: avail.replica.available && avail.replica.reads, d1: avail.d1.available && avail.d1.reads, cache: avail.cache.available && avail.cache.reads },
   }, nowIso));
+
+  // ---- live primary DB probe (Phase 74.4) ----------------------------------
+  const dbHealth = await getDatabaseHealth().catch(() => null);
+  if (dbHealth) issues.push(checkDatabaseHealth({ status: dbHealth.status, latencyMs: dbHealth.latencyMs, probe: dbHealth.probe }, nowIso));
 
   // ---- operations runtime (Phase 74.3 — consolidated) ----------------------
   const flagsValid = validateRuntimeFlags(rc).valid;

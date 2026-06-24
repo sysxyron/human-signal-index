@@ -261,6 +261,24 @@ export function checkReadRouting(i: ReadRoutingAuditInput, nowIso: string): Audi
   return out;
 }
 
+// ---- database health (Phase 74.4 — live read-only probe) -------------------
+
+export interface DatabaseHealthInput { status: 'healthy' | 'degraded' | 'down' | 'unknown'; latencyMs: number | null; probe: string }
+
+/** Live primary-DB probe → audit status. healthy→PASS, degraded→WARNING,
+ *  down→FAIL, unknown→NOT_OBSERVED (e.g. no service-role key to probe with). */
+export function checkDatabaseHealth(h: DatabaseHealthInput, nowIso: string): AuditIssue {
+  const status: AuditStatus = h.status === 'healthy' ? 'PASS' : h.status === 'degraded' ? 'WARNING' : h.status === 'down' ? 'FAIL' : 'NOT_OBSERVED';
+  const severity: AuditSeverity = h.status === 'down' ? 'CRITICAL' : h.status === 'degraded' ? 'MEDIUM' : 'LOW';
+  const lat = h.latencyMs != null ? `${h.latencyMs}ms` : 'n/a';
+  return issue({
+    id: 'db-health-live', title: 'Primary database health (live probe)', status, severity, area: 'infrastructure',
+    explanation: h.status === 'unknown' ? `Could not probe (probe: ${h.probe}).` : `Read-only probe (${h.probe}) returned ${h.status} in ${lat}.`,
+    recommendedFix: status === 'PASS' || status === 'NOT_OBSERVED' ? 'None.' : 'Investigate primary database latency/availability.',
+    source: 'lib/hsi/health (read-only probe)',
+  }, nowIso);
+}
+
 // ---- operations runtime (Phase 74.3 — consolidated runtime view) -----------
 
 export interface OperationsRuntimeInput {
