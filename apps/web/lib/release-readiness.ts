@@ -17,43 +17,48 @@ import { getAlertsIntelligence } from './alerts-intelligence';
 import { getForecastData } from './forecasting-intelligence';
 import { getCollaborationData } from './collaboration-intelligence';
 import { getContributorNetwork } from './contributor-network';
+import {
+  deriveReleaseStatus,
+  degradedReadiness,
+  type CheckStatus,
+  type ChecklistItem,
+  type HealthRow,
+  type LaunchBrief,
+  type MetricRow,
+  type ReleaseReadinessData,
+  type RiskRow,
+} from './release-readiness-status';
 
-export type ReleaseStatus = 'READY' | 'MONITORING' | 'AT RISK' | 'NOT READY';
-export type CheckStatus = 'Pass' | 'Warning' | 'Fail';
+// Types live in the dependency-free `release-readiness-status` module so the pure
+// status logic stays unit-testable; re-exported here for existing importers.
+export type {
+  ReleaseStatus,
+  CheckStatus,
+  MetricRow,
+  HealthRow,
+  ChecklistItem,
+  RiskRow,
+  LaunchBrief,
+  ReleaseReadinessData,
+} from './release-readiness-status';
 
-export interface MetricRow { label: string; value: string }
-export interface HealthRow { label: string; status: CheckStatus; detail: string }
-export interface ChecklistItem { label: string; status: CheckStatus; detail: string }
-export interface RiskRow { label: string; severity: 'high' | 'medium'; detail: string }
-
-export interface LaunchBrief {
-  strengths: string[];
-  risks: string[];
-  warnings: string[];
-  coverageGaps: string[];
-  recommendation: string;
-}
-
-export interface ReleaseReadinessData {
-  role: string | null;
-  isAdmin: boolean;
-  status: ReleaseStatus;
-  score: number; // 0–100
-  statusReasons: string[];
-  platformReadiness: MetricRow[];
-  systemHealth: HealthRow[];
-  betaOps: MetricRow[];
-  intelligenceHealth: MetricRow[];
-  alertsRisks: RiskRow[];
-  networkReadiness: { rows: MetricRow[]; score: number; scoreReason: string };
-  trustGovernance: MetricRow[];
-  launchBrief: LaunchBrief;
-  checklist: ChecklistItem[];
-}
-
-const STATUS_POINTS: Record<CheckStatus, number> = { Pass: 2, Warning: 1, Fail: 0 };
-
+/**
+ * Composes EVERY intelligence layer into one launch-readiness model. Because it
+ * aggregates all nine cached layers through a single `Promise.all`, ANY one layer
+ * throwing (e.g. a missing table/column or a transient backend error in
+ * production) would otherwise crash the entire route. `getReleaseReadiness`
+ * therefore wraps the composition in a guard that degrades to a safe, empty
+ * `available:false` result so the page renders an internal empty state instead.
+ */
 export async function getReleaseReadiness(role: string | null): Promise<ReleaseReadinessData> {
+  try {
+    return await computeReleaseReadiness(role);
+  } catch {
+    return degradedReadiness(role);
+  }
+}
+
+async function computeReleaseReadiness(role: string | null): Promise<ReleaseReadinessData> {
   const isAdmin = role === 'admin';
 
   const [bundle, library, source, ops, trust, alerts, forecast, collab, network] = await Promise.all([
@@ -183,16 +188,9 @@ export async function getReleaseReadiness(role: string | null): Promise<ReleaseR
     { label: 'No critical alerts', status: alerts.health.criticalOpen === 0 ? 'Pass' : 'Fail', detail: `${alerts.health.criticalOpen} critical open` },
   ];
 
-  // ---- overall status + score ----
-  const fails = checklist.filter((c) => c.status === 'Fail').length;
-  const warns = checklist.filter((c) => c.status === 'Warning').length;
-  const totalPoints = checklist.reduce((s, c) => s + STATUS_POINTS[c.status], 0);
-  const score = Math.round((totalPoints / (checklist.length * 2)) * 100);
+  // ---- overall status + score (pure, unit-tested derivation) ----
   const hardFail = alerts.health.criticalOpen > 0 || platformHealthStatus === 'Fail';
-  const status: ReleaseStatus = fails === 0 && warns === 0 ? 'READY' : fails === 0 ? 'MONITORING' : hardFail || fails >= 2 ? 'NOT READY' : 'AT RISK';
-  const statusReasons: string[] = [];
-  for (const c of checklist) if (c.status !== 'Pass') statusReasons.push(`${c.label}: ${c.status} — ${c.detail}`);
-  if (statusReasons.length === 0) statusReasons.push('All readiness checks pass.');
+  const { status, score, statusReasons } = deriveReleaseStatus(checklist, hardFail);
 
   // ---- Part 9 — executive launch brief ----
   const strengths = checklist.filter((c) => c.status === 'Pass').map((c) => c.label);
@@ -206,7 +204,7 @@ export async function getReleaseReadiness(role: string | null): Promise<ReleaseR
   const launchBrief: LaunchBrief = { strengths, risks, warnings, coverageGaps: coverageGapsList, recommendation };
 
   return {
-    role, isAdmin, status, score, statusReasons,
+    role, isAdmin, available: true, status, score, statusReasons,
     platformReadiness, systemHealth, betaOps, intelligenceHealth, alertsRisks,
     networkReadiness, trustGovernance, launchBrief, checklist,
   };

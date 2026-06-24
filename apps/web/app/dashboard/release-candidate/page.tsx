@@ -41,6 +41,27 @@ export default async function ReleaseCandidatePage() {
 
   const r = await getReleaseReadiness(role);
 
+  if (!r.available) {
+    return (
+      <>
+        <TopNav title="Beta Release Candidate" subtitle="Beta launch readiness" />
+        <main className="space-y-6 p-5 lg:p-6">
+          <div className="rounded-card border border-border bg-surface-1 p-8 text-center">
+            <h2 className="text-h5 font-semibold text-text-primary">Release Candidate Center</h2>
+            <p className="mx-auto mt-2 max-w-md text-body-sm text-text-secondary">
+              No release-readiness data is available yet. Launch readiness is composed from live platform
+              intelligence — once data is flowing, this screen will summarise whether beta can launch.
+            </p>
+            <p className="mt-3 text-caption text-text-muted">
+              Platform checks remain accessible from{' '}
+              <a className="text-electric underline" href="/dashboard/platform-audit">Platform Audit</a>.
+            </p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
   return (
     <>
       <TopNav title="Beta Release Candidate" subtitle="One screen: are we ready to launch beta?" />
