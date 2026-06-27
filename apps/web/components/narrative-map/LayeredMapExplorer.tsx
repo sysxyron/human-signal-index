@@ -23,9 +23,12 @@ const n = (v: number) => v.toLocaleString('en-US');
 interface Filters { type: string; category: string; country: string; minNarratives: number; minEvidence: number; minForecasts: number }
 const EMPTY: Filters = { type: '', category: '', country: '', minNarratives: 0, minEvidence: 0, minForecasts: 0 };
 
-export function LayeredMapExplorer({ data }: { data: GeospatialIntelligence }) {
+export interface NarrativeFocus { id: string; name: string; geoReadySources: number; ungeolocatedSources: number }
+
+export function LayeredMapExplorer({ data, focus }: { data: GeospatialIntelligence; focus?: NarrativeFocus }) {
   // Default to Sources — it has plotted points today; Narratives may be empty.
-  const [layer, setLayer] = useState<MapLayer>('SOURCES');
+  // When focused on one narrative, default to the Narratives layer.
+  const [layer, setLayer] = useState<MapLayer>(focus ? 'NARRATIVES' : 'SOURCES');
   const [f, setF] = useState<Filters>(EMPTY);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) => setF((p) => ({ ...p, [k]: v }));
@@ -45,6 +48,18 @@ export function LayeredMapExplorer({ data }: { data: GeospatialIntelligence }) {
 
   return (
     <div className="space-y-4">
+      {focus ? (
+        <Card className="flex flex-wrap items-center gap-x-3 gap-y-1 border-electric/40 bg-electric/5">
+          <MapPin className="h-4 w-4 text-electric" />
+          <span className="text-body-sm font-semibold text-text-primary">Geography of: {focus.name}</span>
+          <span className="text-caption text-text-muted">
+            {n(focus.geoReadySources)} member source{focus.geoReadySources === 1 ? '' : 's'} plotted
+            {focus.ungeolocatedSources > 0 ? ` · ${n(focus.ungeolocatedSources)} ungeolocated (not plotted)` : ''}
+          </span>
+          <Link href={'/dashboard/global-map' as never} className="ml-auto inline-flex items-center gap-1 text-caption text-electric hover:underline"><X className="h-3 w-3" /> clear focus</Link>
+        </Card>
+      ) : null}
+
       {/* layer switcher (Step 8) */}
       <div className="flex flex-wrap gap-1.5">
         {MAP_LAYERS.map((l) => (

@@ -6,6 +6,7 @@
 // =============================================================================
 
 import type { GeoIntelPoint, RegionBucket, GeoGranularity, MapLayer, GeoMetrics } from './types';
+import type { GeospatialIntelligence } from './data';
 import { aggregateTrust } from './trust';
 import { detectBlindSpot, severityRank } from './blindspots';
 
@@ -65,4 +66,34 @@ export function rollupByGeo(points: GeoIntelPoint[], granularity: GeoGranularity
     });
   }
   return out.sort((a, b) => b.narrativeCount - a.narrativeCount || b.signalCount - a.signalCount || a.key.localeCompare(b.key));
+}
+
+/**
+ * Phase 75 — narrow a geospatial-intelligence bundle to a single narrative's
+ * member sources (by source id). Points + all geography rollups + totals are
+ * recomputed from the retained real points; filter dropdowns are preserved.
+ * PURE: no fabrication — an empty/absent id set yields an empty footprint.
+ */
+export function focusIntelligenceOnSources(intel: GeospatialIntelligence, allowed: ReadonlySet<string>): GeospatialIntelligence {
+  const points = intel.points.filter((p) => allowed.has(p.id));
+  const totals = {
+    sources: points.length,
+    signals: points.reduce((s, p) => s + p.signalCount, 0),
+    evidence: points.reduce((s, p) => s + p.evidenceCount, 0),
+    narratives: points.reduce((s, p) => s + p.narrativeCount, 0),
+    forecasts: points.reduce((s, p) => s + p.forecastCount, 0),
+    contradicts: points.reduce((s, p) => s + p.contradicts, 0),
+    supports: points.reduce((s, p) => s + p.supports, 0),
+    blindSpots: points.filter((p) => p.blindSpot.isBlindSpot).length,
+  };
+  return {
+    ...intel,
+    points,
+    pointTotal: points.length,
+    capped: false,
+    byCountry: rollupByGeo(points, 'country'),
+    byRegion: rollupByGeo(points, 'region'),
+    byCity: rollupByGeo(points, 'city'),
+    totals,
+  };
 }

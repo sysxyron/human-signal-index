@@ -15,9 +15,11 @@ import { DashboardPage } from '../../../components/dashboard-shell';
 import Link from 'next/link';
 import { getGlobalMapData, getPhase72Readiness } from '@/lib/global-map/data';
 import { getGeospatialIntelligence } from '@/lib/narrative-map/data';
+import { focusIntelligenceOnSources } from '@/lib/narrative-map/aggregate';
+import { getNarrativeGeography } from '@/lib/narrative-intelligence/service';
 import { MapReadinessOverview, MapReadinessReport, Phase72Panel } from '@/components/global-map/panels';
 import { GeocodeButton } from '@/components/global-map/Controls';
-import { LayeredMapExplorer } from '@/components/narrative-map/LayeredMapExplorer';
+import { LayeredMapExplorer, type NarrativeFocus } from '@/components/narrative-map/LayeredMapExplorer';
 import { IntelOverview, BlindSpotPanel, RegionDetailTable } from '@/components/narrative-map/panels';
 import { Card } from '@hsi/ui';
 import { getRuntimeFlag } from '@/lib/hsi/edge-config';
@@ -25,7 +27,7 @@ import { getRuntimeFlag } from '@/lib/hsi/edge-config';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function GlobalMapPage() {
+export default async function GlobalMapPage({ searchParams }: { searchParams?: { narrative?: string } }) {
   const [role, user] = await Promise.all([getSessionRole(), getUser()]);
   if (!user || !hasRole(role ?? undefined, 'reviewer')) {
     return (
@@ -40,7 +42,24 @@ export default async function GlobalMapPage() {
 
   const admin = isAdmin(role);
   const mapEnabled = await getRuntimeFlag('globalMapEnabled');
-  const [data, phase72, intel] = await Promise.all([getGlobalMapData(), getPhase72Readiness(), getGeospatialIntelligence()]);
+  const narrativeId = searchParams?.narrative?.trim() || null;
+  const [data, phase72, intelFull, geoRes] = await Promise.all([
+    getGlobalMapData(),
+    getPhase72Readiness(),
+    getGeospatialIntelligence(),
+    narrativeId ? getNarrativeGeography(narrativeId) : Promise.resolve(null),
+  ]);
+
+  // Phase 75 — when ?narrative=<id> is present, isolate the map to that
+  // narrative's member sources (real coordinates only; ungeolocated are noted).
+  let intel = intelFull;
+  let focus: NarrativeFocus | undefined;
+  if (geoRes && geoRes.ok) {
+    const g = geoRes.data.geography;
+    const allowed = new Set(g.points.map((p) => p.sourceId));
+    intel = focusIntelligenceOnSources(intelFull, allowed);
+    focus = { id: geoRes.data.narrative.id, name: geoRes.data.narrative.name, geoReadySources: g.geoReadySources, ungeolocatedSources: g.ungeolocatedSources };
+  }
 
   return (
     <DashboardPage
@@ -62,7 +81,7 @@ export default async function GlobalMapPage() {
           </div>
           <IntelOverview d={intel} />
           {mapEnabled ? (
-            <LayeredMapExplorer data={intel} />
+            <LayeredMapExplorer data={intel} focus={focus} />
           ) : (
             <Card className="space-y-2">
               <h3 className="text-h6 font-semibold text-text-primary">Global Map is temporarily disabled by runtime configuration.</h3>

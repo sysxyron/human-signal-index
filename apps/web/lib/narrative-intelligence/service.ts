@@ -13,6 +13,7 @@ import type { DbResult } from './persistence';
 import * as engine from './engine';
 import { composeMembers } from './clustering';
 import { computeNarrativeHealth, buildTimeline } from './health';
+import { rollupNarrativeGeography, type NarrativeGeography } from './geography';
 import {
   type Narrative, type NarrativeMember, type NarrativeHealth, type NarrativeTimeline,
   type NarrativeSummary, type NarrativeRelationship, type NarrativeStatus, type MemberComposition,
@@ -116,6 +117,17 @@ export async function getNarrativeSummary(id: string): Promise<DbResult<Narrativ
   const composition = composeMembers(members);
   const failing = await countFailingSources(c.db, members);
   return { ok: true, data: { narrative, composition, health: computeNarrativeHealth(composition, failing), members } };
+}
+
+/** Phase 75 — the narrative's geographic footprint, inherited from its member
+ *  sources. Returns the narrative + the (possibly NOT-OBSERVED) footprint. */
+export async function getNarrativeGeography(id: string): Promise<DbResult<{ narrative: Narrative; geography: NarrativeGeography }>> {
+  const c = await reviewerCtx();
+  if (!c.ok) return c;
+  const narrative = await dal.getNarrativeDal(c.db, id);
+  if (!narrative) return { ok: false, error: 'Narrative not found.', code: 'DB_ERROR' };
+  const sources = await dal.getNarrativeSourceGeoDal(c.db, id);
+  return { ok: true, data: { narrative, geography: rollupNarrativeGeography(sources) } };
 }
 
 export async function getNarrativeTimeline(id: string): Promise<DbResult<NarrativeTimeline>> {

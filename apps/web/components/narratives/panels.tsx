@@ -3,13 +3,15 @@
 // + alert feed; detail health/timeline/members/relationships. All values computed.
 // =============================================================================
 
+import Link from 'next/link';
 import { Card, MetricCard } from '@hsi/ui';
 import {
   Layers, Sparkles, Crown, TrendingDown, Activity, ShieldAlert, GitFork,
-  Network, ShieldCheck, XOctagon, Clock, ArrowRight,
+  Network, ShieldCheck, XOctagon, Clock, ArrowRight, Globe, MapPin,
 } from 'lucide-react';
 import type { NarrativeDashboard, NarrativeListItem } from '@/lib/narrative-intelligence/data';
 import type { AlertFeedRow } from '@/lib/narrative-intelligence/persistence';
+import type { NarrativeGeography } from '@/lib/narrative-intelligence/geography';
 import type {
   Narrative, NarrativeStatus, MemberComposition, NarrativeHealth, NarrativeMember,
   NarrativeTimeline, NarrativeRelationship,
@@ -173,6 +175,61 @@ export function NarrativeHealthPanel({ composition, health }: { composition: Mem
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+export function NarrativeGeographyPanel({ narrativeId, geography }: { narrativeId: string; geography: NarrativeGeography }) {
+  const g = geography;
+  const pct = Math.round(g.coverageRatio * 100);
+  return (
+    <Card className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Globe className="h-4 w-4 text-electric" />
+        <h3 className="text-h6 font-semibold text-text-primary">Geographic footprint</h3>
+        {g.geoReadySources > 0 ? (
+          <Link href={`/dashboard/global-map?narrative=${narrativeId}` as never} className="ml-auto inline-flex items-center gap-1 text-caption text-electric hover:underline">
+            <MapPin className="h-3 w-3" /> View on map <ArrowRight className="h-3 w-3" />
+          </Link>
+        ) : null}
+      </div>
+      <p className="text-caption text-text-muted">Inherited from member sources (Signal → Source → coordinates). Real coordinates only — never geocoded or inferred.</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Stat label="Plotted src" value={g.geoReadySources} />
+        <Stat label="Ungeolocated" value={g.ungeolocatedSources} tone="text-warning" />
+        <Stat label="Countries" value={g.countries.length} />
+        <Stat label="Coverage %" value={pct} />
+      </div>
+      {g.geoReadySources === 0 ? (
+        <p className="rounded-card border border-border bg-background-deep/40 px-3 py-2 text-caption text-text-muted">{g.reason}</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <h4 className="text-body-sm font-semibold text-text-primary">By country {g.dominantCountry ? <span className="text-caption font-normal text-text-muted">· dominant: {g.dominantCountry}</span> : null}</h4>
+            <ul className="space-y-0.5">
+              {g.countries.slice(0, 8).map((c) => (
+                <li key={c.country} className="flex items-center gap-2 text-caption">
+                  <span className="min-w-0 flex-1 truncate text-text-secondary">{c.country}</span>
+                  <span className="tabular-nums text-text-muted">{n(c.sourceCount)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="space-y-1.5">
+            <h4 className="text-body-sm font-semibold text-text-primary">By region</h4>
+            {g.regions.length === 0 ? <p className="text-caption text-text-muted">No region-level detail.</p> : (
+              <ul className="space-y-0.5">
+                {g.regions.slice(0, 8).map((r) => (
+                  <li key={r.key} className="flex items-center gap-2 text-caption">
+                    <span className="min-w-0 flex-1 truncate text-text-secondary">{r.key}</span>
+                    <span className="tabular-nums text-text-muted">{n(r.sourceCount)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

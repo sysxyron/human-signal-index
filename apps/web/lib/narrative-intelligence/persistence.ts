@@ -131,6 +131,58 @@ export async function getMembersDal(db: SupabaseClient, narrativeId: string, lim
   } catch { return []; }
 }
 
+/**
+ * Phase 75 — a narrative's member SOURCES with whatever real geography they
+ * carry, for the geographic-footprint rollup. Path: narrative_sources (SOURCE
+ * members) → graph_nodes.entity_id (= hsin_sources.id) → source_candidates
+ * (real coordinates) + hsin_sources (name). Geo is inherited only; absent
+ * coordinates are returned as null (never fabricated). Never throws.
+ */
+export async function getNarrativeSourceGeoDal(db: SupabaseClient, narrativeId: string, limit = 2000): Promise<import('./geography').NarrativeGeoSource[]> {
+  try {
+    // SOURCE member node_ids for this narrative.
+    const { data: srcRows } = await db.from('narrative_sources').select('node_id').eq('narrative_id', narrativeId).limit(limit);
+    const nodeIds = ((srcRows ?? []) as Array<{ node_id: string }>).map((r) => r.node_id);
+    if (nodeIds.length === 0) return [];
+
+    // node_id → entity_id (the hsin_sources id), resolved via graph_nodes (chunked).
+    const entityByNode = new Map<string, string>();
+    for (let i = 0; i < nodeIds.length; i += 300) {
+      const { data: nodes } = await db.from('graph_nodes').select('id, entity_id').in('id', nodeIds.slice(i, i + 300));
+      for (const nrow of (nodes ?? []) as Array<{ id: string; entity_id: string | null }>) if (nrow.entity_id) entityByNode.set(nrow.id, nrow.entity_id);
+    }
+    const sourceIds = Array.from(new Set(entityByNode.values()));
+    if (sourceIds.length === 0) return [];
+
+    // names + coordinates (chunked).
+    const nameById = new Map<string, string>();
+    const geoById = new Map<string, { country: string | null; region: string | null; city: string | null; lat: number | null; lng: number | null }>();
+    for (let i = 0; i < sourceIds.length; i += 300) {
+      const chunk = sourceIds.slice(i, i + 300);
+      const [{ data: srcs }, { data: cands }] = await Promise.all([
+        db.from('hsin_sources').select('id, name').in('id', chunk),
+        db.from('source_candidates').select('source_id, country, region, city, latitude, longitude').in('source_id', chunk),
+      ]);
+      for (const s of (srcs ?? []) as Array<{ id: string; name: string | null }>) nameById.set(s.id, s.name ?? 'Source');
+      for (const c of (cands ?? []) as Array<{ source_id: string; country: string | null; region: string | null; city: string | null; latitude: number | null; longitude: number | null }>) {
+        geoById.set(c.source_id, { country: c.country, region: c.region, city: c.city, lat: c.latitude, lng: c.longitude });
+      }
+    }
+
+    // de-dupe by source id (a source may back multiple member nodes).
+    const out = new Map<string, import('./geography').NarrativeGeoSource>();
+    for (const sid of sourceIds) {
+      const g = geoById.get(sid);
+      out.set(sid, {
+        sourceId: sid, name: nameById.get(sid) ?? 'Source',
+        country: g?.country ?? null, region: g?.region ?? null, city: g?.city ?? null,
+        lat: g?.lat ?? null, lng: g?.lng ?? null,
+      });
+    }
+    return Array.from(out.values());
+  } catch { return []; }
+}
+
 /** All memberships (narrative_id, node_id) for narrative-to-narrative overlap. */
 export async function readAllMemberships(db: SupabaseClient, limit = 20000): Promise<Array<{ narrativeId: string; nodeId: string; memberType: string }>> {
   try {

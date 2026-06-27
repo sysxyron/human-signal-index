@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 
 import { detectBlindSpot, severityRank } from './blindspots';
 import { aggregateTrust } from './trust';
-import { contradictionRatio, layerWeight, rollupByGeo } from './aggregate';
+import { contradictionRatio, layerWeight, rollupByGeo, focusIntelligenceOnSources } from './aggregate';
 import { MAP_LAYERS, type GeoIntelPoint } from './types';
+import type { GeospatialIntelligence } from './data';
 
 function pt(over: Partial<GeoIntelPoint>): GeoIntelPoint {
   return {
@@ -99,4 +100,38 @@ test('rollupByGeo: region/city granularity keys', () => {
 });
 test('rollupByGeo: empty → empty (no fabrication)', () => {
   assert.deepEqual(rollupByGeo([], 'country'), []);
+});
+
+// ---- narrative map isolation (Phase 75) ------------------------------------
+
+function intel(points: GeoIntelPoint[]): GeospatialIntelligence {
+  return {
+    points, pointTotal: points.length, capped: false,
+    byCountry: rollupByGeo(points, 'country'), byRegion: rollupByGeo(points, 'region'), byCity: rollupByGeo(points, 'city'),
+    totals: { sources: points.length, signals: 0, evidence: 0, narratives: 0, forecasts: 0, contradicts: 0, supports: 0, blindSpots: 0 },
+    filters: { types: ['website'], categories: ['A'], countries: ['United States', 'France'] },
+  };
+}
+
+test('focusIntelligenceOnSources: keeps only the narrative member sources + recomputes rollups', () => {
+  const base = intel([
+    pt({ id: 'a', country: 'United States', narrativeCount: 2, signalCount: 3 }),
+    pt({ id: 'b', country: 'France', narrativeCount: 1, signalCount: 1 }),
+    pt({ id: 'c', country: 'United States', narrativeCount: 0, signalCount: 5 }),
+  ]);
+  const focused = focusIntelligenceOnSources(base, new Set(['a', 'b']));
+  assert.equal(focused.points.length, 2);
+  assert.equal(focused.pointTotal, 2);
+  assert.equal(focused.totals.narratives, 3);
+  assert.equal(focused.totals.signals, 4);
+  assert.deepEqual(focused.byCountry.map((b) => b.key).sort(), ['France', 'United States']);
+  // filter dropdowns are preserved (not narrowed)
+  assert.deepEqual(focused.filters.countries, ['United States', 'France']);
+});
+
+test('focusIntelligenceOnSources: empty id set → empty footprint (no fabrication)', () => {
+  const focused = focusIntelligenceOnSources(intel([pt({ id: 'a' })]), new Set<string>());
+  assert.equal(focused.points.length, 0);
+  assert.equal(focused.totals.sources, 0);
+  assert.deepEqual(focused.byCountry, []);
 });

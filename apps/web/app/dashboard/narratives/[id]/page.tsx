@@ -11,11 +11,11 @@ import { hasRole } from '@/lib/security/rbac-audit';
 import { isAdmin } from '@/lib/security/view';
 import { ErrorState } from '@/components/signals/states';
 import { DashboardPage } from '../../../../components/dashboard-shell';
-import { getNarrativeSummary, getNarrativeTimeline, getNarrativeRelationships } from '@/lib/narrative-intelligence/service';
+import { getNarrativeSummary, getNarrativeTimeline, getNarrativeRelationships, getNarrativeGeography } from '@/lib/narrative-intelligence/service';
 import { getRecentAlertsDal } from '@/lib/narrative-intelligence/persistence';
 import { createClient } from '@/lib/supabase/server';
 import {
-  StatusBadge, NarrativeHealthPanel, NarrativeTimelinePanel, NarrativeMembersPanel,
+  StatusBadge, NarrativeHealthPanel, NarrativeGeographyPanel, NarrativeTimelinePanel, NarrativeMembersPanel,
   NarrativeRelationshipsPanel, NarrativeAlertFeed,
 } from '@/components/narratives/panels';
 import { RecomputeNarrativeButton } from '@/components/narratives/NarrativeControls';
@@ -37,10 +37,11 @@ export default async function NarrativeDetailPage({ params }: { params: { id: st
   }
 
   const admin = isAdmin(role);
-  const [summaryRes, timelineRes, relRes, alerts] = await Promise.all([
+  const [summaryRes, timelineRes, relRes, geoRes, alerts] = await Promise.all([
     getNarrativeSummary(params.id),
     getNarrativeTimeline(params.id),
     getNarrativeRelationships(params.id),
+    getNarrativeGeography(params.id),
     getRecentAlertsDal(createClient(), params.id, 30),
   ]);
 
@@ -71,6 +72,7 @@ export default async function NarrativeDetailPage({ params }: { params: { id: st
           <span className="text-caption text-text-muted">Seeded narrative · {composition.total} connected members</span>
         </div>
         <NarrativeHealthPanel composition={composition} health={health} />
+        {geoRes.ok ? <NarrativeGeographyPanel narrativeId={narrative.id} geography={geoRes.data.geography} /> : null}
         <div className="grid gap-6 xl:grid-cols-2">
           <NarrativeTimelinePanel timeline={timeline} />
           <NarrativeRelationshipsPanel relationships={relationships} />
