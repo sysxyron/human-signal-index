@@ -41,7 +41,31 @@ export default async function BetaLaunchPage() {
     );
   }
 
-  const { beta, release, ops, stage } = await getBetaLaunchData(role);
+  const data = await getBetaLaunchData(role);
+
+  if (!data.available) {
+    return (
+      <>
+        <TopNav title="Beta Launch" subtitle="Expanded beta operations" />
+        <main className="space-y-6 p-5 lg:p-6">
+          <div className="rounded-card border border-border bg-surface-1 p-8 text-center">
+            <h2 className="text-h5 font-semibold text-text-primary">Beta Launch Center</h2>
+            <p className="mx-auto mt-2 max-w-md text-body-sm text-text-secondary">
+              No beta launch readiness data is available yet. This console is composed from live platform
+              intelligence — once data is flowing, cohorts, invites, onboarding, health, and risk will appear here.
+            </p>
+            <p className="mt-3 text-caption text-text-muted">
+              Platform checks remain available from{' '}
+              <a className="text-electric underline" href="/dashboard/platform-audit">Platform Audit</a>.
+            </p>
+            {data.statusReason ? <p className="mt-2 text-caption text-text-muted">Status: {data.statusReason}</p> : null}
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  const { beta, release, ops, stage } = data;
   const lowParticipation = {
     active: beta.overview.totalUsers > 0 && beta.engagement.participationRate < 40,
     detail: `Participation at ${beta.engagement.participationRate}% of users`,
