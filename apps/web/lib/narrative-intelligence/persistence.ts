@@ -156,7 +156,10 @@ export async function getNarrativeSourceGeoDal(db: SupabaseClient, narrativeId: 
 
     // names + coordinates (chunked).
     const nameById = new Map<string, string>();
-    const geoById = new Map<string, { country: string | null; region: string | null; city: string | null; lat: number | null; lng: number | null }>();
+    // NOTE: source_candidates.latitude/longitude are Postgres `numeric` columns,
+    // which deserialize as STRINGS through PostgREST. They are carried through as
+    // number | string | null and coerced (never fabricated) by the geography rollup.
+    const geoById = new Map<string, { country: string | null; region: string | null; city: string | null; lat: number | string | null; lng: number | string | null }>();
     for (let i = 0; i < sourceIds.length; i += 300) {
       const chunk = sourceIds.slice(i, i + 300);
       const [{ data: srcs }, { data: cands }] = await Promise.all([
@@ -164,7 +167,7 @@ export async function getNarrativeSourceGeoDal(db: SupabaseClient, narrativeId: 
         db.from('source_candidates').select('source_id, country, region, city, latitude, longitude').in('source_id', chunk),
       ]);
       for (const s of (srcs ?? []) as Array<{ id: string; name: string | null }>) nameById.set(s.id, s.name ?? 'Source');
-      for (const c of (cands ?? []) as Array<{ source_id: string; country: string | null; region: string | null; city: string | null; latitude: number | null; longitude: number | null }>) {
+      for (const c of (cands ?? []) as Array<{ source_id: string; country: string | null; region: string | null; city: string | null; latitude: number | string | null; longitude: number | string | null }>) {
         geoById.set(c.source_id, { country: c.country, region: c.region, city: c.city, lat: c.latitude, lng: c.longitude });
       }
     }

@@ -49,9 +49,55 @@ test('out-of-range / non-finite coordinates are rejected (not fabricated)', () =
     src({ sourceId: 'a', country: 'X', lat: 200, lng: 0 }),
     src({ sourceId: 'b', country: 'Y', lat: 0, lng: 999 }),
     src({ sourceId: 'c', country: 'Z', lat: Number.NaN, lng: 0 }),
+    src({ sourceId: 'd', country: 'W', lat: Number.POSITIVE_INFINITY, lng: 0 }),
+  ]);
+  assert.equal(g.geoReadySources, 0);
+  assert.equal(g.ungeolocatedSources, 4);
+});
+
+// ---- numeric-string coordinates (Postgres `numeric` → string via PostgREST) --
+// Regression: production source_candidates.latitude/longitude arrive as STRINGS,
+// which must coerce to real plotted coordinates — not be dropped as ungeolocated.
+
+test('numeric-string coordinates coerce and plot (not dropped as ungeolocated)', () => {
+  const g = rollupNarrativeGeography([
+    src({ sourceId: 'a', name: 'A', country: 'United States', region: 'New York', lat: '42.6' as never, lng: '-73.7' as never }),
+  ]);
+  assert.equal(g.geoReadySources, 1);
+  assert.equal(g.ungeolocatedSources, 0);
+  assert.deepEqual(g.centroid, { lat: 42.6, lng: -73.7 });
+  assert.deepEqual(g.points[0] && { lat: g.points[0].lat, lng: g.points[0].lng }, { lat: 42.6, lng: -73.7 });
+  // coerced to real numbers (never the raw string)
+  assert.equal(typeof g.points[0].lat, 'number');
+  assert.equal(typeof g.points[0].lng, 'number');
+});
+
+test('mixed number / numeric-string / invalid / null coordinates: only real ones plot', () => {
+  const g = rollupNarrativeGeography([
+    src({ sourceId: 'a', name: 'A', country: 'C', lat: 10, lng: 20 }),          // real number
+    src({ sourceId: 'b', name: 'B', country: 'C', lat: '30' as never, lng: '40' as never }), // numeric string
+    src({ sourceId: 'c', name: 'C', country: 'C', lat: 'NaN' as never, lng: '0' as never }), // non-numeric string
+    src({ sourceId: 'd', name: 'D', country: 'C', lat: '' as never, lng: '' as never }),     // empty string
+    src({ sourceId: 'e', name: 'E', country: 'C', lat: '200' as never, lng: '0' as never }), // out of range string
+    src({ sourceId: 'f', name: 'F', country: 'C' }),                            // null
+  ]);
+  assert.equal(g.totalSources, 6);
+  assert.equal(g.geoReadySources, 2);
+  assert.equal(g.ungeolocatedSources, 4);
+  assert.deepEqual(g.centroid, { lat: 20, lng: 30 }); // mean of (10,20) & (30,40)
+  assert.deepEqual(g.bounds, { minLat: 10, maxLat: 30, minLng: 20, maxLng: 40 });
+});
+
+test('object / boolean coordinate values are rejected (never fabricated)', () => {
+  const g = rollupNarrativeGeography([
+    src({ sourceId: 'a', country: 'C', lat: {} as never, lng: 0 }),
+    src({ sourceId: 'b', country: 'C', lat: true as never, lng: 0 }),
+    src({ sourceId: 'c', country: 'C', lat: [] as never, lng: 0 }),
   ]);
   assert.equal(g.geoReadySources, 0);
   assert.equal(g.ungeolocatedSources, 3);
+  assert.equal(g.centroid, null);
+  assert.equal(g.bounds, null);
 });
 
 // ---- inheritance + rollups -------------------------------------------------

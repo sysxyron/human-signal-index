@@ -13,15 +13,18 @@
 // =============================================================================
 
 /** One member source of a narrative, with whatever geography it carries. A
- *  null lat/lng means the source has no real coordinates (NOT plottable). */
+ *  null lat/lng means the source has no real coordinates (NOT plottable).
+ *  Coordinates may arrive as numeric STRINGS — Postgres `numeric` columns
+ *  deserialize as strings through PostgREST — so the rollup coerces before
+ *  validating; only finite, in-range values plot (never fabricated). */
 export interface NarrativeGeoSource {
   sourceId: string;
   name: string;
   country: string | null;
   region: string | null;
   city: string | null;
-  lat: number | null;
-  lng: number | null;
+  lat: number | string | null;
+  lng: number | string | null;
 }
 
 /** A plotted member source (real, finite, in-range coordinates only). */
@@ -52,12 +55,26 @@ export interface NarrativeGeography {
   reason: string;              // human-readable observed-vs-NOT-OBSERVED summary
 }
 
-/** Real, finite, in-range geographic coordinate (never fabricated). */
-function isPlottable(lat: number | null, lng: number | null): lat is number {
-  return (
-    typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90 &&
-    typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180
-  );
+/** Coerce a coordinate (number, or a numeric STRING as Postgres `numeric`
+ *  columns deserialize) to a finite number, else null. Never fabricates: empty
+ *  strings, NaN/Infinity, objects, booleans, and non-numeric text all yield null. */
+function toCoord(v: number | string | null): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** A real, finite, in-range geographic coordinate pair (never fabricated).
+ *  Returns the coerced numeric pair, or null when not plottable. */
+function plottableCoord(latRaw: number | string | null, lngRaw: number | string | null): { lat: number; lng: number } | null {
+  const lat = toCoord(latRaw);
+  const lng = toCoord(lngRaw);
+  if (lat === null || lng === null) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
 }
 
 const round = (n: number, dp = 4): number => {
@@ -74,11 +91,12 @@ export function rollupNarrativeGeography(sources: NarrativeGeoSource[]): Narrati
   const total = sources.length;
   const points: NarrativeGeoPoint[] = [];
   for (const s of sources) {
-    if (!isPlottable(s.lat, s.lng)) continue;
+    const coord = plottableCoord(s.lat, s.lng);
+    if (!coord) continue;
     points.push({
       sourceId: s.sourceId, name: s.name,
       country: s.country, region: s.region, city: s.city,
-      lat: s.lat, lng: s.lng as number,
+      lat: coord.lat, lng: coord.lng,
     });
   }
 
