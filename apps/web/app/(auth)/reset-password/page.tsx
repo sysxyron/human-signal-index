@@ -3,8 +3,9 @@
 // =============================================================================
 // Reset password — email -> resetPasswordForEmail(email, { redirectTo:
 // ${origin}/update-password }). On success shows a confirmation message. The
-// recovery link lands on /auth/callback which establishes a session, then the
-// user is sent to /update-password to set a new password.
+// PKCE recovery link verifies at the Auth server and redirects back to
+// /update-password?code=…, which exchanges the code for a session before the
+// user sets a new password.
 // =============================================================================
 
 import { useState } from 'react';
