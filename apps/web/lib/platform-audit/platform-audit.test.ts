@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime, checkDatabaseHealth, type RuntimeConfigInput, type ReadRoutingAuditInput, type OperationsRuntimeInput } from './checks';
+import { checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkOperationalServices, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime, checkDatabaseHealth, type RuntimeConfigInput, type ReadRoutingAuditInput, type OperationsRuntimeInput } from './checks';
 import { sortIssues, readinessScore, summarizeAudit, recommendations } from './summary';
 import { AUDIT_STATUSES, type AuditIssue } from './types';
 
@@ -78,6 +78,37 @@ test('checkConversion: routes/apis present; placeholder backend → NOT_CONFIGUR
   const out = checkConversion({ betaRoute: true, demoRoute: true, betaApi: true, demoApi: true, formsBackendWired: false }, NOW);
   assert.equal(out.find((i) => i.id === 'conversion-routes')?.status, 'PASS');
   assert.equal(out.find((i) => i.id === 'conversion-backend')?.status, 'NOT_CONFIGURED');
+});
+test('checkConversion: wired backend → PASS', () => {
+  const out = checkConversion({ betaRoute: true, demoRoute: true, betaApi: true, demoApi: true, formsBackendWired: true }, NOW);
+  assert.equal(out.find((i) => i.id === 'conversion-backend')?.status, 'PASS');
+});
+
+// ---- operational services (email + cron) -----------------------------------
+
+test('checkOperationalServices: fully configured → all PASS', () => {
+  const out = checkOperationalServices({ emailConfigured: true, betaNotifyConfigured: true, cronSecretPresent: true, scheduledJobs: 4 }, NOW);
+  assert.equal(out.find((i) => i.id === 'email-delivery')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'email-admin-routing')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'cron-scheduling')?.status, 'PASS');
+  assert.equal(out.find((i) => i.id === 'cron-auth')?.status, 'PASS');
+});
+test('checkOperationalServices: unconfigured email → NOT_CONFIGURED (never FAIL)', () => {
+  const out = checkOperationalServices({ emailConfigured: false, betaNotifyConfigured: false, cronSecretPresent: false, scheduledJobs: 0 }, NOW);
+  assert.equal(out.find((i) => i.id === 'email-delivery')?.status, 'NOT_CONFIGURED');
+  assert.equal(out.find((i) => i.id === 'email-admin-routing')?.status, 'NOT_CONFIGURED');
+  assert.equal(out.find((i) => i.id === 'cron-scheduling')?.status, 'WARNING');
+  assert.equal(out.find((i) => i.id === 'cron-auth')?.status, 'NOT_CONFIGURED');
+});
+test('checkOperationalServices: scheduled jobs without CRON_SECRET → WARNING', () => {
+  const out = checkOperationalServices({ emailConfigured: true, betaNotifyConfigured: true, cronSecretPresent: false, scheduledJobs: 4 }, NOW);
+  const cronAuth = out.find((i) => i.id === 'cron-auth');
+  assert.equal(cronAuth?.status, 'WARNING');
+  assert.equal(cronAuth?.severity, 'MEDIUM');
+});
+test('checkOperationalServices: never exposes env values', () => {
+  const out = checkOperationalServices({ emailConfigured: true, betaNotifyConfigured: true, cronSecretPresent: true, scheduledJobs: 4 }, NOW);
+  for (const i of out) assert.ok(!/=|rk_|secret=/i.test(i.explanation));
 });
 
 // ---- geospatial health (Phase 73.3) ----------------------------------------

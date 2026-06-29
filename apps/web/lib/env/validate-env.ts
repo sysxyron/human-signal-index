@@ -163,6 +163,12 @@ const STARTUP_OPTIONAL: EnvSpec[] = [
   { key: 'OPENAI_API_KEY', required: false, kind: 'key', secret: true },
   { key: 'YOUTUBE_API_KEY', required: false, kind: 'key', secret: true },
   { key: 'PODCAST_INDEX_API_KEY', required: false, kind: 'key', secret: true },
+  // Milestone 87/88 — transactional email + scheduled cron auth (optional; the
+  // beta/demo forms and cron degrade gracefully when these are absent).
+  { key: 'RESEND_API_KEY', required: false, kind: 'key', secret: true },
+  { key: 'RESEND_FROM', required: false, kind: 'string', secret: false },
+  { key: 'BETA_NOTIFY_EMAIL', required: false, kind: 'string', secret: false },
+  { key: 'CRON_SECRET', required: false, kind: 'key', secret: true },
 ];
 
 function evalEnvKey(

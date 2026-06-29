@@ -19,8 +19,9 @@ import { resolveReadBackend, availabilityFromHealth } from '@/lib/hsi/read-backe
 import { validateRuntimeFlags } from '@/lib/operations-runtime/summary';
 import { getDatabaseHealth } from '@/lib/hsi/health';
 import {
-  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime, checkDatabaseHealth,
+  checkRouteNav, checkEnv, checkSubsystems, checkMigrations, checkErrorEvents, checkConversion, checkMetadata, checkGeospatial, checkGeoIntegrity, checkRuntimeConfig, checkReadRouting, checkOperationsRuntime, checkDatabaseHealth, checkOperationalServices,
 } from './checks';
+import cronConfig from '../../vercel.json';
 import { summarizeAudit, sortIssues, recommendations, isProblem } from './summary';
 import type { PlatformAuditReport, AuditIssue } from './types';
 
@@ -111,8 +112,22 @@ export async function getPlatformAuditReport(): Promise<PlatformAuditReport> {
   }, nowIso));
 
   // ---- conversion readiness (beta/demo) ------------------------------------
-  // Routes/APIs exist (Phase 73.1); the form backend is an intentional placeholder.
-  issues.push(...checkConversion({ betaRoute: true, demoRoute: true, betaApi: true, demoApi: true, formsBackendWired: false }, nowIso));
+  // Routes/APIs exist and the intake backend is wired (Milestone 86/87): the forms
+  // persist to beta_applications/demo_requests (service-role) and email via Resend.
+  // "Wired" is true once a sink is actually configured — a service-role key (DB
+  // persistence) and/or Resend (email). With neither, the code path exists but has
+  // no sink, so it honestly reports NOT_CONFIGURED.
+  const formsBackendWired = envPresent('SUPABASE_SERVICE_ROLE_KEY') || (envPresent('RESEND_API_KEY') && envPresent('RESEND_FROM'));
+  issues.push(...checkConversion({ betaRoute: true, demoRoute: true, betaApi: true, demoApi: true, formsBackendWired }, nowIso));
+
+  // ---- operational services (email delivery + scheduled cron) --------------
+  const scheduledJobs = Array.isArray((cronConfig as { crons?: unknown[] }).crons) ? (cronConfig as { crons: unknown[] }).crons.length : 0;
+  issues.push(...checkOperationalServices({
+    emailConfigured: envPresent('RESEND_API_KEY') && envPresent('RESEND_FROM'),
+    betaNotifyConfigured: envPresent('BETA_NOTIFY_EMAIL'),
+    cronSecretPresent: envPresent('CRON_SECRET'),
+    scheduledJobs,
+  }, nowIso));
 
   const ordered = sortIssues(issues);
   const problems = ordered.filter((i) => isProblem(i.status));

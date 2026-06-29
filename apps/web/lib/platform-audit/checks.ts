@@ -324,6 +324,58 @@ export function checkOperationsRuntime(i: OperationsRuntimeInput, nowIso: string
   return out;
 }
 
+// ---- operational services (email delivery + scheduled cron) ----------------
+
+export interface OperationalServicesInput {
+  emailConfigured: boolean;   // RESEND_API_KEY + RESEND_FROM both present
+  betaNotifyConfigured: boolean; // BETA_NOTIFY_EMAIL present (admin notices route somewhere)
+  cronSecretPresent: boolean; // CRON_SECRET present (scheduled jobs are authorized)
+  scheduledJobs: number;      // count of jobs declared in vercel.json crons
+}
+
+/** Production-readiness indicators for the email + cron subsystems. Unconfigured
+ *  email is NOT_CONFIGURED (transactional mail is optional; forms still succeed).
+ *  Scheduled jobs with NO CRON_SECRET is a WARNING — the endpoints are reachable
+ *  but rely on the secret gate to reject unauthenticated invocations. */
+export function checkOperationalServices(i: OperationalServicesInput, nowIso: string): AuditIssue[] {
+  const out: AuditIssue[] = [];
+
+  out.push(issue({
+    id: 'email-delivery', title: 'Transactional email (Resend)', area: 'operations_runtime',
+    status: i.emailConfigured ? 'PASS' : 'NOT_CONFIGURED', severity: i.emailConfigured ? 'LOW' : 'MEDIUM',
+    explanation: i.emailConfigured ? 'RESEND_API_KEY and RESEND_FROM are set — acknowledgements + admin notices send.' : 'Resend is not configured — beta/demo emails are skipped (forms still succeed).',
+    recommendedFix: i.emailConfigured ? 'None.' : 'Set RESEND_API_KEY and a verified RESEND_FROM to enable transactional email.',
+    source: 'env presence (RESEND_API_KEY + RESEND_FROM)',
+  }, nowIso));
+
+  out.push(issue({
+    id: 'email-admin-routing', title: 'Beta/demo admin notifications', area: 'operations_runtime',
+    status: i.betaNotifyConfigured ? 'PASS' : 'NOT_CONFIGURED', severity: 'LOW',
+    explanation: i.betaNotifyConfigured ? 'BETA_NOTIFY_EMAIL is set — new applications/requests notify the team.' : 'BETA_NOTIFY_EMAIL is not set — applicant acknowledgements still send, but the team is not notified.',
+    recommendedFix: i.betaNotifyConfigured ? 'None.' : 'Set BETA_NOTIFY_EMAIL (and optionally DEMO_NOTIFY_EMAIL) to receive intake notices.',
+    source: 'env presence (BETA_NOTIFY_EMAIL)',
+  }, nowIso));
+
+  out.push(issue({
+    id: 'cron-scheduling', title: 'Scheduled jobs (Vercel cron)', area: 'operations_runtime',
+    status: i.scheduledJobs > 0 ? 'PASS' : 'WARNING', severity: i.scheduledJobs > 0 ? 'LOW' : 'MEDIUM',
+    explanation: i.scheduledJobs > 0 ? `${i.scheduledJobs} scheduled job(s) declared in vercel.json.` : 'No scheduled jobs declared in vercel.json.',
+    recommendedFix: i.scheduledJobs > 0 ? 'None.' : 'Declare the intended cron jobs in vercel.json crons.',
+    source: 'vercel.json crons',
+  }, nowIso));
+
+  out.push(issue({
+    id: 'cron-auth', title: 'Cron authorization secret', area: 'operations_runtime',
+    status: i.cronSecretPresent ? 'PASS' : (i.scheduledJobs > 0 ? 'WARNING' : 'NOT_CONFIGURED'),
+    severity: i.scheduledJobs > 0 && !i.cronSecretPresent ? 'MEDIUM' : 'LOW',
+    explanation: i.cronSecretPresent ? 'CRON_SECRET is set — scheduled endpoints reject unauthenticated calls.' : i.scheduledJobs > 0 ? 'Scheduled jobs are declared but CRON_SECRET is not set — endpoints rely on the default gate.' : 'CRON_SECRET is not set (no scheduled jobs require it yet).',
+    recommendedFix: i.cronSecretPresent ? 'None.' : 'Set CRON_SECRET so the cron endpoints can authenticate the scheduler.',
+    source: 'env presence (CRON_SECRET) + vercel.json crons',
+  }, nowIso));
+
+  return out;
+}
+
 // ---- conversion readiness (beta/demo) --------------------------------------
 
 export interface ConversionInput { betaRoute: boolean; demoRoute: boolean; betaApi: boolean; demoApi: boolean; formsBackendWired: boolean }

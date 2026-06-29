@@ -75,6 +75,12 @@ export default async function BetaLaunchPage() {
     <>
       <TopNav title="Beta Launch Operations" subtitle="Run the expanded beta — cohorts, invites, onboarding, feedback, health & risk" />
       <main className="space-y-6 p-5 lg:p-6">
+        {/* Inbound intake queue (beta applications + demo requests) */}
+        <div className="flex items-center justify-between rounded-card border border-border bg-surface-1 px-5 py-3">
+          <p className="text-body-sm text-text-secondary">Review inbound beta applications and demo requests captured from the public forms.</p>
+          <a className="text-body-sm font-medium text-electric underline" href="/dashboard/beta-launch/intake">Open intake queue →</a>
+        </div>
+
         {/* Section 9 — executive summary */}
         <ExecutiveSummary beta={beta} releaseScore={release.score} />
 

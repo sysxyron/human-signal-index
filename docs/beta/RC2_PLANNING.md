@@ -13,24 +13,31 @@ the appropriate bucket as they arrive.
 
 ## High Priority
 
-- **Beta/demo intake is a placeholder.** `/api/beta/apply` and `/api/demo/request`
-  validate and return success but do **not** persist or email (flagged
-  `NOT_CONFIGURED` by the platform auditor; `TODO(backend)` in both routes).
-  Decide a sink (Supabase table — *requires a migration* — or Resend/CRM webhook)
-  before relying on these forms for real lead/applicant capture. Until then, the
-  Tester Guide and Operator Runbook state plainly that they don't notify anyone.
 - **Production `SUPABASE_SERVICE_ROLE_KEY`.** Operational, not code: confirm it is
   set so `ensureCurrentAppUser` can repair a missing `public.users` row rather than
-  degrading to the "account setup" message.
+  degrading to the "account setup" message — and so beta/demo intake **persists**
+  (without it, intake degrades to validate-only). See
+  [`DEPLOYMENT_CHECKLIST.md`](./DEPLOYMENT_CHECKLIST.md).
+
+## Resolved (Milestones 86–90)
+
+- **Beta/demo intake is wired.** `/api/beta/apply` and `/api/demo/request` now
+  persist to `beta_applications` / `demo_requests` (migration `0059`, service-role,
+  dedup-by-email) and send acknowledgement + admin-notice email via Resend
+  (best-effort; forms still succeed when unconfigured). Admin queue at
+  `/dashboard/beta-launch/intake`. Requires `SUPABASE_SERVICE_ROLE_KEY` (persist)
+  and `RESEND_API_KEY`/`RESEND_FROM`/`BETA_NOTIFY_EMAIL` (email).
+- **Cron coverage expanded.** `source-monitoring`, `agents`, and `uptime` are now
+  scheduled in `vercel.json` alongside `source-capture` (all `CRON_SECRET`-gated).
 
 ## Medium Priority
 
 - **N+1 in `listOrganizationsAction`** (`apps/web/lib/org/organizations.ts`):
   per-org sequential `count` queries (members/publications/investigations). Fine at
   current scale; batch or aggregate before large org counts.
-- **Cron coverage:** only `/api/cron/source-capture` is scheduled in `vercel.json`.
-  If `source-monitoring`, `agents`, or `uptime` are meant to run on a schedule, add
-  them to `vercel.json` or an external scheduler.
+- **Cron plan tier:** the four scheduled jobs in `vercel.json` use sub-daily
+  schedules, which require a Vercel **Pro** plan. Confirm the plan, or move the
+  finer-grained jobs to an external scheduler on Hobby.
 
 ## Low Priority
 

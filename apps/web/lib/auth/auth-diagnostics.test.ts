@@ -35,6 +35,10 @@ test('diagnoseStartupEnv: all valid → single ok row', () => {
     OPENAI_API_KEY: 'sk-x',
     YOUTUBE_API_KEY: 'yt',
     PODCAST_INDEX_API_KEY: 'pi',
+    RESEND_API_KEY: 'rk',
+    RESEND_FROM: 'noreply@x.com',
+    BETA_NOTIFY_EMAIL: 'beta@x.com',
+    CRON_SECRET: 'cs',
   });
   assert.equal(out.length, 1);
   assert.equal(out[0].code, 'env.ok');
