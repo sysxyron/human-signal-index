@@ -73,17 +73,28 @@ const methodology: DocPage = {
 
 const api: DocPage = {
   slug: 'api', title: 'API',
-  description: 'Human Signal Index API reference. Public API access is under development.',
-  keywords: ['api', 'developers', 'authentication', 'rate limits', 'endpoints', 'webhooks', 'sdk'],
-  intro: 'Public API access is under development. This page outlines the planned structure. Nothing here describes available behavior yet.',
+  description: 'Human Signal Index public API reference: live read-only endpoints for published and aggregate intelligence, rate limits, response format, and the planned authenticated API.',
+  keywords: ['api', 'developers', 'public api', 'authentication', 'rate limits', 'endpoints', 'json', 'webhooks', 'sdk'],
+  intro: 'Human Signal Index exposes a small set of read-only, public-safe API endpoints today. They require no authentication, are rate-limited, and return only published or aggregate data — never internal notes, identities, or unpublished content. A fuller authenticated API — with API keys, webhooks, and official SDKs — is planned; those parts are marked Coming Soon below.',
   sections: [
-    { heading: 'Overview', body: ['A read-oriented API for published, public-safe intelligence is planned. Details will appear here as it becomes available.'] },
-    { heading: 'Authentication', comingSoon: true, body: ['Token-based authentication is planned.'] },
-    { heading: 'Rate Limits', comingSoon: true, body: ['Per-key rate limits are planned.'] },
-    { heading: 'Endpoints', comingSoon: true, body: ['Endpoint definitions will be published when the API is available.'] },
+    {
+      heading: 'Available now — public read endpoints',
+      body: ['These endpoints are live. They are read-only (GET), require no authentication, are rate-limited, and return only published or aggregate, public-safe data.'],
+      bullets: [
+        'GET /api/public/intelligence — Platform metrics, the latest published signals, and recent public activity. Returns { ok, metrics, latestSignals, activityFeed }.',
+        'GET /api/public/trust — Trust overview metrics, the review pipeline, the public correction log, and platform health. Returns { ok, metrics, pipeline, corrections, health }.',
+        'GET /api/public/transparency — Aggregate trust, forecast accuracy and calibration, narrative status counts, and source health. Returns { ok, trust, forecasts, narratives, sources }.',
+        'GET /api/public/marketplace — The published marketplace catalog; supports ?slug= for one product and ?q= to search. Returns { ok, featured, trending, newest, categories, totalProducts }.',
+      ],
+    },
+    { heading: 'Response format', body: ['Every endpoint returns JSON shaped as { "ok": true, ... }. Successful responses are cacheable (Cache-Control with stale-while-revalidate). On an internal error the endpoints degrade to a valid empty body instead of failing, so integrations stay resilient.'] },
+    { heading: 'Rate limits', body: ['Public endpoints currently allow 60 requests per minute per client. Remaining quota is reported in the x-ratelimit-limit and x-ratelimit-remaining response headers; exceeding the limit returns HTTP 429 with a retry-after header. Higher, per-API-key limits are planned.'] },
+    { heading: 'Authentication', body: ['The public read endpoints above require no authentication. Authenticated access for private data and higher rate limits is planned and will use issued API keys. Protected platform endpoints are not part of the public API.'] },
+    { heading: 'API keys', comingSoon: true, body: ['Self-service API key issuance and management are planned.'] },
+    { heading: 'Authenticated & write endpoints', comingSoon: true, body: ['Programmatic access to private workspaces and write operations is planned.'] },
     { heading: 'Webhooks', comingSoon: true, body: ['Outbound webhooks are planned.'] },
-    { heading: 'SDKs', comingSoon: true, body: ['Official SDKs are planned.'] },
-    { heading: 'Examples', comingSoon: true, body: ['Usage examples will be added alongside the endpoints.'] },
+    { heading: 'SDKs', comingSoon: true, body: ['Official client SDKs are planned. No SDK package is published yet.'] },
+    { heading: 'Examples', comingSoon: true, body: ['Worked examples will be added alongside the authenticated API.'] },
   ],
 };
 
@@ -139,7 +150,7 @@ const faq: DocPage = {
     { heading: 'How are forecasts evaluated?', body: ['Forecasts are recorded with a resolution date and scored against outcomes so accuracy and calibration can be measured.'] },
     { heading: 'How is transparency maintained?', body: ['Sources, evidence, corrections, and forecast outcomes are made visible so the work can be checked.'] },
     { heading: 'Can organizations request demos?', body: ['Yes. Use the demo request page to schedule a walkthrough.'] },
-    { heading: 'Can developers access APIs?', body: ['Public API access is under development. See the API page for the planned structure.'] },
+    { heading: 'Can developers access APIs?', body: ['Yes — a set of read-only, public-safe API endpoints is available today (platform intelligence, trust, transparency, and the marketplace). A fuller authenticated API with API keys and SDKs is planned. See the API page for endpoints and rate limits.'] },
     { heading: 'How does the beta work?', body: ['Apply through the beta page. Applications are reviewed in batches and testers are onboarded by email.'] },
   ],
 };

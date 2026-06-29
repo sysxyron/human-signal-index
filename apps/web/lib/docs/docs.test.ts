@@ -17,10 +17,39 @@ test('docs: getDocPage resolves known, returns undefined for unknown', () => {
   assert.equal(getDocPage('concepts')?.title, 'Core Concepts');
   assert.equal(getDocPage('nope'), undefined);
 });
-test('docs: API page marks unavailable sections coming soon (no invented endpoints)', () => {
+test('docs: API page marks genuinely-unbuilt sections coming soon (no invented availability)', () => {
   const apiPage = getDocPage('api');
+  // The planned pieces (API keys, webhooks, SDKs, authenticated endpoints) stay Coming Soon.
   assert.ok(apiPage?.sections.some((s) => s.comingSoon));
-  assert.match(apiPage?.intro ?? '', /under development/i);
+  for (const h of ['API keys', 'Webhooks', 'SDKs']) {
+    assert.ok(apiPage?.sections.find((s) => s.heading === h)?.comingSoon, `${h} must be Coming Soon`);
+  }
+  // The intro now reflects the live read-only endpoints (no longer "under development").
+  assert.match(apiPage?.intro ?? '', /read-only|public-safe/i);
+});
+
+test('docs: API page accurately catalogs the four live public endpoints', () => {
+  const apiPage = getDocPage('api');
+  const text = JSON.stringify(apiPage?.sections ?? []);
+  for (const path of [
+    'GET /api/public/intelligence',
+    'GET /api/public/trust',
+    'GET /api/public/transparency',
+    'GET /api/public/marketplace',
+  ]) {
+    assert.ok(text.includes(path), `API docs must list ${path}`);
+  }
+  // The documented rate limit matches the real handler (60 req/min).
+  assert.match(text, /60 requests per minute/i);
+});
+
+test('docs: public API page never advertises protected / internal endpoints', () => {
+  const apiPage = getDocPage('api');
+  const haystack = `${apiPage?.intro ?? ''} ${JSON.stringify(apiPage?.sections ?? [])}`;
+  // Public docs must not leak protected namespaces or internal surfaces.
+  for (const forbidden of ['/api/admin', '/api/cron', '/api/system', '/api/webhooks', '/api/debug', '/dashboard/', 'service_role', 'service-role']) {
+    assert.ok(!haystack.includes(forbidden), `API docs must not reference ${forbidden}`);
+  }
 });
 test('docs: every page has metadata fields for SEO', () => {
   for (const p of DOC_PAGES) {
