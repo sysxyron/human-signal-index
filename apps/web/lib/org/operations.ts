@@ -12,6 +12,8 @@
 
 import { createClient, getUser } from '@/lib/supabase/server';
 import { getServiceClient } from '@/lib/admin/guard';
+import { toUserMessage } from '@/lib/errors/domain-error';
+import { logError } from '@/lib/errors/format-error';
 import { requireOrganization, type OrgResult } from './organizations';
 import { canAcceptInvite, INVITE_TTL_MS } from './invitations';
 import type { MembershipRole } from './membership';
@@ -48,7 +50,7 @@ export async function createOrganizationAction(input: { name: string; descriptio
     const { data: existing } = await svc.from('organizations').select('id').eq('slug', slug).maybeSingle();
     if (existing) slug = `${slug}-${Math.floor(Date.now() % 100000)}`;
     const { data: org, error } = await svc.from('organizations').insert({ name: input.name.trim(), slug, description: input.description ?? null, status: 'active' }).select('id, slug').single();
-    if (error || !org) return { ok: false, code: 'DB_ERROR', error: error?.message };
+    if (error || !org) { if (error) logError('org/createOrganization', error); return { ok: false, code: 'DB_ERROR', error: error ? toUserMessage(error) : 'Could not create the organization.' }; }
     const orgId = String((org as { id: string }).id);
     await svc.from('organization_members').insert({ organization_id: orgId, user_id: user.id, membership_role: 'owner' });
     await svc.from('organization_audit_log').insert({ organization_id: orgId, actor: user.id, action: 'organization_created', metadata: { slug } });
@@ -67,7 +69,12 @@ export async function createInvitationAction(orgId: string, email: string, role:
     const token = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/-/g, '');
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
     const { error } = await db.from('organization_invitations').insert({ organization_id: orgId, email: email.trim().toLowerCase(), membership_role: role, token, invited_by: user.id, expires_at: expiresAt });
-    if (error) return { ok: false, code: error.message.includes('row-level security') ? 'FORBIDDEN' : 'DB_ERROR', error: error.message };
+    if (error) {
+      logError('org/createInvitation', error);
+      // RLS rejection → FORBIDDEN; all messages mapped (never the raw SQL/RLS text).
+      const isRls = (error.message ?? '').includes('row-level security');
+      return { ok: false, code: isRls ? 'FORBIDDEN' : 'DB_ERROR', error: isRls ? 'You do not have permission to invite members to this organization.' : toUserMessage(error) };
+    }
     await db.from('organization_audit_log').insert({ organization_id: orgId, actor: user.id, action: 'invitation_created', metadata: { email, role } });
     return { ok: true, data: { token } };
   } catch { return { ok: false, code: 'DB_ERROR' }; }

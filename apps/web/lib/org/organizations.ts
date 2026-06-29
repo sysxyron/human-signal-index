@@ -14,6 +14,8 @@ import { loadHighestRole } from '@/lib/auth/get-session-role';
 import { hasRole } from '@/lib/security/rbac-audit';
 import { canManageMembers, canRemoveMember, highestMembership, type MembershipRole } from './membership';
 import { defaultEntitlements, getLimit, type PlanSlug } from '@hsi/entitlements';
+import { toUserMessage } from '@/lib/errors/domain-error';
+import { logError } from '@/lib/errors/format-error';
 
 const ORG_COOKIE = 'hsi_org';
 const DEFAULT_ORG = { id: '00000000-0000-0000-0000-000000000001', slug: 'default', name: 'Human Signal Index' };
@@ -45,7 +47,7 @@ export async function getUserOrganizations(): Promise<OrgResult<Array<Organizati
     if (!user) return { ok: false, code: 'AUTH_REQUIRED' };
     const db = createClient();
     const { data, error } = await db.from('organization_members').select('membership_role, organizations(*)').eq('user_id', user.id);
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
+    if (error) { logError('org/getUserOrganizations', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
     const orgs = ((data ?? []) as Array<Record<string, unknown>>).map((r) => {
       const rel = r.organizations as Record<string, unknown> | Record<string, unknown>[] | null;
       const o = Array.isArray(rel) ? rel[0] : rel;
@@ -60,7 +62,7 @@ export async function getOrganization(id: string): Promise<OrgResult<Organizatio
   try {
     const db = createClient();
     const { data, error } = await db.from('organizations').select('*').eq('id', id).maybeSingle();
-    if (error || !data) return { ok: false, code: 'DB_ERROR', error: error?.message };
+    if (error || !data) { if (error) logError('org/getOrganization', error); return { ok: false, code: 'DB_ERROR', error: error ? toUserMessage(error) : 'Organization not found.' }; }
     return { ok: true, data: mapOrg(data as Record<string, unknown>) };
   } catch { return { ok: false, code: 'DB_ERROR' }; }
 }
@@ -70,7 +72,7 @@ export async function getOrganizationBySlug(slug: string): Promise<OrgResult<Org
   try {
     const db = createClient();
     const { data, error } = await db.from('organizations').select('*').eq('slug', slug).maybeSingle();
-    if (error || !data) return { ok: false, code: 'DB_ERROR', error: error?.message };
+    if (error || !data) { if (error) logError('org/getOrganizationBySlug', error); return { ok: false, code: 'DB_ERROR', error: error ? toUserMessage(error) : 'Organization not found.' }; }
     return { ok: true, data: mapOrg(data as Record<string, unknown>) };
   } catch { return { ok: false, code: 'DB_ERROR' }; }
 }
@@ -80,7 +82,7 @@ export async function getOrganizationMembers(orgId: string): Promise<OrgResult<O
   try {
     const db = createClient();
     const { data, error } = await db.from('organization_members').select('user_id, membership_role, joined_at, users(email)').eq('organization_id', orgId).order('joined_at');
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
+    if (error) { logError('org/getOrganizationMembers', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
     return { ok: true, data: ((data ?? []) as Array<Record<string, unknown>>).map((r) => {
       const rel = r.users as { email?: string } | { email?: string }[] | null;
       const email = Array.isArray(rel) ? rel[0]?.email ?? null : rel?.email ?? null;
@@ -164,7 +166,7 @@ export async function inviteMemberAction(orgId: string, email: string, membershi
     if (!u) return { ok: false, code: 'DB_ERROR', error: 'No account with that email. The user must sign up first.' };
     const uid = String((u as { id: string }).id);
     const { error } = await gate.db.from('organization_members').upsert({ organization_id: orgId, user_id: uid, membership_role: membershipRole }, { onConflict: 'organization_id,user_id' });
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
+    if (error) { logError('org/inviteMember', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
     await auditOrg(gate.db, orgId, gate.userId, 'member_invited', uid, { membershipRole });
     return { ok: true, data: { userId: uid } };
   } catch { return { ok: false, code: 'DB_ERROR' }; }
@@ -175,7 +177,7 @@ export async function changeMemberRoleAction(orgId: string, userId: string, memb
   if (!gate.ok) return gate;
   try {
     const { error } = await gate.db.from('organization_members').update({ membership_role: membershipRole }).eq('organization_id', orgId).eq('user_id', userId);
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
+    if (error) { logError('org/changeMemberRole', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
     await auditOrg(gate.db, orgId, gate.userId, 'member_role_changed', userId, { membershipRole });
     return { ok: true, data: { userId } };
   } catch { return { ok: false, code: 'DB_ERROR' }; }
@@ -192,7 +194,7 @@ export async function removeMemberAction(orgId: string, userId: string): Promise
     const ownerCount = rows.filter((r) => r.membership_role === 'owner').length;
     if (!canRemoveMember(target.membership_role, ownerCount)) return { ok: false, code: 'FORBIDDEN', error: 'Cannot remove the only owner.' };
     const { error } = await gate.db.from('organization_members').delete().eq('organization_id', orgId).eq('user_id', userId);
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
+    if (error) { logError('org/removeMember', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
     await auditOrg(gate.db, orgId, gate.userId, 'member_removed', userId);
     return { ok: true, data: { userId } };
   } catch { return { ok: false, code: 'DB_ERROR' }; }
@@ -225,7 +227,7 @@ export async function listOrganizationsAction(): Promise<OrgResult<OrgOversightR
     const db = createClient();
     if (!(await isPlatformAdmin(db, user.id))) return { ok: false, code: 'FORBIDDEN' };
     const { data, error } = await db.from('organizations').select('*').order('created_at');
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
+    if (error) { logError('org/listOrganizations', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
     const rows: OrgOversightRow[] = [];
     for (const o of (data ?? []) as Array<Record<string, unknown>>) {
       const org = mapOrg(o);
