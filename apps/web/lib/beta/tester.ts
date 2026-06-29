@@ -16,6 +16,9 @@ import { MISSION_TEMPLATES } from '@hsi/contributor-network';
 import { createClient, getUser } from '@/lib/supabase/server';
 import { loadHighestRole } from '@/lib/auth/get-session-role';
 import { requireAdmin, supabaseConfigured, adminFail, type DbResult } from '@/lib/admin/guard';
+import { ensureCurrentAppUser, ACCOUNT_NOT_READY_MESSAGE } from '@/lib/auth/ensure-app-user';
+import { toUserMessage } from '@/lib/errors/domain-error';
+import { logError } from '@/lib/errors/format-error';
 import { contributorConfigured, type ContribResult } from '@/lib/contributor/options';
 
 const AVAILABLE = MISSION_TEMPLATES.map((m) => ({ id: m.id, role: m.role, title: m.title }));
@@ -89,13 +92,16 @@ export async function joinCohortAction(cohortKey: string): Promise<ContribResult
   try {
     const user = await getUser();
     if (!user) return { ok: false, code: 'AUTH_REQUIRED' };
+    // Identity sync before any public.users-FK write (beta_testers.user_id).
+    const appUser = await ensureCurrentAppUser();
+    if (!appUser.ok || !appUser.id) return { ok: false, code: 'DB_ERROR', error: ACCOUNT_NOT_READY_MESSAGE };
     const db = createClient();
     const { data: cohort } = await db.from('beta_cohorts').select('id').eq('key', cohortKey).maybeSingle();
     const cohortId = (cohort as { id?: string } | null)?.id ?? null;
     const now = new Date().toISOString();
-    const { error } = await db.from('beta_testers').upsert({ user_id: user.id, cohort_id: cohortId, status: 'active', joined_at: now }, { onConflict: 'user_id' });
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
-    await db.from('tester_activity').insert({ user_id: user.id, action: 'joined_cohort', metadata: { cohort: cohortKey } });
+    const { error } = await db.from('beta_testers').upsert({ user_id: appUser.id, cohort_id: cohortId, status: 'active', joined_at: now }, { onConflict: 'user_id' });
+    if (error) { logError('beta/joinCohort', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
+    await db.from('tester_activity').insert({ user_id: appUser.id, action: 'joined_cohort', metadata: { cohort: cohortKey } });
     return { ok: true, data: { status: 'active' } };
   } catch { return { ok: false, code: 'DB_ERROR' }; }
 }
@@ -107,10 +113,13 @@ export async function reportIssueAction(input: { category: IssueCategory; severi
   try {
     const user = await getUser();
     if (!user) return { ok: false, code: 'AUTH_REQUIRED' };
+    // Identity sync before any public.users-FK write (beta_issues.reporter_id).
+    const appUser = await ensureCurrentAppUser();
+    if (!appUser.ok || !appUser.id) return { ok: false, code: 'DB_ERROR', error: ACCOUNT_NOT_READY_MESSAGE };
     const db = createClient();
-    const { data, error } = await db.from('beta_issues').insert({ reporter_id: user.id, category: input.category, severity: input.severity, title: input.title.trim(), description: input.description ?? null, route: input.route ?? null }).select('id').single();
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
-    await db.from('tester_activity').insert({ user_id: user.id, action: 'reported_issue', metadata: { category: input.category, severity: input.severity } });
+    const { data, error } = await db.from('beta_issues').insert({ reporter_id: appUser.id, category: input.category, severity: input.severity, title: input.title.trim(), description: input.description ?? null, route: input.route ?? null }).select('id').single();
+    if (error) { logError('beta/reportIssue', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
+    await db.from('tester_activity').insert({ user_id: appUser.id, action: 'reported_issue', metadata: { category: input.category, severity: input.severity } });
     await awardRecognitionAction(); // a reported issue may unlock "Found Bug"
     return { ok: true, data: { id: String((data as { id: string }).id) } };
   } catch { return { ok: false, code: 'DB_ERROR' }; }
@@ -122,11 +131,14 @@ export async function submitFeedbackAction(input: { category?: string; message?:
   try {
     const user = await getUser();
     if (!user) return { ok: false, code: 'AUTH_REQUIRED' };
+    // Identity sync before any public.users-FK write (tester_feedback.user_id).
+    const appUser = await ensureCurrentAppUser();
+    if (!appUser.ok || !appUser.id) return { ok: false, code: 'DB_ERROR', error: ACCOUNT_NOT_READY_MESSAGE };
     const db = createClient();
     const nps = typeof input.nps === 'number' && input.nps >= 0 && input.nps <= 10 ? input.nps : null;
-    const { error } = await db.from('tester_feedback').insert({ user_id: user.id, category: input.category ?? null, message: input.message ?? null, nps_score: nps });
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
-    await db.from('tester_activity').insert({ user_id: user.id, action: 'submitted_feedback', metadata: { nps } });
+    const { error } = await db.from('tester_feedback').insert({ user_id: appUser.id, category: input.category ?? null, message: input.message ?? null, nps_score: nps });
+    if (error) { logError('beta/submitFeedback', error); return { ok: false, code: 'DB_ERROR', error: toUserMessage(error) }; }
+    await db.from('tester_activity').insert({ user_id: appUser.id, action: 'submitted_feedback', metadata: { nps } });
     return { ok: true, data: { ok: true } };
   } catch { return { ok: false, code: 'DB_ERROR' }; }
 }

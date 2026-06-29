@@ -14,7 +14,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { loadHighestRole } from '@/lib/auth/get-session-role';
 import { getCurrentOrganizationId } from '@/lib/org/operations';
-import { ensureCurrentAppUser, isMissingIdentityError, ACCOUNT_NOT_READY_MESSAGE } from '@/lib/auth/ensure-app-user';
+import { ensureCurrentAppUser, ACCOUNT_NOT_READY_MESSAGE } from '@/lib/auth/ensure-app-user';
+import { toUserMessage } from '@/lib/errors/domain-error';
+import { logError } from '@/lib/errors/format-error';
 import { validateSubmission, type SubmissionInput, type NormalizedSubmission } from './submission-validate';
 import type { DbResult } from './persistence';
 
@@ -117,11 +119,9 @@ export async function submitPublicSignal(
       .select('id')
       .single();
     if (error || !row) {
-      // Never surface a raw FK error — map the identity FK to the friendly notice.
-      if (isMissingIdentityError(error)) {
-        return { ok: false, error: ACCOUNT_NOT_READY_MESSAGE, code: 'DB_ERROR' };
-      }
-      return { ok: false, error: error?.message ?? 'Could not save your submission.', code: 'DB_ERROR' };
+      if (error) logError('signals/submitPublicSignal', error); // full detail server-side only
+      // Centralised, non-leaking domain message (identity FK → account-not-ready).
+      return { ok: false, error: error ? toUserMessage(error, { duplicate: 'You have already submitted this signal.' }) : 'Could not save your submission.', code: 'DB_ERROR' };
     }
     const id = row.id as string;
 
@@ -175,7 +175,7 @@ export async function listSignalSubmissions(
     let query = client.from('signal_submissions').select('*');
     if (filters?.status) query = query.eq('status', filters.status);
     const { data, error } = await query.order('created_at', { ascending: false }).limit(500);
-    if (error) return { ok: false, error: error.message, code: 'DB_ERROR' };
+    if (error) { logError('signals/listSubmissions', error); return { ok: false, error: toUserMessage(error), code: 'DB_ERROR' }; }
     return { ok: true, data: (data ?? []) as SignalSubmissionRecord[] };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e), code: 'DB_ERROR' };
@@ -201,7 +201,7 @@ export async function setSubmissionStatus(
       .from('signal_submissions')
       .update({ status, reviewed_by: user.id, reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) return { ok: false, error: error.message, code: 'DB_ERROR' };
+    if (error) { logError('signals/setSubmissionStatus', error); return { ok: false, error: toUserMessage(error), code: 'DB_ERROR' }; }
     return { ok: true, data: { status } };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e), code: 'DB_ERROR' };

@@ -16,7 +16,9 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { requireAdmin, recordSecurityAudit, supabaseConfigured, notConfigured, adminFail, type DbResult } from '@/lib/admin/guard';
 import { assignRole } from '@/lib/admin/roles';
 import { addTeamMember } from '@/lib/admin/teams';
-import { ensureCurrentAppUser, isMissingIdentityError, ACCOUNT_NOT_READY_MESSAGE } from '@/lib/auth/ensure-app-user';
+import { ensureCurrentAppUser, ACCOUNT_NOT_READY_MESSAGE } from '@/lib/auth/ensure-app-user';
+import { toUserMessage } from '@/lib/errors/domain-error';
+import { logError } from '@/lib/errors/format-error';
 import { purposeOption, buildRoleApplicationInsert, type ContribResult } from './options';
 
 const ASSIGNABLE_ROLES = new Set(['contributor', 'researcher', 'reviewer', 'curator']);
@@ -53,9 +55,10 @@ export async function applyForRoleAction(input: {
       .insert(buildRoleApplicationInsert(appUser.id, opt, input))
       .select('id').single();
     if (error) {
-      // Never surface a raw FK error — map the identity FK to the friendly notice.
-      if (isMissingIdentityError(error)) return { ok: false, code: 'DB_ERROR', error: ACCOUNT_NOT_READY_MESSAGE };
-      return { ok: false, code: 'DB_ERROR', error: error.message };
+      logError('contributor/applyForRole', error); // full detail server-side only
+      // Centralised, non-leaking domain message (identity FK → account-not-ready,
+      // unique → duplicate). Raw SQL/constraint text is never returned.
+      return { ok: false, code: 'DB_ERROR', error: toUserMessage(error, { duplicate: 'You have already applied for this path.' }) };
     }
     return { ok: true, data: { id: String((data as { id: string }).id) } };
   } catch {
