@@ -14,6 +14,7 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { getServiceClient } from '@/lib/admin/guard';
 import { toUserMessage } from '@/lib/errors/domain-error';
 import { logError } from '@/lib/errors/format-error';
+import { validateOrgName } from '@/lib/validation/name';
 import { requireOrganization, type OrgResult } from './organizations';
 import { canAcceptInvite, INVITE_TTL_MS } from './invitations';
 import type { MembershipRole } from './membership';
@@ -39,17 +40,24 @@ function slugify(name: string): string {
 // ---- self-service creation (E) — service role (server-only) -----------------
 export async function createOrganizationAction(input: { name: string; description?: string }): Promise<OrgResult<{ id: string; slug: string }>> {
   if (!configured()) return { ok: false, code: 'NOT_CONFIGURED' };
-  if (!input.name || input.name.trim().length < 2) return { ok: false, code: 'DB_ERROR', error: 'Organization name is required.' };
+  // Centralized name validation — rejects HTML/script/XSS payloads with a friendly
+  // message instead of storing them (security hotfix). Never mutates silently.
+  const nameCheck = validateOrgName(input.name);
+  if (!nameCheck.ok) {
+    logError('org/createOrganization', `rejected organization name (reason=${nameCheck.reason})`);
+    return { ok: false, code: 'DB_ERROR', error: nameCheck.message };
+  }
+  const cleanName = nameCheck.value;
   try {
     const user = await getUser();
     if (!user) return { ok: false, code: 'AUTH_REQUIRED' };
     const svc = await getServiceClient();
     if (!svc) return { ok: false, code: 'NOT_CONFIGURED', error: 'Organization creation requires the server service-role key.' };
-    let slug = slugify(input.name);
+    let slug = slugify(cleanName);
     // ensure unique slug
     const { data: existing } = await svc.from('organizations').select('id').eq('slug', slug).maybeSingle();
     if (existing) slug = `${slug}-${Math.floor(Date.now() % 100000)}`;
-    const { data: org, error } = await svc.from('organizations').insert({ name: input.name.trim(), slug, description: input.description ?? null, status: 'active' }).select('id, slug').single();
+    const { data: org, error } = await svc.from('organizations').insert({ name: cleanName, slug, description: input.description ?? null, status: 'active' }).select('id, slug').single();
     if (error || !org) { if (error) logError('org/createOrganization', error); return { ok: false, code: 'DB_ERROR', error: error ? toUserMessage(error) : 'Could not create the organization.' }; }
     const orgId = String((org as { id: string }).id);
     await svc.from('organization_members').insert({ organization_id: orgId, user_id: user.id, membership_role: 'owner' });

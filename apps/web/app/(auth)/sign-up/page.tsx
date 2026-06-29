@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { Button, Input } from '@hsi/ui';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { getBrowserSupabase } from '@/lib/supabase/client';
+import { validateOptionalName } from '@/lib/validation/name';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -23,6 +24,17 @@ export default function SignUpPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Reject dangerous / malformed display names BEFORE they reach Supabase auth
+    // metadata (security hotfix). The name is optional: blank is allowed, but a
+    // provided name must pass the centralized validator. We never silently strip.
+    const nameCheck = validateOptionalName(name);
+    if (!nameCheck.ok) {
+      setError(nameCheck.message);
+      return;
+    }
+    const cleanName = nameCheck.value; // trimmed string or null
+
     setLoading(true);
     try {
       const supabase = getBrowserSupabase();
@@ -32,7 +44,7 @@ export default function SignUpPage() {
         password,
         options: {
           emailRedirectTo: `${origin}/auth/callback`,
-          data: name.trim() ? { name: name.trim() } : undefined,
+          data: cleanName ? { name: cleanName } : undefined,
         },
       });
       if (signUpError) {
