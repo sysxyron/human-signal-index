@@ -14,7 +14,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { loadHighestRole } from '@/lib/auth/get-session-role';
 import { getCurrentOrganizationId } from '@/lib/org/operations';
-import { validateSubmission, type SubmissionInput } from './submission-validate';
+import { ensureCurrentAppUser, isMissingIdentityError, ACCOUNT_NOT_READY_MESSAGE } from '@/lib/auth/ensure-app-user';
+import { validateSubmission, type SubmissionInput, type NormalizedSubmission } from './submission-validate';
 import type { DbResult } from './persistence';
 
 /** Storage bucket for submission attachments (provisioned separately). */
@@ -57,6 +58,29 @@ function sanitizeName(name: string): string {
 }
 
 /**
+ * Build the signal_submissions insert row. `submitterId` MUST be the confirmed
+ * public.users.id (== auth.uid()) from ensureCurrentAppUser — it is the FK target
+ * for signal_submissions_submitter_id_fkey.
+ */
+export function buildSubmissionInsert(
+  submitterId: string,
+  v: NormalizedSubmission,
+  organizationId: string | null,
+): Record<string, unknown> {
+  return {
+    source_url: v.source_url,
+    observation: v.observation,
+    platform: v.platform,
+    category: v.category,
+    notes: v.notes,
+    evidence_url: v.source_url,
+    status: 'pending',
+    submitter_id: submitterId,
+    organization_id: organizationId,
+  };
+}
+
+/**
  * Create a signal submission as the signed-in user. Requires authentication (RLS
  * enforces submitter_id = auth.uid()). NEVER throws. Attachment is best-effort.
  */
@@ -78,24 +102,25 @@ export async function submitPublicSignal(
       return { ok: false, error: validation.message, code: 'DB_ERROR' };
     }
     const v = validation.value;
+
+    // Identity sync: guarantee a public.users row (FK target) before insert.
+    const appUser = await ensureCurrentAppUser();
+    if (!appUser.ok || !appUser.id) {
+      return { ok: false, error: ACCOUNT_NOT_READY_MESSAGE, code: 'DB_ERROR' };
+    }
+
     const orgId = await getCurrentOrganizationId().catch(() => null);
 
     const { data: row, error } = await client
       .from('signal_submissions')
-      .insert({
-        source_url: v.source_url,
-        observation: v.observation,
-        platform: v.platform,
-        category: v.category,
-        notes: v.notes,
-        evidence_url: v.source_url,
-        status: 'pending',
-        submitter_id: user.id,
-        organization_id: orgId,
-      })
+      .insert(buildSubmissionInsert(appUser.id, v, orgId))
       .select('id')
       .single();
     if (error || !row) {
+      // Never surface a raw FK error — map the identity FK to the friendly notice.
+      if (isMissingIdentityError(error)) {
+        return { ok: false, error: ACCOUNT_NOT_READY_MESSAGE, code: 'DB_ERROR' };
+      }
       return { ok: false, error: error?.message ?? 'Could not save your submission.', code: 'DB_ERROR' };
     }
     const id = row.id as string;

@@ -16,7 +16,8 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { requireAdmin, recordSecurityAudit, supabaseConfigured, notConfigured, adminFail, type DbResult } from '@/lib/admin/guard';
 import { assignRole } from '@/lib/admin/roles';
 import { addTeamMember } from '@/lib/admin/teams';
-import { purposeOption, type ContribResult } from './options';
+import { ensureCurrentAppUser, isMissingIdentityError, ACCOUNT_NOT_READY_MESSAGE } from '@/lib/auth/ensure-app-user';
+import { purposeOption, buildRoleApplicationInsert, type ContribResult } from './options';
 
 const ASSIGNABLE_ROLES = new Set(['contributor', 'researcher', 'reviewer', 'curator']);
 
@@ -42,17 +43,20 @@ export async function applyForRoleAction(input: {
     if (!user) return { ok: false, code: 'AUTH_REQUIRED' };
     const opt = purposeOption(input.path);
     if (!opt) return { ok: false, code: 'DB_ERROR', error: 'Unknown purpose path.' };
+
+    // Identity sync: guarantee a public.users row (FK target) before insert.
+    const appUser = await ensureCurrentAppUser();
+    if (!appUser.ok || !appUser.id) return { ok: false, code: 'DB_ERROR', error: ACCOUNT_NOT_READY_MESSAGE };
+
     const db = createClient();
-    const { data, error } = await db.from('role_applications').insert({
-      user_id: user.id,
-      requested_path: opt.path,
-      requested_role: opt.requestedRole, // null for observer; never admin
-      experience_summary: input.experienceSummary ?? null,
-      reason: input.reason ?? null,
-      organization: input.organization ?? null,
-      status: 'pending',
-    }).select('id').single();
-    if (error) return { ok: false, code: 'DB_ERROR', error: error.message };
+    const { data, error } = await db.from('role_applications')
+      .insert(buildRoleApplicationInsert(appUser.id, opt, input))
+      .select('id').single();
+    if (error) {
+      // Never surface a raw FK error — map the identity FK to the friendly notice.
+      if (isMissingIdentityError(error)) return { ok: false, code: 'DB_ERROR', error: ACCOUNT_NOT_READY_MESSAGE };
+      return { ok: false, code: 'DB_ERROR', error: error.message };
+    }
     return { ok: true, data: { id: String((data as { id: string }).id) } };
   } catch {
     return { ok: false, code: 'DB_ERROR' };
