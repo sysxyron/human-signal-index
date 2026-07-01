@@ -93,16 +93,16 @@ export function SignalSubmitForm() {
   return (
     <Card className="space-y-5">
       <form className="space-y-5" onSubmit={onSubmit}>
-        <Input label="Source URL" type="url" placeholder="https://… (doi.org, zenodo.org, arXiv, or any public link)"
+        <Input id="sig-source-url" label="Source URL" type="url" placeholder="https://… (doi.org, zenodo.org, arXiv, or any public link)"
           hint="A direct link to the public post, article, report, or record." value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} />
-        <Textarea label="What did you observe?" rows={4} placeholder="Describe the narrative, claim, or campaign and why it stood out…"
+        <Textarea id="sig-observation" label="What did you observe?" rows={4} placeholder="Describe the narrative, claim, or campaign and why it stood out…"
           value={observation} onChange={(e) => setObservation(e.target.value)} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Select label="Platform" value={platform} onChange={(e) => setPlatform(e.target.value)}>
+          <Select id="sig-platform" label="Platform" value={platform} onChange={(e) => setPlatform(e.target.value)}>
             <option value="">Select a platform</option>
             {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
           </Select>
-          <Select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <Select id="sig-category" label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">Select a category</option>
             {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
@@ -129,7 +129,7 @@ export function SignalSubmitForm() {
           {fileError ? <p className="text-caption text-risk">{fileError}</p> : null}
         </div>
 
-        <Textarea label="Additional notes (optional)" rows={3} placeholder="Anything else our reviewers should know…" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <Textarea id="sig-notes" label="Additional notes (optional)" rows={3} placeholder="Anything else our reviewers should know…" value={notes} onChange={(e) => setNotes(e.target.value)} />
 
         {error ? (
           <p className="flex items-center gap-1.5 text-caption text-risk"><AlertTriangle className="h-4 w-4" /> {error}</p>

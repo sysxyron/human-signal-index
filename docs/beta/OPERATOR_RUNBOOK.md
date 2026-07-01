@@ -19,6 +19,11 @@ explicitly so operators don't assume capabilities that don't exist. See also
   org creation and admin invitations also require it.
 - `OPENAI_API_KEY`, `YOUTUBE_API_KEY`, `PODCAST_INDEX_API_KEY` — provider keys for
   ingestion/enrichment; absent → those providers are skipped.
+- `RESEND_API_KEY`, `RESEND_FROM`, `BETA_NOTIFY_EMAIL` — transactional email for the
+  beta/demo intake forms (applicant ack + admin notice). Absent → the forms still
+  persist and return success, but no email is sent (best-effort).
+- `CRON_SECRET` — **required for scheduled work to run.** Cron routes fail closed
+  (401) without it; Vercel Cron sends it as `Authorization: Bearer` only when set.
 
 A masked env view is available to admins at `/dashboard/security`. Never expose a
 server secret under a `NEXT_PUBLIC_` name (validator flags this).
@@ -42,13 +47,16 @@ server secret under a `NEXT_PUBLIC_` name (validator flags this).
 
 ## Cron / scheduled work (source: `apps/web/vercel.json`)
 
-- **Scheduled:** `POST /api/cron/source-capture` — every 30 minutes (`*/30 * * * *`).
-- **Available but NOT scheduled in `vercel.json`:** `/api/cron/source-monitoring`,
-  `/api/cron/agents`, `/api/cron/uptime`. They exist and are secret-gated
-  (`isCronAuthorized`); if you want them on a schedule, add them to `vercel.json`
-  or trigger them from an external scheduler. **Do not assume they run automatically.**
-- All cron routes require the cron secret (Bearer / header / query) and return a
-  graceful 503 when `SUPABASE_SERVICE_ROLE_KEY` is missing.
+- **Scheduled in `vercel.json` (all four):**
+  - `GET /api/cron/source-capture` — every 30 minutes (`*/30 * * * *`).
+  - `GET /api/cron/source-monitoring` — hourly at :15 (`15 * * * *`).
+  - `GET /api/cron/agents` — every 15 minutes (`*/15 * * * *`).
+  - `GET /api/cron/uptime` — every 10 minutes (`*/10 * * * *`).
+  Vercel's scheduler invokes them via **GET**. Sub-daily schedules require a
+  Vercel paid/Team plan.
+- All cron routes require the cron secret (Bearer / header / query via
+  `isCronAuthorized`, constant-time, fail-closed) and return a graceful 503 when
+  `SUPABASE_SERVICE_ROLE_KEY` is missing.
 
 ## Health & monitoring
 
@@ -68,10 +76,13 @@ server secret under a `NEXT_PUBLIC_` name (validator flags this).
 
 - **Transactional auth email** (verification, password recovery) is sent by
   **Supabase Auth**. Configure templates + SMTP in the Supabase dashboard.
-- **Resend / marketing / lead email is NOT wired** — `/api/beta/apply` and
-  `/api/demo/request` validate and return success but **do not persist or email**
-  (intentional placeholders; the platform auditor flags this as `NOT_CONFIGURED`).
-  Do not tell testers these forms notify anyone yet.
+- **Resend (beta/demo intake email) IS wired** — `/api/beta/apply` and
+  `/api/demo/request` validate → **persist** (`persistBetaApplication` /
+  `persistDemoRequest`) → **email best-effort** via `sendEmail`
+  (`lib/email/resend.ts`): an acknowledgement to the applicant and, when
+  `BETA_NOTIFY_EMAIL` is set, an admin notice. When `RESEND_API_KEY`/`RESEND_FROM`
+  are absent the forms still persist and return success, but no email is sent —
+  so verify the Resend env before relying on notifications.
 
 ## Rollback
 
