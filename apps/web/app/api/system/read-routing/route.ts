@@ -7,10 +7,15 @@
 import { NextResponse } from 'next/server';
 import { resolveReadBackend, availabilityFromHealth } from '@/lib/hsi/read-backends';
 import { getHsiRuntimeConfig } from '@/lib/hsi/edge-config';
+import { enforceRateLimit } from '@/lib/api-rate-limit';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Unauthenticated + resolves backend health → rate-limit to prevent probe amplification.
+  const limited = enforceRateLimit(request, 'system-read-routing', { limit: 30, windowMs: 60_000 });
+  if (limited) return limited;
   const [pub, dashboard, admin, cfg] = await Promise.all([
     resolveReadBackend('public'),
     resolveReadBackend('dashboard'),

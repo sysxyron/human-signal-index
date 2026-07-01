@@ -19,6 +19,7 @@ import { addTeamMember } from '@/lib/admin/teams';
 import { ensureCurrentAppUser, ACCOUNT_NOT_READY_MESSAGE } from '@/lib/auth/ensure-app-user';
 import { toUserMessage } from '@/lib/errors/domain-error';
 import { logError } from '@/lib/errors/format-error';
+import { validateOptionalOrgName } from '@/lib/validation/name';
 import { purposeOption, buildRoleApplicationInsert, type ContribResult } from './options';
 
 const ASSIGNABLE_ROLES = new Set(['contributor', 'researcher', 'reviewer', 'curator']);
@@ -46,13 +47,20 @@ export async function applyForRoleAction(input: {
     const opt = purposeOption(input.path);
     if (!opt) return { ok: false, code: 'DB_ERROR', error: 'Unknown purpose path.' };
 
+    // `organization` is a human/org NAME write path → route it through the shared
+    // validator (same XSS/HTML/scheme/encoded-payload defenses as org creation).
+    // `reason`/`experienceSummary` are free-text prose, not names, so they are not
+    // subject to the name allow-list (React escapes them on render).
+    const orgCheck = validateOptionalOrgName(input.organization);
+    if (!orgCheck.ok) return { ok: false, code: 'DB_ERROR', error: orgCheck.message };
+
     // Identity sync: guarantee a public.users row (FK target) before insert.
     const appUser = await ensureCurrentAppUser();
     if (!appUser.ok || !appUser.id) return { ok: false, code: 'DB_ERROR', error: ACCOUNT_NOT_READY_MESSAGE };
 
     const db = createClient();
     const { data, error } = await db.from('role_applications')
-      .insert(buildRoleApplicationInsert(appUser.id, opt, input))
+      .insert(buildRoleApplicationInsert(appUser.id, opt, { ...input, organization: orgCheck.value ?? undefined }))
       .select('id').single();
     if (error) {
       logError('contributor/applyForRole', error); // full detail server-side only

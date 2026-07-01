@@ -62,3 +62,26 @@ test('ethics: assertPublicCapturePolicy rejects auth/login URLs', () => {
   assert.equal(isPublicCaptureAllowed('https://example.org/public/article'), true);
   assert.equal(isPublicCaptureAllowed('https://example.org/login'), false);
 });
+
+test('SSRF: assertPublicCapturePolicy blocks private/loopback/link-local hosts', () => {
+  for (const u of [
+    'http://169.254.169.254/latest/meta-data/',   // cloud metadata
+    'http://127.0.0.1/',                            // loopback
+    'http://localhost:8080/feed',                   // localhost
+    'http://10.0.0.5/internal',                     // RFC1918
+    'http://192.168.1.1/',                          // RFC1918
+    'http://172.16.0.9/',                           // RFC1918
+    'http://[::1]/',                                // IPv6 loopback
+    'https://service.internal/feed',                // internal TLD
+  ]) {
+    assert.throws(() => assertPublicCapturePolicy(u), CapturePolicyError, `expected block: ${u}`);
+    assert.equal(isPublicCaptureAllowed(u), false, `expected disallow: ${u}`);
+  }
+});
+
+test('SSRF: public hosts still allowed', () => {
+  assert.equal(isPublicCaptureAllowed('https://example.org/feed.xml'), true);
+  assert.equal(isPublicCaptureAllowed('https://news.ycombinator.com/rss'), true);
+  // 8.8.8.8 is a public IP literal — allowed (only private ranges are blocked).
+  assert.equal(isPublicCaptureAllowed('http://8.8.8.8/feed'), true);
+});

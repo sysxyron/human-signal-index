@@ -28,6 +28,31 @@ const PRIVATE_URL_MARKERS = [
 const DISALLOWED_PROTOCOLS = ['file:', 'ftp:', 'data:'];
 
 /**
+ * SSRF guard: reject hostnames / IP literals in non-public address space —
+ * loopback, RFC1918, CGNAT, and link-local (incl. the cloud metadata endpoint
+ * 169.254.169.254). PURE + literal-only (no DNS). Mirrors the canonical guard in
+ * @hsi/source-connectors' policy.
+ */
+export function isBlockedCaptureHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+  if (h.length === 0) return true;
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true;
+  if (h === '::1' || h === '::' || h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80:')) return true;
+  const v4 = h.startsWith('::ffff:') ? h.slice(7) : h;
+  const m = v4.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const a = Number(m[1]); const b = Number(m[2]);
+    if (a === 0 || a === 127) return true;
+    if (a === 10) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+  }
+  return false;
+}
+
+/**
  * Assert that capturing `url` is within HSI's public-only policy.
  * Throws CapturePolicyError when the target looks private/auth-gated or when
  * credentials are embedded (which would imply a login bypass).
@@ -53,6 +78,9 @@ export function assertPublicCapturePolicy(url: string): void {
     throw new CapturePolicyError(
       'Capture URLs must not contain credentials (login bypass is prohibited).',
     );
+  }
+  if (isBlockedCaptureHost(parsed.hostname)) {
+    throw new CapturePolicyError('Refusing to capture a private, loopback, or link-local address (SSRF guard). PUBLIC INFORMATION ONLY.');
   }
   const lower = (parsed.pathname + parsed.search).toLowerCase();
   for (const marker of PRIVATE_URL_MARKERS) {

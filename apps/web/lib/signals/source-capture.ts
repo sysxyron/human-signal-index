@@ -437,9 +437,43 @@ export function createSupabaseCapturePersistence(client: SupabaseClient): Captur
 }
 
 /**
+ * SSRF guard mirroring @hsi/source-connectors' `isBlockedCaptureHost` (the web
+ * bundle must NOT import that package — see header). Blocks loopback / RFC1918 /
+ * CGNAT / link-local (incl. the cloud metadata endpoint 169.254.169.254). Pure,
+ * literal-only (no DNS). The collectors already policy-check the INITIAL url; this
+ * copy lets the fetch sink also re-check the FINAL url after redirects.
+ */
+function isBlockedCaptureHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+  if (h.length === 0) return true;
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true;
+  if (h === '::1' || h === '::' || h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80:')) return true;
+  const v4 = h.startsWith('::ffff:') ? h.slice(7) : h;
+  const m = v4.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const a = Number(m[1]); const b = Number(m[2]);
+    if (a === 0 || a === 127) return true;
+    if (a === 10) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+  }
+  return false;
+}
+
+function hostnameOf(url: string): string {
+  try { return new URL(url).hostname; } catch { return ''; }
+}
+
+/**
  * Default server-side fetch for capture: public-only, bounded by a timeout and a
  * max byte cap, with a clear HSI user-agent. Used by the cron route. Throws on
  * non-2xx / oversize so the orchestrator records a failing capture event.
+ *
+ * SSRF: rejects the initial host AND the final post-redirect host (redirect:'follow'
+ * could otherwise bounce a public URL to an internal address). On a blocked final
+ * host the body is never read/returned, so internal content cannot be exfiltrated.
  */
 export function createServerFetchText(options?: {
   timeoutMs?: number;
@@ -450,6 +484,9 @@ export function createServerFetchText(options?: {
   const maxBytes = options?.maxBytes ?? 5_000_000;
   const userAgent = options?.userAgent ?? 'HSI-PublicCapture/1.0 (+public-only)';
   return async (url: string) => {
+    if (isBlockedCaptureHost(hostnameOf(url))) {
+      throw new Error('refusing to fetch a private/loopback/link-local address (SSRF guard)');
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -458,6 +495,10 @@ export function createServerFetchText(options?: {
         redirect: 'follow',
         signal: controller.signal,
       });
+      // Re-validate the final URL: a 3xx could have redirected to an internal host.
+      if (res.url && isBlockedCaptureHost(hostnameOf(res.url))) {
+        throw new Error('capture redirected to a private/loopback/link-local address (SSRF guard)');
+      }
       if (!res.ok) throw new Error(`fetch failed ${res.status} for ${url}`);
       const text = await res.text();
       if (text.length > maxBytes) {

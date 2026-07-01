@@ -55,8 +55,15 @@ function SignInForm() {
         setLoading(false);
         return;
       }
+      // Only follow an INTERNAL path. Reject protocol-relative ("//evil.com") and
+      // backslash ("/\\evil.com", which browsers normalize to "//") destinations
+      // so `?redirectedFrom=` cannot be used as an open redirect — matching the
+      // safeNext() guard used in auth/confirm + auth/callback.
       const dest =
-        redirectedFrom && redirectedFrom.startsWith('/')
+        redirectedFrom &&
+        redirectedFrom.startsWith('/') &&
+        !redirectedFrom.startsWith('//') &&
+        !redirectedFrom.startsWith('/\\')
           ? redirectedFrom
           : '/dashboard/worldforge';
       router.push(dest as never);
